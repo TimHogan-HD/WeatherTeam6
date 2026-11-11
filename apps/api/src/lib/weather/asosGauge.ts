@@ -131,16 +131,17 @@ export function gaugeUrl(station: string, fromUtc: string, toUtc: string): strin
 
 /**
  * Fetch and sum one gauge's days. Throws on a failed request: the caller
- * decides that a failure writes nothing, never a dry day.
+ * decides that a failure writes nothing, never a dry day. `deadline` is
+ * `fetchWithRetry`'s, for a caller sharing one budget across reads.
  */
-export async function fetchGaugeDays(gauge: Gauge, dates: readonly string[]): Promise<GaugeDay[]> {
+export async function fetchGaugeDays(gauge: Gauge, dates: readonly string[], deadline?: number): Promise<GaugeDay[]> {
   const sorted = [...dates].sort()
   const first = sorted[0]
   const last = sorted[sorted.length - 1]
   if (first === undefined || last === undefined) return []
   // IEM's end day is exclusive; a day either side covers any local offset.
   const shift = (ymd: string, days: number) => new Date(Date.parse(`${ymd}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10)
-  const res = await fetchWithRetry(gaugeUrl(gauge.station, shift(first, -1), shift(last, 2)))
+  const res = await fetchWithRetry(gaugeUrl(gauge.station, shift(first, -1), shift(last, 2)), undefined, undefined, deadline)
   if (!res.ok) throw new Error(`IEM ASOS ${res.status} for ${gauge.station}`)
   return gaugeDays(await res.text(), gauge.tz, dates)
 }

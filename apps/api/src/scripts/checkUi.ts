@@ -429,7 +429,23 @@ async function run(): Promise<void> {
       const tabs = await page.getByRole('tab').allInnerTexts()
       check('the detail screen shows the six crag tabs', tabs.length === 6, `got ${tabs.join(', ')}`)
       for (const label of tabs) {
+        // The rain gauges are asked for only once Precip opens (#479); Taylors Falls has OEO and volunteers in reach.
+        const gaugeAnswer =
+          label.trim() === 'Precip'
+            ? page.waitForResponse((r) => r.url().includes('/api/v1/rain-gauges/'), { timeout: 60_000 }).catch(() => null)
+            : null
         await page.getByRole('tab', { name: label.trim() }).click()
+        if (gaugeAnswer !== null) {
+          const res = await gaugeAnswer
+          check('opening Precip asks for the rain gauges', res !== null && res.status() === 200, `got ${res?.status() ?? 'no request'}`)
+          const card = await page
+            .getByText('Rain gauges', { exact: true })
+            .first()
+            .waitFor({ timeout: 10_000 })
+            .then(() => true)
+            .catch(() => false)
+          check('the Precip tab shows the rain gauges card', card)
+        }
         await screen(`tab-${label.trim().toLowerCase()}`)
         if (label.trim() === 'Rock') {
           // Sun and shade only where the owner confirmed them (#415): not Taylors Falls.

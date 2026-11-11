@@ -100,20 +100,21 @@ caller. The notes below stand for whoever revives it.
 - **Fields:** `tmpf` (temp F), `dwpf` (dewpoint F), `sknt` (wind knots), `p01i` (1h precip inches), `mslp` (sea level pressure mb), `relh` (relative humidity %)
 - Convert wind knots → km/h: multiply by 1.852
 
-## IEM ASOS archive (trip gauge days)
+## IEM ASOS archive (gauge days: trips and the Precip tab)
 - **Endpoint:** `https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py?station={ID}&data=p01i&...&tz=Etc/UTC&format=onlycomma&missing=M&trace=T&report_type=3` (`gaugeUrl`, `lib/weather/asosGauge.ts`). Keyless.
 - **IDs here are bare** (`DLL`, not `KDLL`), unlike `current.py` above.
 - **Routine reports only** (`report_type=3`): one at :5x each hour, covering the hour ending at the next :00. Specials would double-count.
 - `M` is missing and leaves the hour unreported; `T` is a trace and adds nothing. A day with any hour unreported has no total.
 - **Stations:** `npm run gauges:pull` regenerates `asosStations.ts` from `geojson/network/{ST}_ASOS.geojson`, keeping stations that are `online`, have no `archive_end`, and have `HAS_PHOUR`. 2,489 on 2026-11-03.
 - **Stuck gauges:** RGK (Red Wing), TWM (Two Harbors) and BJC (Broomfield) read zero through real rain (`compare:rain-spread`); `STUCK_GAUGES` keeps them from standing for a crag. Red Wing has no other station within 25 km (SYN is 40).
+- **Read by:** the trip recorder (`trip_day_gauges`), and live by `GET /rain-gauges/:locationId` (`lib/weather/rainGauges.ts`, #479) for the Precip tab: one request per view for the last six complete days, asked only while the tab is open and kept an hour by the client.
 
 ## IEM CoCoRaHS archive (volunteer gauge reports, #463)
 - **Endpoint:** `https://mesonet.agron.iastate.edu/api/1/daily.json?station={ID}&network={ST}_COCORAHS&year={Y}&month={M}` (`reportUrl`, `lib/weather/cocorahsGauge.ts`). Keyless. The network is the id's state prefix: `WI-PC-38` is `WI_COCORAHS`.
 - **One report a day:** `date` is the day the gauge was read, `temp_hour` the local hour (7 for most; 2026-11-01 in Minnesota ranged 0-23), `precip` inches over the 24 hours before. A trace is `0.0001`, kept above zero (unlike an ASOS hour's `T`) since it is the day's one figure. A day not reported has `precip` null or no row.
 - **Network-wide:** `?network={ST}_COCORAHS&date={YYYY-MM-DD}` returns every station's report for one day (~400 kB for Minnesota); the pull script uses it.
 - **Stations:** `npm run volunteer-gauges:pull` regenerates `cocorahsStations.ts`: stations in `geojson/network/{ST}_COCORAHS.geojson` that reported on any of three sample days. IEM lists about five times as many as report (6,006 in Minnesota, ~1,050 reporting on 2026-11-01). 18,487 on 2026-11-03, 576 kB.
-- **Read by:** the trip recorder (`trip_day_volunteer_gauges`), `compare:trip-lead` from what it stored, and `compare:dryness`'s volunteer table, live, at the three crags whose airport gauge is stuck (`-- VOLUNTEER`).
+- **Read by:** the trip recorder (`trip_day_volunteer_gauges`), `GET /rain-gauges/:locationId` live (one request per candidate per month the six days touch, so at most six), `compare:trip-lead` from what it stored, and `compare:dryness`'s volunteer table, live, at the three crags whose airport gauge is stuck (`-- VOLUNTEER`).
 
 ## NOAA ACIS
 No longer called (deleted 2026-10-01 and 2026-11-03). A source line naming it is defect class 3.

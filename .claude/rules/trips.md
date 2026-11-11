@@ -95,6 +95,10 @@ Trip outlooks, recorded trends, editing, and the ended-trip summary.
   calendar day**: the screen prints its window (`7 am 29 Oct – 7 am 30 Oct`) and it never
   drives the drying clock. A skipped day is no line, never a dry one.
   `TripDayLookBack.volunteer_gauge` is optional; absent reads as null.
+- **The Precip tab reads the same gauges live** (`lib/weather/rainGauges.ts`, #479) through
+  the same `withGaugeDays` and `withVolunteerGauges` joins, never the trip tables, and
+  writes nothing. Its lines come from `apps/miniapp/src/lib/gaugeLines.ts`, as the look
+  back's do; change the wording there, once.
 - **An ended trip's "How was it?" is a `feedback` row like any other** (2026-11-03;
   `checkInState`, `checkInPath`), with no trip id: the analysis joins it to the trip's
   records on crag and local date (`localDateAt`). The form attaches no app reading for a

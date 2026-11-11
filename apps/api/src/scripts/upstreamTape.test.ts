@@ -121,6 +121,22 @@ describe('record, then replay on a later day', () => {
     expect(misses.size).toBe(0)
   })
 
+  it('asks IEM rain gauges live and never tapes them, but tapes the rest of IEM', async () => {
+    const live = [
+      'https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py?station=OEO&data=p01i&year1=2026&month1=11&day1=3&year2=2026&month2=11&day2=11&tz=Etc/UTC&format=onlycomma&missing=M&trace=T&report_type=3',
+      'https://mesonet.agron.iastate.edu/api/1/daily.json?station=MN-CG-37&network=MN_COCORAHS&year=2026&month=11',
+    ]
+    const radar = 'https://mesonet.agron.iastate.edu/data/gis/images/4326/USCOMP/n0q_0.json'
+    const tape: Tape = { recordedOn: '2026-11-11', entries: [] }
+    for (const url of [...live, radar]) await recordingFetch(upstream as typeof fetch, tape)(url)
+    expect(tape.entries).toHaveLength(1)
+
+    const misses = new Set<string>()
+    const play = replayingFetch(upstream as typeof fetch, { recordedOn: '2026-11-11', entries: [] }, '2026-11-15', misses)
+    for (const url of live) expect(((await (await play(url)).json()) as { asked: string }).asked).toBe(url)
+    expect(misses.size).toBe(0)
+  })
+
   it('answers a request the tape does not hold with a 404 and lists it', async () => {
     const misses = new Set<string>()
     const play = replayingFetch(upstream as typeof fetch, { recordedOn: '2026-10-21', entries: [] }, '2026-10-21', misses)

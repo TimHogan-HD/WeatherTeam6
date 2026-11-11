@@ -181,7 +181,7 @@ rain is blocked. There is no seven-day chart here.
 
 **Precip** (`PrecipTab.tsx`, mockup `precipTab`): the drying clock beside the last rain,
 today, this week and when the rock is dry again; every hour of the past week as a grid;
-the next 48 hours; each day's wettest hour.
+the rain gauges; the next 48 hours; each day's wettest hour.
 
 - The headline is the last rain of any size; the last **real** rain (`REWETTING_PRECIP_MM`,
   what the drying clock counts from) is named under it when a lighter shower fell since.
@@ -193,8 +193,14 @@ the next 48 hours; each day's wettest hour.
   a skipped day totals a dash.
 - The grid is one tab stop; a cell is a button, and tapping, dragging along a day, hovering
   or arrowing fills the readout with that hour's labelled values.
-- The figures are model estimates, and the footnote says so; no gauge, uncertainty or
-  storm track is drawn.
+- The figures are model estimates, and the footnote says so; no uncertainty or storm
+  track is drawn.
+- **Rain gauges** (#479, `GaugeCard`, `GET /rain-gauges/:locationId`): each of the last six
+  complete days, newest first, with the models' day total from the grid and the airport and
+  volunteer gauge lines an ended trip prints (`lib/gaugeLines.ts`, one wording for both). A
+  failed read is said once at the top and an empty day then reads "No gauge reading", never
+  "No gauge reported this day". No card where no gauge is in reach (every crag outside the
+  US). Asked only while the tab is open.
 
 **Rock** (`RockTab.tsx`; crags only): the crag's live readings — the drying clock and the
 Condensation card (`RockReadings.tsx`) — then *Sun on the wall* where confirmed

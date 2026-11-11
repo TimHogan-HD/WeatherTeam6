@@ -1,10 +1,12 @@
 import type {
   RockLevel,
   TripDayForecast,
+  TripDayGauge,
   TripDayLookBack,
   TripDayOutcome,
   TripDayTrend,
   TripDayTrendPoint,
+  TripDayVolunteerGauge,
 } from '@weatherteam6/types'
 import { reportForDay } from '../weather/cocorahsGauge.js'
 
@@ -111,11 +113,11 @@ export type GaugeDayRow = {
  * station on that date, else null. A crag with no gauge in reach has null on
  * every day, never another crag's gauge.
  */
-export function withGaugeDays(
-  days: readonly TripDayLookBack[],
+export function withGaugeDays<D extends { local_date: string }>(
+  days: readonly D[],
   gauge: { station: string; distance_km: number } | null,
   rows: readonly GaugeDayRow[],
-): TripDayLookBack[] {
+): (D & { gauge: TripDayGauge | null })[] {
   return days.map((day) => {
     const row = gauge === null ? undefined : rows.find((r) => r.station === gauge.station && r.local_date === day.local_date)
     return {
@@ -148,11 +150,11 @@ export type VolunteerReportRow = {
  * so a skipped day falls to the next station rather than reading dry, and two
  * days can name two stations.
  */
-export function withVolunteerGauges(
-  days: readonly TripDayLookBack[],
+export function withVolunteerGauges<D extends { local_date: string }>(
+  days: readonly D[],
   gauges: readonly { station: string; distance_km: number }[],
   rows: readonly VolunteerReportRow[],
-): TripDayLookBack[] {
+): (D & { volunteer_gauge: TripDayVolunteerGauge | null })[] {
   return days.map((day) => {
     for (const gauge of gauges) {
       const report = reportForDay(
