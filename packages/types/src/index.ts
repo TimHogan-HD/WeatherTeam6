@@ -226,8 +226,19 @@ export type WeatherAlert = {
   certainty: string
   headline: string | null
   description: string | null
+  /**
+   * NWS's recommended action (#482). Optional: an API older than the field
+   * omits it, and a client normalises with `?? null`.
+   */
+  instruction?: string | null
   effective: string | null
+  /** When the NWS message lapses, not always when the hazard ends. Never printed as "until". */
   expires: string | null
+  /**
+   * When the hazard ends, when NWS gives it (#482): the only time a screen may
+   * call "until". Optional for an older API, as `instruction`.
+   */
+  ends?: string | null
   created_at: string
 }
 

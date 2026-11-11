@@ -19,8 +19,10 @@ function mapAlert(row: AlertRow): WeatherAlert {
     certainty: row.certainty,
     headline: row.headline,
     description: row.description,
+    instruction: row.instruction,
     effective: row.effective?.toISOString() ?? null,
     expires: row.expires?.toISOString() ?? null,
+    ends: row.ends?.toISOString() ?? null,
     created_at: row.created_at.toISOString(),
   }
 }
