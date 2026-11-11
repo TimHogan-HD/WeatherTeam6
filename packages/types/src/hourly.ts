@@ -185,7 +185,8 @@ export type HourlySeries = {
   model: string | null
   /**
    * The last hour HRRR's own stored run reached, or null where there is no HRRR run
-   * (outside CONUS, or none stored).
+   * (outside CONUS, or none stored) or it was not confirmed within an hour of the
+   * `gfs_seamless` run, when it may be a different cycle from the one the blend used.
    *
    * **Why it exists (#473):** `gfs_seamless` is not plain GFS over the US. Measured
    * 2026-11-11 at Red Rock against `ncep_hrrr_conus` and `ncep_gfs013`, every variable

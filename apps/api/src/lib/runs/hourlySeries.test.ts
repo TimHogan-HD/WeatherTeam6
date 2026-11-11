@@ -528,6 +528,17 @@ describe('hrrrThrough', () => {
     expect(hrrrThrough([gfs, model('ncep_hrrr_conus', [det({ valid_at: at(0) })])])).toBeNull()
   })
 
+  it('is null when the HRRR run was not confirmed within an hour of the seamless one, or there is no seamless run', () => {
+    const hrrr = model('ncep_hrrr_conus', [det({ valid_at: at(0), temp_c: 10 }), det({ valid_at: at(5), temp_c: 11 })])
+    const gfs = model('gfs_seamless', [det({ valid_at: at(0), temp_c: 10 })])
+    const checkedAt = (m: ModelRun, ms: number) => ({ ...m, checked_at: new Date(m.checked_at.getTime() + ms) })
+    // An hour apart is the edge and still holds; a minute past it is another cycle.
+    expect(hrrrThrough([checkedAt(gfs, HOUR_MS), hrrr])?.toISOString()).toBe(at(5).toISOString())
+    expect(hrrrThrough([checkedAt(gfs, HOUR_MS + 60_000), hrrr])).toBeNull()
+    expect(hrrrThrough([gfs, checkedAt(hrrr, HOUR_MS + 60_000)])).toBeNull()
+    expect(hrrrThrough([hrrr])).toBeNull()
+  })
+
   it('reaches the response, and is null outside CONUS', () => {
     const base = { locationId: 'loc-1', point: LAS_VEGAS, ensemble: ensRuns([]), allModels: false, now: t0, scoring: null }
     const gfs = model('gfs_seamless', [det({ valid_at: at(1), temp_c: 10 })])
