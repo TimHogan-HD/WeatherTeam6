@@ -1,0 +1,38 @@
+name: Dependabot auto-merge
+
+# Arms GitHub's auto-merge (squash) on Dependabot's npm PRs, so a bump lands
+# once the required `ci` and `review` checks pass, with no session or person
+# chasing it. A red check, or a branch that conflicts, leaves the PR open.
+#
+# Two kinds of Dependabot PR are left to a person (dependabot.yml says why):
+# - github_actions: nearly every bump edits claude-review.yml, and a PR that
+#   edits that file passes `review` unreviewed.
+# - drizzle-*: a 0.x minor can change generated migrations.
+#
+# A merge made by GITHUB_TOKEN starts no workflow, so `ci` does not re-run on
+# `main` for these merges. The PR's own `ci` run is the check.
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+# On a Dependabot-triggered run the token is read-only unless raised here.
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  arm:
+    # The actor check matters as much as the author: if a person pushes to a
+    # Dependabot branch, the PR carries their change and is not armed.
+    if: >-
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.actor == 'dependabot[bot]' &&
+      startsWith(github.event.pull_request.head.ref, 'dependabot/npm_and_yarn/') &&
+      !startsWith(github.event.pull_request.head.ref, 'dependabot/npm_and_yarn/drizzle')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable auto-merge (squash)
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

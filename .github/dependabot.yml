@@ -1,5 +1,7 @@
 # Weekly version updates. Each PR goes through the required `ci` and `review`
-# checks like any other (claude-review.yml allows dependabot[bot]).
+# checks like any other (claude-review.yml allows dependabot[bot]), and npm
+# PRs other than drizzle's merge themselves once both pass
+# (dependabot-automerge.yml).
 #
 # Security updates are on in the repository settings and arrive separately,
 # grouped by GitHub, whenever an advisory lands.
@@ -35,6 +37,11 @@ updates:
     ignore:
       # Drizzle 1.0 is a migration project, not a bump.
       - dependency-name: "drizzle-*"
+        update-types: ["version-update:semver-major"]
+      # @types/node tracks the Node release, not the newest typings: types
+      # for a newer major describe APIs the runtime (Node 24, `engines` and
+      # ci.yml) does not have. Raise it by hand with the runtime.
+      - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
