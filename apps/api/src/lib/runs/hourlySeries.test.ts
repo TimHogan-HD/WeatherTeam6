@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildHourlySeries,
   hourHasModelData,
+  hrrrThrough,
   precipChancePct,
   selectModelByCoverage,
   windowDates,
@@ -500,5 +501,49 @@ describe('buildHourlySeries — a recorded wall never replaces the crag score', 
     const h = noon(build(null))
     expect(h?.rock?.qualified).toBe(true)
     expect(h?.friction?.qualified).toBe(true)
+  })
+})
+
+describe('hrrrThrough', () => {
+  const t0 = new Date('2026-11-11T08:00:00Z')
+  const at = (h: number) => new Date(t0.getTime() + h * HOUR_MS)
+
+  it('is HRRR\'s last hour with a value, not its last row', () => {
+    // Open-Meteo pads HRRR past its horizon; those hours carry nulls (or only the shared
+    // precipitation probability) and must not extend its reach. GFS reaching further
+    // must not either.
+    const hrrr = model('ncep_hrrr_conus', [
+      det({ valid_at: at(0), temp_c: 10 }),
+      det({ valid_at: at(47), dewpoint_c: 2 }),
+      det({ valid_at: at(48) }),
+      det({ valid_at: at(49), precip_prob_pct: 40 }),
+    ])
+    const gfs = model('gfs_seamless', [det({ valid_at: at(0), temp_c: 10 }), det({ valid_at: at(100), temp_c: 9 })])
+    expect(hrrrThrough([gfs, hrrr])?.toISOString()).toBe(at(47).toISOString())
+  })
+
+  it('is null with no HRRR run, or one that answered nothing', () => {
+    const gfs = model('gfs_seamless', [det({ valid_at: at(0), temp_c: 10 })])
+    expect(hrrrThrough([gfs])).toBeNull()
+    expect(hrrrThrough([gfs, model('ncep_hrrr_conus', [det({ valid_at: at(0) })])])).toBeNull()
+  })
+
+  it('is null when the HRRR run was not confirmed within an hour of the seamless one, or there is no seamless run', () => {
+    const hrrr = model('ncep_hrrr_conus', [det({ valid_at: at(0), temp_c: 10 }), det({ valid_at: at(5), temp_c: 11 })])
+    const gfs = model('gfs_seamless', [det({ valid_at: at(0), temp_c: 10 })])
+    const checkedAt = (m: ModelRun, ms: number) => ({ ...m, checked_at: new Date(m.checked_at.getTime() + ms) })
+    // An hour apart is the edge and still holds; a minute past it is another cycle.
+    expect(hrrrThrough([checkedAt(gfs, HOUR_MS), hrrr])?.toISOString()).toBe(at(5).toISOString())
+    expect(hrrrThrough([checkedAt(gfs, HOUR_MS + 60_000), hrrr])).toBeNull()
+    expect(hrrrThrough([gfs, checkedAt(hrrr, HOUR_MS + 60_000)])).toBeNull()
+    expect(hrrrThrough([hrrr])).toBeNull()
+  })
+
+  it('reaches the response, and is null outside CONUS', () => {
+    const base = { locationId: 'loc-1', point: LAS_VEGAS, ensemble: ensRuns([]), allModels: false, now: t0, scoring: null }
+    const gfs = model('gfs_seamless', [det({ valid_at: at(1), temp_c: 10 })])
+    const hrrr = model('ncep_hrrr_conus', [det({ valid_at: at(1), temp_c: 10 }), det({ valid_at: at(5), temp_c: 11 })])
+    expect(buildHourlySeries({ ...base, deterministic: runs([gfs, hrrr]) }).hrrr_through).toBe(at(5).toISOString())
+    expect(buildHourlySeries({ ...base, deterministic: runs([gfs]) }).hrrr_through).toBeNull()
   })
 })

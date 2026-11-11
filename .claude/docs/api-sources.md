@@ -46,6 +46,14 @@ Read this before any weather fetch work. Every source has gotchas that will wast
   ceiling is enforced in `lib/scoring/rockThermal.ts`.
 - **HRRR** only covers CONUS. Outside it, HRRR answers a 400 and **NBM answers a 200 whose body
   is not valid JSON** (`{"latitude":nan,…}`) — see the comment on `CONUS_DETERMINISTIC_MODELS`.
+- **Over the US, `gfs_seamless` is HRRR first** (#473, measured 2026-11-11 at Red Rock against
+  `ncep_hrrr_conus` and `ncep_gfs013`). Temperature, dew point, humidity, wind, gusts, direction,
+  cloud, pressure, shortwave, sunshine and rain all equal HRRR's from the start of the window to
+  about three hours before HRRR's last hour (+61 of +64 that day), blend across those three, then
+  equal GFS 0.13°'s. So the hourly charts, the score's `THERMAL_MODEL` and the GFS member of the
+  rain median already read HRRR for the first ~2.5 days; picking HRRR separately would change
+  nothing. `HourlySeries.hrrr_through` (from the stored HRRR run) lets the client name HRRR on
+  those hours (`seamlessModelName`). The rain median's source line still prints "GFS".
 
 ## Open-Meteo Historical
 - **Endpoint:** `https://archive-api.open-meteo.com/v1/archive`

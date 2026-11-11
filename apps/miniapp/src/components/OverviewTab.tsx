@@ -13,6 +13,7 @@ import {
   kmhToMph,
   modelName,
   readingNow,
+  seamlessModelName,
   rockGuide,
   rockTypeLabel,
   skyDayIcon,
@@ -707,7 +708,10 @@ function RightNowCard({ props }: { props: OverviewTabProps }) {
   // Radar is named only when the response says it decided an hour (`rain_radar`, 2026-11-02).
   const radar = props.conditions?.data?.readings?.rain_radar === true ? ', checked against NOAA radar' : ''
   const sources = [
-    series?.model == null ? null : `Air: ${modelName(series.model)}`,
+    // The hour the figures above read: over the US `gfs_seamless` is HRRR for its first days (#473).
+    series?.model == null || hour === null
+      ? null
+      : `Air: ${seamlessModelName(series.model, series.hrrr_through, hour.valid_at, hour.valid_at)}`,
     rainNames.length === 0
       ? null
       : `${rainNames.length === 1 ? `rain: ${rainNames[0]}` : `rain: median of ${rainNames.join(', ')}`}${radar}`,

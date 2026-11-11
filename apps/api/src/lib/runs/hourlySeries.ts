@@ -101,6 +101,40 @@ export function selectModelByCoverage(models: readonly ModelRun[]): ModelRun | n
   return bestCount > 0 ? best : null
 }
 
+/** The HRRR run `gfs_seamless` carries over the US. Its own stored run marks where that ends. */
+export const HRRR_MODEL = 'ncep_hrrr_conus'
+
+/** HRRR publishes hourly, so runs confirmed more than an hour apart may be different cycles. */
+export const HRRR_SEAMLESS_SKEW_MS = 60 * 60 * 1000
+
+/**
+ * The last instant HRRR's own run has a value, or null when there is no such run.
+ *
+ * Read from HRRR's stored run, not inferred from `gfs_seamless`: the seamless blend
+ * carries no marker of where HRRR stops, and HRRR's horizon moves with which cycle ran
+ * (18 h hourly, 48 h every six). See `HourlySeries.hrrr_through`.
+ *
+ * **Null unless the two runs were confirmed newest within `HRRR_SEAMLESS_SKEW_MS` of each
+ * other.** Each model's newest run is read on its own (#179), so a failed HRRR refresh
+ * beside a fresh `gfs_seamless` would set an older cycle's horizon against a newer blend
+ * and name HRRR over hours that are already GFS's (defect class 3). `checked_at`, not
+ * `fetched_at`: a HRRR run skipped as unchanged is still the cycle the blend used, and its
+ * `checked_at` says so. A null falls back to the id's own name.
+ */
+export function hrrrThrough(models: readonly ModelRun[]): Date | null {
+  const hrrr = models.find((m) => m.model === HRRR_MODEL)
+  const seamless = models.find((m) => m.model === 'gfs_seamless')
+  if (hrrr === undefined || seamless === undefined) return null
+  if (Math.abs(hrrr.checked_at.getTime() - seamless.checked_at.getTime()) > HRRR_SEAMLESS_SKEW_MS) return null
+  let last: number | null = null
+  for (const h of hrrr.hours) {
+    if (!hourHasModelData(h)) continue
+    const t = h.valid_at.getTime()
+    if (last === null || t > last) last = t
+  }
+  return last === null ? null : new Date(last)
+}
+
 /**
  * The local calendar dates the window covers: the location's today, then the next
  * `WINDOW_DAYS - 1`.
@@ -328,6 +362,7 @@ export function buildHourlySeries(input: BuildInput): HourlySeries {
     fetched_at: olderFetch(deterministic.fetched_at, ensemble.fetched_at)?.toISOString() ?? null,
     checked_at: olderFetch(deterministic.checked_at, ensemble.checked_at)?.toISOString() ?? null,
     model: chosen?.model ?? null,
+    hrrr_through: hrrrThrough(deterministic.models)?.toISOString() ?? null,
     unavailable_models: [...deterministic.unavailable_models],
     hours,
     days,
