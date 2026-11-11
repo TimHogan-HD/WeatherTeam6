@@ -360,8 +360,12 @@ export const UNRECORDED_ASPECT_NOTE = 'Wall direction not set, so sunny hours ma
  * It is the one mechanism in the friction reading that is uncontested physics,
  * and it is worth naming because it is the case a climber can act on — the wall
  * is wet with condensation, not with rain, and it will clear when the air does.
+ *
+ * **"Likely", because the wall's temperature is modelled** (#436): the physics
+ * is uncontested, the input is not. The same word the Condensation card's
+ * headline uses for the same estimate.
  */
-export const CONDENSING_NOTE = 'Condensation on the rock';
+export const CONDENSING_NOTE = 'Condensation likely on the rock';
 
 export type ReadingsSummaryInput = {
   /** The hour being summarised — normally the hour covering now. */

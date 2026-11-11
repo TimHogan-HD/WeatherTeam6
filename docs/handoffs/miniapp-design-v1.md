@@ -154,7 +154,8 @@ does not carry.
   location, not one view of it.
 - The large Overview score shrinks into a slim sticky header off the Overview, and the header
   follows the tab: the best day on Daily, the hour being read on Hourly, today's chance of
-  rain on Precip, the margin above dew point on Rock.
+  rain on Precip, the air's spread over its dew point on Rock (#436: never the rock's
+  modelled margin, which prints nowhere as a figure).
 - **The reader orders each tab's cards** on this device (`CardStack.tsx`; rules in
   `readings.md`).
 
@@ -203,7 +204,8 @@ the rain gauges; the next 48 hours; each day's wettest hour.
   US). Asked only while the tab is open.
 
 **Rock** (`RockTab.tsx`; crags only): the crag's live readings — the drying clock and the
-Condensation card (`RockReadings.tsx`) — then *Sun on the wall* where confirmed
+Condensation card (`RockReadings.tsx`: air minus dew point as the figure, the model's
+rock as words and shaded hours only, #436, mockup `design-mockups/condensation-436.html`) — then *Sun on the wall* where confirmed
 (`SunOnWallCard.tsx`), then a field guide to the **rock type, not this crag**, which its
 last line says (`rockGuide` in `packages/types`), and the crag's facts. The drying gauge is a band of `MAX_HOURS`, held to it by `dryingModel.test.ts`;
 `unknown` has no guide. **No modelled rock temperature prints** (`readings.md`). Care advice
