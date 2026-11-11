@@ -22,8 +22,7 @@ permissions:
 
 jobs:
   arm:
-    # The actor check matters as much as the author: if a person pushes to a
-    # Dependabot branch, the PR carries their change and is not armed.
+    # Armed only on Dependabot's own events; a person's push is `disarm`'s.
     # Drizzle is matched on the title and body, which name every package a PR
     # updates, not on the branch: a grouped security update's branch is named
     # after its group, so it could carry a drizzle bump under another name.
@@ -37,6 +36,28 @@ jobs:
     steps:
       - name: Enable auto-merge (squash)
         run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # A PR armed on `opened` stays armed when someone with write access pushes
+  # to it later (GitHub only disarms on a push without write access), so that
+  # push would merge itself. A person's push to a Dependabot PR disarms it;
+  # whoever pushed merges it by hand.
+  disarm:
+    if: >-
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disable auto-merge
+        # Checked first, so a failed disable fails the job instead of passing
+        # as "was not armed".
+        run: |
+          armed=$(gh pr view "$PR_URL" --json autoMergeRequest --jq '.autoMergeRequest != null')
+          if [ "$armed" = "true" ]; then
+            gh pr merge --disable-auto "$PR_URL"
+          fi
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
