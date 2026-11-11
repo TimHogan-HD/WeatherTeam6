@@ -147,13 +147,13 @@ jobs:
                findings, and the PR's own diff against its base is byte-identical at HEAD (a merge from
                the base that touched none of the PR's hunks). The workflow has already checked both.
                Do not verify them, read nothing, and skip steps 1-6. Your only tool is `gh pr comment`.
-               Run this one command, exactly as written, and stop:
-               gh pr comment ${{ github.event.pull_request.number }} --body "## Claude review
-               Commit: ${{ github.event.pull_request.head.sha }}
-               Scope: unchanged
-               Blocking: 0
-               Advisory: 0
-               Read: nothing; the PR's diff is the one reviewed clean at ${{ steps.scope.outputs.since }}"
+               Run this one command, exactly as written (each body line starts at column 0), and stop:
+            gh pr comment ${{ github.event.pull_request.number }} --body "## Claude review
+            Commit: ${{ github.event.pull_request.head.sha }}
+            Scope: unchanged
+            Blocking: 0
+            Advisory: 0
+            Read: nothing; the PR's diff is the one reviewed clean at ${{ steps.scope.outputs.since }}"
                If Carry is false, ignore this step.
             1. If the scope is full: run `git diff origin/${{ github.event.pull_request.base.ref }}...HEAD`
                and read the whole diff.
