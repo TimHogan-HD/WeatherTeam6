@@ -39,7 +39,10 @@ export default tseslint.config(
     files: ['apps/miniapp/**/*.{ts,tsx}'],
     plugins: { react, 'react-hooks': reactHooks },
     languageOptions: { globals: globals.browser },
-    settings: { react: { version: 'detect' } },
+    // Not 'detect': eslint-plugin-react 7.37.5 detects through
+    // context.getFilename, which ESLint 10 removed, and every react/* rule
+    // then throws. Raise this with React's major/minor.
+    settings: { react: { version: '19.3' } },
     rules: {
       ...react.configs.flat.recommended.rules,
       ...react.configs.flat['jsx-runtime'].rules,
