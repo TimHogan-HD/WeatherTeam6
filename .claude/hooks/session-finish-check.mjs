@@ -40,6 +40,7 @@ import {
   git,
   hasRemote,
   isGitRepo,
+  mergedPullRequestFor,
   openPullRequests,
   unpushedCommits,
   workingTreeChanges,
@@ -176,6 +177,13 @@ if (branch === base) {
   if (prs !== null) {
     const mine = prs.find((p) => p.headRefName === branch)
     const branchHasCommits = (git(['log', `origin/${base}..HEAD`, '--oneline']) ?? '').trim()
+    // A squash-merged branch still reads as ahead (2026-11-11: this fired
+    // after nearly every merge). A merged PR at this exact head is shipped.
+    const landed = !mine && branchHasCommits ? mergedPullRequestFor(branch, git(['rev-parse', 'HEAD'])) : null
+    if (landed !== null) {
+      process.stdout.write(`"${branch}" was merged in #${landed}; switch back with: git checkout ${base}\n`)
+      process.exit(0)
+    }
     if (!mine && branchHasCommits) {
       blockTurn([
         `UNFINISHED: "${branch}" is pushed and ahead of ${base}, but has no open PR.`,

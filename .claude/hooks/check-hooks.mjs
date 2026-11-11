@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { classifyPr, latestPerName, onlyRequired, ownPrVerdict, prsToFinish } from './lib/prWait.mjs'
 import { reviewCoversHead } from './lib/reviewGate.mjs'
+import { landedPr } from './lib/gitState.mjs'
 import { FULL, INCREMENTAL, LIGHT, lastReviewedSha, normalizeDiff, pickScope } from './lib/reviewScope.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -235,6 +236,11 @@ const gateCases = [
   ['review: a human cannot post the review', reviewCoversHead([bot(`## Claude review\nCommit: ${SHA}`, 'TimHogan-HD')], SHA), false],
   ['review: the old plugin summary does not cover', reviewCoversHead([bot('## Code review\n\nNo issues found.')], SHA), false],
   ['review: no head SHA covers nothing', reviewCoversHead([bot('## Claude review')], ''), false],
+  // A squash-merged branch is not unshipped work (lib/gitState.mjs landedPr).
+  ['landed: a merged PR at the head is found', landedPr([{ number: 7, merged_at: '2026-11-11T00:00:00Z', head: { sha: SHA } }], SHA), 7],
+  ['landed: a commit after the merge is new work', landedPr([{ number: 7, merged_at: '2026-11-11T00:00:00Z', head: { sha: 'b'.repeat(40) } }], SHA), null],
+  ['landed: a closed, unmerged PR does not count', landedPr([{ number: 7, merged_at: null, head: { sha: SHA } }], SHA), null],
+  ['landed: unreadable is not landed', landedPr(null, SHA), null],
   // The CI reviewer's scope (lib/reviewScope.mjs).
   ...(() => {
     const OLD = 'b'.repeat(40)
