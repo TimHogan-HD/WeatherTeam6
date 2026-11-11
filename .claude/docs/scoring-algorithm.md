@@ -50,11 +50,20 @@ domain guard.
 
 ### Dryness: the drying clock, 0-1 per hour (`drynessTrack`)
 
-- **Wetting:** an hour with ≥ `WET_MM` (0.05 mm) of rain. Open-Meteo reports 0 or ≥ 0.1, so
-  this is any measurable rain; v2 reset only at 0.5 mm/h. `compare:dryness` measured raising
-  it (2026-10-26): it called more wet days dry than it gave dry days back, so it stays.
+- **Wetting:** an hour with ≥ `WET_MM` (0.05 mm) of rain; v2 reset only at 0.5 mm/h.
+  `compare:dryness` measured raising it (2026-10-26): it called more wet days dry than it gave
+  dry days back, so it stays. **This is not "any measurable rain".** The clock's hour is the
+  median of the models' six-hour means (`RAIN_WINDOW`, below), so a shower wets only when its
+  total over the window reaches about 0.3–0.4 mm: a lone hour of 0.1 or 0.2 mm averages to
+  0.017–0.033 and never counts, and exactly 0.3 mm misses too (`0.3 / 6` is
+  `0.049999999999999996` in floating point). At a US crag, past hours radar decided read
+  radar's own hour, so there a single 0.1 mm hour does wet; forecast hours never have radar.
 - **Falling rain:** an hour with ≥ `FALLING_RAIN_MM` (0.5 mm, `REWETTING_PRECIP_MM`) reads
   dryness 0 whatever the storm's size — rain you would see on the rock (owner, 2026-10-26).
+  The same six-hour mean means a lone shower under 3 mm never reads as rain falling in a
+  forecast, and its dent starts two hours before the rain (the window runs three hours back
+  and two ahead). In aggregate the mean does not hide rain: 198 hours at or over the line
+  against 149 for the unsmoothed median (five crags, 14 days, #533).
   On rock that breaks when wet, any wetting rain still falling also labels the hour `wet`
   (`fallingOn`), so drizzle under that line never reads Drying or joins a best window on
   that rock; its score keeps the scaled dent.

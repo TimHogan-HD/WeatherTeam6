@@ -31,8 +31,9 @@ How Crag A scores, and what may feed it.
   tree-shaded wall, lagged like `T_surface`, null when the sun was not measured. A day's score is the worst hour of its best 3-hour run between 08:00 and
   18:00 local (`dayRepresentative`). **Today counts only hours not yet over**
   (`buildHourlyReadings`'s `now`); after 18:00 today has no score. The port has diverged
-  from `.claude/docs/crag-a-reference/model.ts` on purpose since 2026-11-02 (per-wall
-  condensation, a drying floor; its README records what moved) — a change that moves a
+  from `.claude/docs/crag-a-reference/model.ts` on purpose since 2026-11-02 in four ways
+  (per-wall condensation, a drying floor, additive rain, no exponent on dryness; its README
+  records what moved) — a change that moves a
   result needs an argument. **Every constant is a judgement call**; nothing is validated
   against outcomes (#143).
 - **Sun and shade walls** (#445, owner 2026-11-02; `lib/runs/wallReadings.ts`,
@@ -129,6 +130,11 @@ How Crag A scores, and what may feed it.
   `maxDryingRate` caps each hour's drying at one hour for `rockGuide`'s `whenWet: 'fragile'`
   and for `unknown`. Changing a rock's `whenWet` changes its score, so check it against
   `crag-a-reference` first.
+- **New rain adds to the water left in the rock** (#533, 2026-11-09, `drynessTrack`). The
+  clock carries one figure, the drying hours still needed; a wetting hour turns it back into
+  rain, adds the hour's rain and sizes it again. There is no storm total and no 24-hour gap:
+  a shower after a partial dry-out never restarts the window and never erases a soak. Do not
+  bring `model.ts`'s 24-hour storm grouping back.
 - **Every dry hour credits at least one hour of drying** (owner, 2026-11-02, `drynessTrack`):
   rock reads dry within its `MAX_HOURS` of real time after rain, however cool, still or humid
   the weather. It relaxes F17: fragile rock now dries at exactly elapsed time, and weather
