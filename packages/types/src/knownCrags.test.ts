@@ -14,6 +14,8 @@ const FAMILY_ALLOWS: Record<string, readonly RockType[]> = {
   syenite: ['syenite_porous'],
   rhyolite: ['rhyolite'],
   basalt_dense: ['basalt_dense'],
+  // Diabase is basalt crystallised in a sill: dense, same composition (#582).
+  diabase: ['basalt_dense'],
   welded_tuff: ['tuff_welded'],
   tuff_nonwelded: ['tuff_nonwelded'],
   volcanic_breccia: ['volcanic_breccia'],
@@ -119,6 +121,18 @@ describe('matchKnownCrag', () => {
     expect(matchKnownCrag(46.11369, -93.00083)).toBeNull()
     expect(matchKnownCrag(46.1366, -92.86041)?.slug).toBe('robinson-park') // Sigma Wall
     expect(matchKnownCrag(46.16448, -92.8395)).toBeNull() // Banning State Park
+  })
+
+  /** stevedew2's two saved rows (#582), at the 3 dp the issue gives them. */
+  it('matches Silver Creek at the tunnel and at OpenBeta’s pin 4.4 km north-east (#582)', () => {
+    expect(matchKnownCrag(47.096, -91.552)?.rock_type).toBe('basalt_dense') // saved row = OpenBeta pin
+    expect(matchKnownCrag(47.06756, -91.59324)?.slug).toBe('silver-creek-cliff') // Mountain Project's rock area
+  })
+
+  it('matches Vicksburg in the park and across the river at Whispering Ridge (#582)', () => {
+    expect(matchKnownCrag(44.661, -95.236)?.slug).toBe('vicksburg') // saved row
+    expect(matchKnownCrag(44.657245, -95.23074)?.slug).toBe('vicksburg') // Rampart, First Wall
+    expect(matchKnownCrag(44.643735, -95.215712)?.slug).toBe('vicksburg') // Whispering Ridge, Baguette
   })
 
   it('prefers the nearer of two crags in reach', () => {

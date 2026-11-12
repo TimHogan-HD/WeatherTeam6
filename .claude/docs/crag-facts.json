@@ -361,6 +361,123 @@
       ]
     },
     {
+      "name": "Silver Creek Cliff",
+      "aka": [
+        "Silver Creek Tunnel Area (North Shore)",
+        "Silver Creek Tunnel Rock",
+        "Silver Creek Tunnel ICE",
+        "Silver Cliff"
+      ],
+      "region": "MN",
+      "country": "US",
+      "rock": {
+        "family": "diabase",
+        "formation": "Silver Cliff sill: olivine diabase, Midcontinent Rift intrusive (Mesoproterozoic), intruded into andesite flows",
+        "note": "MGS State Map S-21 (Jirsa et al. 2011, read through Macrostrat's map query at the tunnel and at OpenBeta's pin) puts both points on 'Diabase, gabbro, and ferromonzodiorite. Primarily sills including the ... Silver Cliff ... intrusions'. Pope (1976), via the jsjgeology Flickr record: 'principally olivine diabase', ~66% plagioclase, 16% augite, 12% olivine. Diabase is basalt's composition crystallised underground: dense and crystalline, so locked as basalt_dense (owner, 2026-11-12). That mapping is inference; no porosity figure for this sill was found. Pinkish andesite flows sit above the diabase in the roadcut.",
+        "source": "MGS S-21 via macrostrat.org; flickr.com/photos/jsjgeology/23234833475; equatorialminnesota.blogspot.com/2024/07/silver-creek-cliff-geology.html",
+        "confidence": "M"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": {
+        "value": "Highway 61 tunnel and bike trail directly below the cliff",
+        "source": "mountainproject.com/area/114259259/silver-creek-tunnel-rock",
+        "confidence": "C"
+      },
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": {
+        "value": "Mountain Project flags private property, open with restrictions",
+        "source": "mountainproject.com/area/114259259/silver-creek-tunnel-rock",
+        "confidence": "C"
+      },
+      "disciplines": {
+        "value": [
+          "sport",
+          "trad",
+          "ice"
+        ],
+        "source": "mountainproject.com/area/114259259/silver-creek-tunnel-rock; mountainproject.com/area/114259266/silver-creek-tunnel-ice",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": {
+        "value": "Rock quality, not porosity, may be the limiter: 'some is still crumbly' (area page); 'The rock quality is poor but large pieces are not likely to come off' (Elyse's Revenge). How it behaves wet is unknown; no source and no field report yet.",
+        "source": "mountainproject.com/area/114259259/silver-creek-tunnel-rock; mountainproject.com/route/106074663/elyses-revenge",
+        "confidence": "C"
+      },
+      "sources": [
+        "MGS State Map Series S-21 (Jirsa et al. 2011), via macrostrat.org map query, 2026-11-12",
+        "flickr.com/photos/jsjgeology/23234833475 (citing Pope 1976; MGS M-119, RI-58)",
+        "equatorialminnesota.blogspot.com/2024/07/silver-creek-cliff-geology.html",
+        "mountainproject.com/area/114259259/silver-creek-tunnel-rock"
+      ]
+    },
+    {
+      "name": "Vicksburg County Park",
+      "aka": [
+        "Whispering Ridge AMA",
+        "Strawberry Path Boulders",
+        "Rampart Boulders"
+      ],
+      "region": "MN",
+      "country": "US",
+      "rock": {
+        "family": "gneiss",
+        "formation": "Archean granitoid gneiss of the Minnesota River Valley (3,100-3,600 Ma), the map unit DNR names as Morton Gneiss at River Warren Outcrops SNA ~5 km south-east",
+        "note": "MGS State Map S-21 via Macrostrat gives 'Granitoid gneiss with dioritic to amphibolitic enclaves' at every coordinate in the local guide (park, Rampart First Wall 44.657245,-95.230740, Whispering Ridge High Plains 44.644111,-95.216998 and Baguette 44.643735,-95.215712); a second MGS map gives 'Migmatitic and granitoid gneisses ... tonalite to granodioritic'. The county page and the guide say 'granite': the valley's usual loose name for these rocks (Renville SWCD calls every valley outcrop granite). The guide's photos show banded, swirled rock. Locked as gneiss_schist (owner, 2026-11-12). Confidence I because the maps are 1:500,000: a granite dike at a single boulder would not show.",
+        "source": "MGS S-21 via macrostrat.org; renvillecountymn.gov/public-works/parks/vicksburg/; Vicksburg Bouldering Mini-Guide (P. Enis, 2025)",
+        "confidence": "I"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": {
+        "value": "Park and AMA are hunted for deer heavily; DNR advises blaze orange and mid-day visits in season",
+        "source": "DNR AMA habitat specialist email, 2025-10-03, reproduced in the Vicksburg Bouldering Mini-Guide",
+        "confidence": "C"
+      },
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": {
+        "value": "County park: climbing welcome, but no cleaning, marking or drilling (Renville County Parks, 2025-09-26). Whispering Ridge AMA: no rule against climbing; do not disturb or remove vegetation (DNR, 2025-10-03).",
+        "source": "emails reproduced in the Vicksburg Bouldering Mini-Guide",
+        "confidence": "C"
+      },
+      "disciplines": {
+        "value": [
+          "boulder",
+          "sport"
+        ],
+        "source": "Vicksburg Bouldering Mini-Guide (P. Enis, 2025)",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": {
+        "value": "Strawberry Path and Rampart sit in woods above the river; Whispering Ridge is open prairie ridge. Same rock, different drying exposure.",
+        "source": "Vicksburg Bouldering Mini-Guide (P. Enis, 2025)",
+        "confidence": "C"
+      },
+      "sources": [
+        "MGS State Map Series S-21 (Jirsa et al. 2011), via macrostrat.org map query, 2026-11-12",
+        "renvillecountymn.gov/public-works/parks/vicksburg/",
+        "Vicksburg Bouldering Mini-Guide, P. Enis, 2025 (self-published PDF, supplied by the owner)"
+      ]
+    },
+    {
       "name": "Blue Mounds State Park",
       "aka": null,
       "region": "MN",
