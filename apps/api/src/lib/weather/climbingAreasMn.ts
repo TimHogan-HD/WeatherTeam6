@@ -1,5 +1,5 @@
 /**
- * Minnesota climbing areas from OpenBeta, pulled 2026-10-02 by
+ * Minnesota climbing areas from OpenBeta, pulled 2026-11-12 by
  * `npm run climbing:pull -- Minnesota MN` — generated, do not edit by hand.
  * CC0 (github.com/OpenBeta/climbing-data); credited because the app names every source.
  * Every area under USA > Minnesota with at least one climb and a coordinate, most climbs first.
@@ -91,8 +91,8 @@ export const MN_CLIMBING_AREAS: readonly ClimbingArea[] = [
   {"uuid":"166119d3-9dd8-5960-a7f9-bd386342c4e9","name":"South Buttress","parent":"Carlton Peak","parent_id":"79c1f59c-c577-5334-9134-32a268569357","climbs":12,"lat":47.5835,"lon":-90.8606},
   {"uuid":"432928fe-ba6b-58b9-9e26-2dcc7aa90f19","name":"Boonyards aka The B2 Pit, The","parent":"Interstate State Park Bouldering","parent_id":"5308da59-1bb6-5d34-a990-2abdf0cb8467","climbs":12,"lat":45.39925,"lon":-92.65138},
   {"uuid":"7d82ded5-6bd1-504f-a558-4466af71bf11","name":"Primitive Buttress","parent":"North Quarry Area","parent_id":"b3d63c4d-618a-5826-a1a5-9deecdcb2770","climbs":12,"lat":43.69698,"lon":-96.18544},
-  {"uuid":"9786120a-d524-5315-bdd9-9642b8141109","name":"Silver Creek Tunnel Rock","parent":"Silver Creek Tunnel Area (North Shore)","parent_id":"9a056e4e-f8b8-5a42-a9e4-68b287040eea","climbs":12,"lat":47.09561,"lon":-91.55209},
-  {"uuid":"9a056e4e-f8b8-5a42-a9e4-68b287040eea","name":"Silver Creek Tunnel Area (North Shore)","parent":null,"parent_id":null,"climbs":12,"lat":47.09561,"lon":-91.55209},
+  {"uuid":"9786120a-d524-5315-bdd9-9642b8141109","name":"Silver Creek Tunnel Rock","parent":"Silver Creek Tunnel Area (North Shore)","parent_id":"9a056e4e-f8b8-5a42-a9e4-68b287040eea","climbs":12,"lat":47.06756,"lon":-91.59324},
+  {"uuid":"9a056e4e-f8b8-5a42-a9e4-68b287040eea","name":"Silver Creek Tunnel Area (North Shore)","parent":null,"parent_id":null,"climbs":12,"lat":47.06756,"lon":-91.59324},
   {"uuid":"b1779385-363e-55a7-a92d-6984c9e75802","name":"Confederate Wall","parent":"Sanctuary","parent_id":"f8415422-47e7-5ce1-ad73-4e498bd3ce6a","climbs":12,"lat":46.76033,"lon":-92.15942},
   {"uuid":"c4f42905-784e-57f1-8530-c71befea8932","name":"Lonely Boulder, The","parent":"Rasmussen Woods Boulders","parent_id":"9718330f-101b-5e40-aede-6ed7ac5e8ef3","climbs":12,"lat":44.14654,"lon":-94.01422},
   {"uuid":"1d6b2db8-e32c-5cae-aeec-cf1f4aaa45d9","name":"Magney-Snively nature center","parent":"Duluth Bouldering","parent_id":"e7659e06-f7af-5876-b3c2-1d0655546b83","climbs":11,"lat":46.69414,"lon":-92.255},

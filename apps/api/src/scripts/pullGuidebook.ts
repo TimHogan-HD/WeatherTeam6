@@ -18,6 +18,7 @@ import { writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import type { GuidebookRoute, RouteKind, RouteSafety } from '@weatherteam6/types'
 import type { SnapshotArea } from '../lib/guidebook/guidebook.js'
+import { REPINNED_AREAS } from '../lib/weather/climbingAreaRepins.js'
 
 const ENDPOINT = 'https://api.openbeta.io/'
 const PAGE = 100
@@ -156,8 +157,8 @@ async function main() {
       path: a.pathTokens.slice(0, -1),
       // `ancestors` runs root first and ends with the area itself.
       parent: a.ancestors.length >= 2 ? (a.ancestors[a.ancestors.length - 2] ?? null) : null,
-      lat: a.metadata.lat,
-      lon: a.metadata.lng,
+      lat: REPINNED_AREAS.get(a.uuid)?.lat ?? a.metadata.lat,
+      lon: REPINNED_AREAS.get(a.uuid)?.lon ?? a.metadata.lng,
       mp_id: text(a.metadata.mp_id),
       routes: a.climbs.map(toRoute).sort((x, y) => x.id.localeCompare(y.id)),
     }))

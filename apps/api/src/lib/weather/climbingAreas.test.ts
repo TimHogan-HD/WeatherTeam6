@@ -5,6 +5,7 @@ import { CO_CLIMBING_AREAS } from './climbingAreasCo.js'
 import { MN_CLIMBING_AREAS } from './climbingAreasMn.js'
 import { UT_CLIMBING_AREAS } from './climbingAreasUt.js'
 import { REPINNED_AREAS } from './climbingAreaRepins.js'
+import { MN_GUIDEBOOK } from '../guidebook/guidebookMn.js'
 
 const names = (q: string) => searchClimbingAreas(q).map((r) => r.name)
 
@@ -159,10 +160,26 @@ describe('Minnesota known crags — one rock for every area under each (owner, 2
     expect(matchKnownCrag(sandstone!.lat, sandstone!.lon)?.slug).toBe('robinson-park')
   })
 
+  it('offers Silver Creek at its cliff, not at Lafayette Bluff Tunnel 4.4 km north-east (#582)', () => {
+    const areas = under('Silver Creek Tunnel Area (North Shore)')
+    expect(areas.length).toBeGreaterThan(1) // the area and its rock child, at least
+    // The tunnel's slug, not the pin's: the pin's entry also locks basalt_dense.
+    for (const a of areas) {
+      expect(matchKnownCrag(a.lat, a.lon)?.slug, a.name).toBe('silver-creek-cliff')
+    }
+  })
+
   it('carries every re-pin in the committed snapshots', () => {
     for (const [uuid, point] of REPINNED_AREAS) {
       const a = [...MN_CLIMBING_AREAS, ...CO_CLIMBING_AREAS, ...UT_CLIMBING_AREAS].find((x) => x.uuid === uuid)
-      expect(a && { lat: a.lat, lon: a.lon }, uuid).toEqual(point)
+      if (a === undefined) {
+        // `climbing:pull` keeps only areas with a climb; Silver Creek's ICE has
+        // none in OpenBeta. Absent is allowed only for such an area, which the
+        // guidebook snapshot (every area) still carries.
+        expect(MN_GUIDEBOOK.find((x) => x.id === uuid)?.routes.length, uuid).toBe(0)
+        continue
+      }
+      expect({ lat: a.lat, lon: a.lon }, uuid).toEqual(point)
     }
   })
 

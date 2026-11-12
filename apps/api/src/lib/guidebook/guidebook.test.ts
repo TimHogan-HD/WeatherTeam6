@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { GuidebookRoute } from '@weatherteam6/types'
 import { applyOverlay, CRAG_MAX_SPAN_KM, GUIDEBOOK_REACH_KM, guidebookFor, type SnapshotArea } from './guidebook.js'
 import { MN_GUIDEBOOK } from './guidebookMn.js'
+import { REPINNED_AREAS } from '../weather/climbingAreaRepins.js'
 import { ELDON, GUIDEBOOK_OVERLAY, type OverlayArea } from './guidebookOverlay.js'
 import { stopsGuidebookProblem } from '../feedback/parseFeedback.js'
 
@@ -250,6 +251,17 @@ describe('the Minnesota snapshot', () => {
     expect(areas.find((a) => a.id === ELDON)?.routes).toEqual([])
     const ids = GUIDEBOOK_OVERLAY.flatMap((b) => [b.id, ...b.routes.map((r) => r.id)])
     expect(new Set(ids).size).toBe(ids.length)
+  })
+
+  it('finds Silver Creek’s routes at its cliff, where /add now saves it (#582)', () => {
+    expect(guidebookFor(47.06756, -91.59324)?.crag.name).toBe('Silver Creek Tunnel Rock')
+  })
+
+  it('carries every re-pin in the committed guidebook snapshot', () => {
+    for (const [uuid, point] of REPINNED_AREAS) {
+      const a = MN_GUIDEBOOK.find((x) => x.id === uuid)
+      expect(a && { lat: a.lat, lon: a.lon }, uuid).toEqual(point)
+    }
   })
 
   it("offers Eldon's boulders at the owner's Sandstone location, beside Robinson Park's walls", () => {
