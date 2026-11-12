@@ -53,13 +53,3 @@ export function riverChartModel(points: readonly RiverPoint[], lineFt: number, n
   const hi = ticks[ticks.length - 1] ?? max
   return { fromMs, toMs, lo, hi, ticks, runs, latest: pts[pts.length - 1] ?? null }
 }
-
-/**
- * A visit's day on the crag's clock, as epoch ms, local midnight to midnight:
- * the faint band behind the visit line.
- */
-export function localDaySpan(atMs: number, utcOffsetSeconds: number): { startMs: number; endMs: number } {
-  const offsetMs = utcOffsetSeconds * 1000
-  const startMs = Math.floor((atMs + offsetMs) / DAY_MS) * DAY_MS - offsetMs
-  return { startMs, endMs: startMs + DAY_MS }
-}

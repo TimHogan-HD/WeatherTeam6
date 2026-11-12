@@ -36,7 +36,7 @@ import {
   type GridCell,
 } from '../lib/gaugeGrid.js'
 import { changeLine, formatFt, readingClock, readingWhen, riverTabWord, spotLine, worstRiverState } from '../lib/riverGauge.js'
-import { localDaySpan, riverChartModel } from '../lib/riverChart.js'
+import { riverChartModel } from '../lib/riverChart.js'
 import {
   formatVwc,
   groundChartModel,
@@ -518,7 +518,8 @@ const CH = 150
 const CL = 30
 const CR = 8
 const CT = 10
-const CB = 22
+/** Room under the plot for the visit carets and, below them, the edge dates. */
+const CB = 30
 
 function RiverChart({
   reading,
@@ -550,7 +551,6 @@ function RiverChart({
         aria-label={`${reading.river} gage height, ${dayLabel(model.fromMs)} to ${dayLabel(model.toMs)}, with your ${formatFt(reading.reachable_at_or_below_ft)} line`}
         style={{ display: 'block', width: '100%', height: 'auto' }}
       >
-        <VisitBands shown={shown} x={x} utcOffsetSeconds={utcOffsetSeconds} />
         {/* Above the line the spot is cut off: a faint band, so the dashed line reads as an edge. */}
         {lineY > CT ? <rect x={CL} y={CT} width={pw} height={lineY - CT} fill={colorsV2.poorInk} fillOpacity={0.06} /> : null}
         {model.ticks.map((t) => (
@@ -587,7 +587,7 @@ function RiverChart({
         {model.latest === null ? null : (
           <circle cx={x(model.latest.ms)} cy={y(model.latest.ft)} r={4.5} fill={colorsV2.river} stroke={colorsV2.card} strokeWidth={2.5} />
         )}
-        <VisitLines shown={shown} x={x} dayLabel={dayLabel} />
+        <VisitMarks shown={shown} x={x} />
         <EdgeDates fromMs={model.fromMs} toMs={model.toMs} dayLabel={dayLabel} />
       </svg>
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }} aria-hidden="true">
@@ -601,6 +601,7 @@ function RiverChart({
         >
           Your {formatFt(reading.reachable_at_or_below_ft)} line
         </Key>
+        <VisitKey shown={shown} dayLabel={dayLabel} />
       </div>
     </div>
   )
@@ -884,7 +885,6 @@ function GroundChart({
         aria-label={`Soil moisture at 5 cm${hasRain ? ' with daily rain at the station' : ''}, ${dayLabel(model.fromMs)} to ${dayLabel(model.toMs)}`}
         style={{ display: 'block', width: '100%', height: 'auto' }}
       >
-        <VisitBands shown={shown} x={x} utcOffsetSeconds={utcOffsetSeconds} />
         {model.ticks.map((t) => (
           <text key={t} x={CL - 6} y={y(t) + 3.5} textAnchor="end" style={{ ...typeV2.axisTick, fill: colorsV2.txtTab }}>
             {`${t}%`}
@@ -921,16 +921,6 @@ function GroundChart({
             strokeDasharray="2 2"
           />
         ))}
-        {wettest === null ? null : (
-          <text
-            x={Math.min(CW - CR, Math.max(CL, x(wettest.midMs)))}
-            y={CT + ph - Math.max(1.5, rainH(wettest.mm)) - 4}
-            textAnchor="middle"
-            style={{ ...typeV2.axisTick, fill: colorsV2.txtTab }}
-          >
-            {formatPrecipIn(wettest.mm)}
-          </text>
-        )}
         {model.runs.map((run) =>
           run.length === 1 && run[0] !== undefined ? (
             <circle key={run[0].ms} cx={x(run[0].ms)} cy={y(run[0].pts)} r={1.5} fill={colorsV2.soil} />
@@ -946,10 +936,21 @@ function GroundChart({
             />
           ),
         )}
+        {/* After the line, haloed in the card colour, so the line never hides the figure. */}
+        {wettest === null ? null : (
+          <text
+            x={Math.min(CW - CR, Math.max(CL, x(wettest.midMs)))}
+            y={CT + ph - Math.max(1.5, rainH(wettest.mm)) - 4}
+            textAnchor="middle"
+            style={{ ...typeV2.axisTick, fill: colorsV2.txtTab, stroke: colorsV2.card, strokeWidth: 4, strokeLinejoin: 'round', paintOrder: 'stroke' }}
+          >
+            {formatPrecipIn(wettest.mm)}
+          </text>
+        )}
         {model.latest === null ? null : (
           <circle cx={x(model.latest.ms)} cy={y(model.latest.pts)} r={4.5} fill={colorsV2.soil} stroke={colorsV2.card} strokeWidth={2.5} />
         )}
-        <VisitLines shown={shown} x={x} dayLabel={dayLabel} />
+        <VisitMarks shown={shown} x={x} />
         <EdgeDates fromMs={model.fromMs} toMs={model.toMs} dayLabel={dayLabel} />
       </svg>
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }} aria-hidden="true">
@@ -975,6 +976,7 @@ function GroundChart({
             {data.station.network === 'wisconet' ? '. It may not count snow.' : ''}
           </Key>
         ) : null}
+        <VisitKey shown={shown} dayLabel={dayLabel} />
       </div>
     </div>
   )
@@ -997,41 +999,43 @@ function chartDay(utcOffsetSeconds: number): (ms: number) => string {
     new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(ms + utcOffsetSeconds * 1000)
 }
 
-/** A faint band over each visit's local day, drawn first so the data sits on it. */
-function VisitBands({ shown, x, utcOffsetSeconds }: { shown: readonly ShownVisit[]; x: (ms: number) => number; utcOffsetSeconds: number }) {
-  const ph = CH - CT - CB
+/**
+ * A small caret under the axis at each visit: it marks the time without a
+ * line across the data (owner, 2026-11-12: the full-height lines and day
+ * bands got in the way). `VisitKey` names it.
+ */
+function VisitMarks({ shown, x }: { shown: readonly ShownVisit[]; x: (ms: number) => number }) {
+  const top = CH - CB + 3
   return (
     <>
       {shown.map(({ v, ms }) => {
-        const span = localDaySpan(ms, utcOffsetSeconds)
-        const x0 = Math.max(CL, x(span.startMs))
-        const x1 = Math.min(CW - CR, x(span.endMs))
-        return <rect key={`band-${v.id}`} x={x0} y={CT} width={Math.max(0, x1 - x0)} height={ph} fill={colorsV2.txt1} fillOpacity={0.07} />
+        const cx = x(ms)
+        return (
+          <path
+            key={`visit-${v.id}`}
+            d={`M${cx.toFixed(1)} ${top}L${(cx + 4.5).toFixed(1)} ${top + 7}L${(cx - 4.5).toFixed(1)} ${top + 7}Z`}
+            fill={colorsV2.brandInk}
+          />
+        )
       })}
     </>
   )
 }
 
-/** A line at each visit, and the newest one named. */
-function VisitLines({ shown, x, dayLabel }: { shown: readonly ShownVisit[]; x: (ms: number) => number; dayLabel: (ms: number) => string }) {
-  const ph = CH - CT - CB
-  const newest = shown[shown.length - 1]
+/** The carets' key: the day for one visit, else the plural; nothing without one. */
+function VisitKey({ shown, dayLabel }: { shown: readonly ShownVisit[]; dayLabel: (ms: number) => string }) {
+  if (shown.length === 0) return null
+  const only = shown.length === 1 ? shown[0] : undefined
   return (
-    <>
-      {shown.map(({ v, ms }) => (
-        <line key={`line-${v.id}`} x1={x(ms)} x2={x(ms)} y1={CT} y2={CT + ph} stroke={colorsV2.brandInk} strokeWidth={1.5} />
-      ))}
-      {newest === undefined ? null : (
-        <text
-          x={x(newest.ms) > CW - 140 ? x(newest.ms) - 5 : x(newest.ms) + 5}
-          y={CT + 10}
-          textAnchor={x(newest.ms) > CW - 140 ? 'end' : 'start'}
-          style={{ ...typeV2.sect, fontSize: 10, letterSpacing: 0.6, fill: colorsV2.brandInk }}
-        >
-          {`Your visit · ${dayLabel(newest.ms)}`}
-        </text>
-      )}
-    </>
+    <Key
+      swatch={
+        <svg width={9} height={7} viewBox="0 0 9 7" style={{ display: 'inline-block' }}>
+          <path d="M4.5 0L9 7L0 7Z" fill={colorsV2.brandInk} />
+        </svg>
+      }
+    >
+      {only === undefined ? 'Your visits' : `Your visit · ${dayLabel(only.ms)}`}
+    </Key>
   )
 }
 
