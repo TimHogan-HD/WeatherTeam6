@@ -619,30 +619,58 @@ describe('DetailView — Precip tab', () => {
       ],
     }
 
-    it("prints each day's gauges beside the models' total, a short day as not every hour", () => {
-      const html = renderPrecip(recent, true, series, gauges)
+    /** The 13th and 14th as whole days of model hours: 4.6 mm on the 13th, dry on the 14th. */
+    const wholeDays: RecentPrecip = {
+      ...recent,
+      hours: ['2026-09-13', '2026-09-14'].flatMap((date) =>
+        Array.from({ length: 24 }, (_, h) => {
+          const mm = date === '2026-09-13' && h === 19 ? 4.6 : 0
+          return { valid_at_local: `${date}T${String(h).padStart(2, '0')}:00`, precip_mm: mm, rain_mm: mm, snowfall_cm: 0 }
+        }),
+      ),
+    }
+
+    it('answers first, over each gauge’s own whole days, then a bar per source each day', () => {
+      const html = renderPrecip(wholeDays, true, series, gauges)
       expect(html).toContain('Rain gauges')
-      expect(html).toContain('Rain gauge at DLL, 7 mi away: 0.42 in')
-      expect(html).toContain('Volunteer gauge at Baraboo 2.1 S, 4 mi away: 0.38 in')
-      expect(html).toContain('Rain gauge at DLL, 7 mi away: not every hour reported')
-      // The models' 13th is the grid's 4.6 mm; the 9th is outside the window the grid drew: a dash, not 0.
-      expect(html).toMatch(/aria-label="Sun"[^]*?Models 0\.18 in/)
-      expect(html).toMatch(/aria-label="Wed"[^]*?Models —/)
+      // The airport's 14th is partial, so only the 13th counts for it: 0.42 in against the models' 0.18 in.
+      expect(html).toContain('The models ran drier than the gauges')
+      expect(html).toContain('Airport caught 0.42 in where the models had 0.18 in, over the 1 day it reported in full.')
+      expect(html).toContain('Volunteer caught 0.38 in where the models had 0.18 in, over the 1 day it reported.')
+      expect(html).toMatch(/aria-label="Sun"[^]*?aria-label="Models: 0\.18 in"[^]*?aria-label="Airport: 0\.42 in"[^]*?aria-label="Volunteer: 0\.38 in"/)
+      // A short airport day is partial, never a drier total; a dry model day is 0, a measurement.
+      expect(html).toMatch(/aria-label="Mon"[^]*?aria-label="Models: 0 in"[^]*?aria-label="Airport: partial"/)
+      // The 9th is outside the window the grid drew: no figure, not 0.
+      expect(html).toMatch(/aria-label="Wed"[^]*?aria-label="Models: no figure"/)
+      // The stations are named once, in the legend and the footnote.
+      expect(html).toContain('Airport DLL · 7 mi')
+      expect(html).toContain('Volunteer · 4 mi')
+      expect(html).toContain('The volunteer gauge (Baraboo 2.1 S) is read at 7 am')
       // Every gauge answered, so an empty day is no report, not a failure.
-      expect(html).toContain('No gauge reported this day')
+      expect(html).toContain('aria-label="Volunteer: no report"')
+      expect(html).not.toContain('no reading')
       expect(html).not.toContain('did not answer')
     })
 
+    it('never sets a part day of the models beside a gauge’s whole day', () => {
+      // The fixture's 13th has two model hours: partial, so nothing to compare.
+      const html = renderPrecip(recent, true, series, gauges)
+      expect(html).toMatch(/aria-label="Sun"[^]*?aria-label="Models: partial"/)
+      expect(html).toContain('No whole day at a gauge to set beside the models yet.')
+      expect(html).not.toContain('The models ran')
+    })
+
     it('says a failed read, and never calls an empty day unreported then', () => {
-      const html = renderPrecip(recent, true, series, {
+      const html = renderPrecip(wholeDays, true, series, {
         ...gauges,
         airport: { station: 'DLL', distance_km: 11.8, answered: false },
         volunteer: { stations: 2, failed: 1 },
         days: gauges.days.map((d) => noDay(d.local_date)),
       })
       expect(html).toContain('The airport gauge at DLL did not answer. 1 of 2 volunteer gauges did not answer.')
-      expect(html).toContain('No gauge reading')
-      expect(html).not.toContain('No gauge reported this day')
+      expect(html).toContain('aria-label="Airport: no reading"')
+      expect(html).toContain('aria-label="Volunteer: no reading"')
+      expect(html).not.toContain('no report')
     })
 
     it('draws no card where no gauge is in reach', () => {
