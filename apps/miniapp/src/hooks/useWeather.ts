@@ -8,6 +8,7 @@ import {
   type RainGaugeReadings,
   type RainNow,
   type RiverGaugeReading,
+  type Visit,
   type WeatherAlert,
 } from '@weatherteam6/types'
 
@@ -144,4 +145,23 @@ export const rainGaugesQuery = (id: string | undefined, enabled: boolean) =>
 
 export function useRainGauges(id: string | undefined, enabled: boolean): UseQueryResult<RainGaugeReadings> {
   return useQuery(rainGaugesQuery(id, enabled))
+}
+
+/** The key every visits query sits under, so a saved forecast check can mark it stale. */
+export const VISITS_KEY = 'visits'
+
+/**
+ * The reader's own visits to a place over the last 15 days (#589): their
+ * forecast checks there, for the Gauges card's marks. Asked only while the
+ * Precip tab is open, like the rain gauges.
+ */
+export const visitsQuery = (id: string | undefined, enabled: boolean) =>
+  queryOptions({
+    queryKey: [VISITS_KEY, id ?? ''] as const,
+    queryFn: () => apiGet<Visit[]>(`/visits/${id ?? ''}`),
+    enabled: enabled && id !== undefined && id !== '',
+  })
+
+export function useVisits(id: string | undefined, enabled: boolean): UseQueryResult<Visit[]> {
+  return useQuery(visitsQuery(id, enabled))
 }

@@ -5,10 +5,14 @@ import type {
   ForecastSnapshot,
   HourlySample,
   HourlySeries,
+  Location,
   RainGaugeReadings,
   RecentPrecip,
+  RiverGaugeReading,
+  Visit,
   WeatherAlert,
 } from '@weatherteam6/types'
+import { RIVER_GAUGES } from '@weatherteam6/types'
 import { DetailView, detailTabs, openDayInHourly } from './DetailView.js'
 import { HOUR_MS } from './charts/hourlySeries.js'
 
@@ -559,6 +563,7 @@ describe('DetailView — Precip tab', () => {
     isClimbingLocation = true,
     hourlySeries: HourlySeries = series,
     rainGauges?: RainGaugeReadings,
+    extra: { location?: Location; river?: RiverGaugeReading[] | 'error'; visits?: Visit[] } = {},
   ): string {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-15T09:30:00Z'))
@@ -572,6 +577,11 @@ describe('DetailView — Precip tab', () => {
         }}
         recentPrecip={ok(data)}
         {...(rainGauges === undefined ? {} : { rainGauges: ok(rainGauges) })}
+        {...(extra.location === undefined ? {} : { location: extra.location })}
+        {...(extra.river === undefined
+          ? {}
+          : { river: extra.river === 'error' ? { data: undefined, isError: true } : { data: extra.river, isError: false } })}
+        {...(extra.visits === undefined ? {} : { visits: { data: extra.visits, isError: false } })}
       />,
     )
     vi.useRealTimers()
@@ -630,24 +640,34 @@ describe('DetailView — Precip tab', () => {
       ),
     }
 
-    it('answers first, over each gauge’s own whole days, then a bar per source each day', () => {
+    /** One row of the grid's markup, from its name to the end of the row. */
+    const gridRow = (html: string, name: string) => {
+      const start = html.indexOf(`>${name}</th>`)
+      return start < 0 ? '' : html.slice(start, html.indexOf('</tr>', start))
+    }
+
+    it('answers first, over each gauge’s own whole days, then a grid of every source by day', () => {
       const html = renderPrecip(wholeDays, true, series, gauges)
       expect(html).toContain('Rain gauges')
+      // One kind of gauge: no tab strip.
+      expect(html).not.toContain('role="tablist" aria-label="Gauges"')
       // The airport's 14th is partial, so only the 13th counts for it: 0.42 in against the models' 0.18 in.
       expect(html).toContain('The models ran drier than the gauges')
-      expect(html).toContain('Airport caught 0.42 in where the models had 0.18 in, over the 1 day it reported in full.')
-      expect(html).toContain('Volunteer caught 0.38 in where the models had 0.18 in, over the 1 day it reported.')
-      expect(html).toMatch(/aria-label="Sun"[^]*?aria-label="Models: 0\.18 in"[^]*?aria-label="Airport: 0\.42 in"[^]*?aria-label="Volunteer: 0\.38 in"/)
-      // A short airport day is partial, never a drier total; a dry model day is 0, a measurement.
-      expect(html).toMatch(/aria-label="Mon"[^]*?aria-label="Models: 0 in"[^]*?aria-label="Airport: partial"/)
-      // The 9th is outside the window the grid drew: no figure, not 0.
-      expect(html).toMatch(/aria-label="Wed"[^]*?aria-label="Models: no figure"/)
-      // The stations are named once, in the legend and the footnote.
-      expect(html).toContain('Airport DLL · 7 mi')
-      expect(html).toContain('Volunteer · 4 mi')
-      expect(html).toContain('The volunteer gauge (Baraboo 2.1 S) is read at 7 am')
+      expect(html).toContain('Airport 0.42 in · models 0.18 in, over 1 whole day')
+      expect(html).toContain('Volunteer 0.38 in · models 0.18 in, over 1 whole day')
+      // Columns run oldest first, Wed the 9th to Mon the 14th, then the total.
+      expect(html).toMatch(/>Wed<\/th>[^]*?>Mon<\/th>[^]*?>6 days<\/th>/)
+      // The 9th to 12th are outside the window the models drew: no figure, never 0, and so no total.
+      const models = gridRow(html, 'Models')
+      expect(models).toMatch(/aria-label="no figure"[^]*?>0\.18<\/td>[^]*?>0<\/td>[^]*?>—<\/td>$/)
+      // A short airport day is part, never a drier total; a day with no report withholds the total.
+      expect(gridRow(html, 'Airport')).toMatch(/>0\.42<\/td>[^]*?>part<\/td>[^]*?aria-label="total withheld/)
+      expect(gridRow(html, 'Volunteer')).toMatch(/>0\.38<\/td>/)
+      // The stations are named once, in the footnote.
+      expect(html).toContain('Inches. Airport DLL 7 mi · volunteer 4 mi.')
+      expect(html).toContain('Volunteers read at 7 am, so overnight rain can land a day off.')
       // Every gauge answered, so an empty day is no report, not a failure.
-      expect(html).toContain('aria-label="Volunteer: no report"')
+      expect(html).toContain('aria-label="no report"')
       expect(html).not.toContain('no reading')
       expect(html).not.toContain('did not answer')
     })
@@ -655,7 +675,7 @@ describe('DetailView — Precip tab', () => {
     it('never sets a part day of the models beside a gauge’s whole day', () => {
       // The fixture's 13th has two model hours: partial, so nothing to compare.
       const html = renderPrecip(recent, true, series, gauges)
-      expect(html).toMatch(/aria-label="Sun"[^]*?aria-label="Models: partial"/)
+      expect(gridRow(html, 'Models')).toContain('>part</td>')
       expect(html).toContain('No whole day at a gauge to set beside the models yet.')
       expect(html).not.toContain('The models ran')
     })
@@ -668,9 +688,89 @@ describe('DetailView — Precip tab', () => {
         days: gauges.days.map((d) => noDay(d.local_date)),
       })
       expect(html).toContain('The airport gauge at DLL did not answer. 1 of 2 volunteer gauges did not answer.')
-      expect(html).toContain('aria-label="Airport: no reading"')
-      expect(html).toContain('aria-label="Volunteer: no reading"')
+      expect(gridRow(html, 'Airport')).toContain('aria-label="no reading"')
+      expect(gridRow(html, 'Volunteer')).toContain('aria-label="no reading"')
       expect(html).not.toContain('no report')
+    })
+
+    describe('with a river gauge (#589)', () => {
+      const robinson: Location = {
+        id: 'loc',
+        user_id: 'u',
+        name: 'Robinson Park',
+        lat: 46.12,
+        lon: -92.87,
+        elevation_m: 300,
+        is_climbing_location: true,
+        rock_type: 'sandstone',
+        aspect: null,
+        cliff_angle: null,
+        asos_station: null,
+        asos_network: null,
+        nws_office: null,
+        nws_grid_x: null,
+        nws_grid_y: null,
+        timezone: null,
+        created_at: '2026-09-01T00:00:00.000Z',
+        updated_at: null,
+        known_crag: 'robinson-park',
+      }
+      const gauge = RIVER_GAUGES['robinson-park']![0]!
+      // Hourly from 15 days back to 09:00 UTC on the 15th, 30 min before the test's now; 4.68 ft at the end.
+      const NOW_MS = Date.parse('2026-09-15T09:00:00Z')
+      const reading: RiverGaugeReading = {
+        ...gauge,
+        points: Array.from({ length: 15 * 24 }, (_, k) => ({
+          at: new Date(NOW_MS - (15 * 24 - 1 - k) * 3_600_000).toISOString(),
+          height_ft: k === 15 * 24 - 1 ? 4.68 : k === 15 * 24 - 26 ? 4.74 : 4.9,
+        })),
+      }
+      const visit: Visit = { id: 'v1', observed_at: '2026-09-13T17:00:00Z', observed_conditions: 'dry', message: 'Beach boulder just reachable.' }
+
+      it('puts the river beside the rain in tabs, each with its word', () => {
+        const html = renderPrecip(wholeDays, true, series, gauges, { location: robinson, river: [reading], visits: [visit] })
+        expect(html).toContain('role="tablist" aria-label="Gauges"')
+        expect(html).toMatch(/>Rain<\/span><span[^>]*>Models drier</)
+        expect(html).toMatch(/>River<\/span><span[^>]*>Low enough</)
+        // The visit is listed under the tabs, with the river at the time and their own words.
+        expect(html).toContain('Your visits')
+        expect(html).toContain('You saw dry · River 4.90 ft')
+        expect(html).toContain('Beach boulder just reachable.')
+        // And tagged above its day in the grid.
+        expect(html).toMatch(/>Visit<\/span>/)
+      })
+
+      it('draws the river alone, with its line, change and chart, where there is no rain gauge', () => {
+        const html = renderPrecip(wholeDays, true, series, undefined, { location: robinson, river: [reading], visits: [visit] })
+        expect(html).toContain('River gauge')
+        expect(html).not.toContain('role="tablist" aria-label="Gauges"')
+        expect(html).toMatch(/>4\.68<small[^>]*>ft</)
+        expect(html).toContain('falling 0.06 ft in 25 h')
+        expect(html).toContain('Beach boulder is reachable')
+        expect(html).toContain('your line is 4.95 ft')
+        expect(html).toContain('Your visit · Sep 13')
+        expect(html).toContain('check the water before you cross')
+      })
+
+      it('shows a gap, never the last figure, when the newest reading is too old', () => {
+        const stale = { ...reading, points: reading.points.slice(0, -8) }
+        const html = renderPrecip(wholeDays, true, series, undefined, { location: robinson, river: [stale] })
+        // The last reading, 4.90 ft 8 h ago, is never printed as now.
+        expect(html).not.toMatch(/>4\.90<small/)
+        expect(html).toMatch(/>—<\/span>/)
+        expect(html).toContain('No recent reading')
+        expect(html).toContain('too old to show')
+      })
+
+      it('says no reading on the tab when the river request failed, never low enough', () => {
+        const html = renderPrecip(wholeDays, true, series, gauges, { location: robinson, river: 'error' })
+        expect(html).toMatch(/>River<\/span><span[^>]*>No reading</)
+      })
+
+      it('draws no River tab at a crag with no river gauge, even when a reading is passed', () => {
+        const html = renderPrecip(wholeDays, true, series, gauges, { location: { ...robinson, known_crag: null }, river: [reading] })
+        expect(html).not.toContain('role="tablist" aria-label="Gauges"')
+      })
     })
 
     it('draws no card where no gauge is in reach', () => {

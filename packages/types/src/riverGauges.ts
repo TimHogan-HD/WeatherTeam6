@@ -57,12 +57,23 @@ export type RiverPoint = {
 
 /**
  * `GET /river-gauges/:locationId`: one entry per gauge of the location's crag.
- * `points` is the last day of observations, oldest first. **Empty means USGS
- * did not answer or reported nothing**, never "the river is low".
+ * `points` covers the last `RIVER_HISTORY_DAYS`, oldest first, thinned to the
+ * last observation in each hour (so the newest observation is always the last
+ * point). **Empty means USGS did not answer or reported nothing**, never "the
+ * river is low".
  */
 export type RiverGaugeReading = RiverGauge & {
   points: RiverPoint[]
 }
+
+/** How many days of gage height a reading carries: the Gauges card's chart (#589). */
+export const RIVER_HISTORY_DAYS = 15
+
+/** The span the change line measures over: about a day, as the card has always said it. */
+export const RIVER_CHANGE_SPAN_MS = 25 * 3_600_000
+
+/** How far the point a change is measured from may sit from `RIVER_CHANGE_SPAN_MS` back. */
+export const RIVER_CHANGE_TOLERANCE_MS = 90 * 60_000
 
 /** USGS posts with a lag of an hour or two; past this, the newest reading is too old to stand for now. */
 export const RIVER_STALE_MS = 6 * 3_600_000
@@ -85,14 +96,51 @@ export function riverState(reading: Pick<RiverGaugeReading, 'points' | 'reachabl
 }
 
 /**
- * Change over the window the points cover, ft, newest minus the first point
- * at least `minSpanMs` older. Null when the points cover less than that: a
- * trend over an hour reads as a day's.
+ * Change over about a day, ft: the newest point minus the point nearest
+ * `spanMs` before it, with that point's time so the screen can say the hours
+ * it really covers. Null when no point sits within `toleranceMs` of the mark:
+ * a gap there would turn a day's trend into an hour's or a week's.
  */
-export function riverChangeFt(points: readonly RiverPoint[], minSpanMs = 18 * 3_600_000): number | null {
+export function riverChangeFt(
+  points: readonly RiverPoint[],
+  spanMs = RIVER_CHANGE_SPAN_MS,
+  toleranceMs = RIVER_CHANGE_TOLERANCE_MS,
+): { change_ft: number; from_at: string } | null {
   const latest = points.at(-1)
-  const first = points[0]
-  if (latest === undefined || first === undefined) return null
-  if (Date.parse(latest.at) - Date.parse(first.at) < minSpanMs) return null
-  return Math.round((latest.height_ft - first.height_ft) * 100) / 100
+  if (latest === undefined) return null
+  const latestMs = Date.parse(latest.at)
+  if (!Number.isFinite(latestMs)) return null
+  const target = latestMs - spanMs
+  let best: RiverPoint | null = null
+  let bestOff = Infinity
+  for (const p of points) {
+    const ms = Date.parse(p.at)
+    if (!Number.isFinite(ms) || !Number.isFinite(p.height_ft)) continue
+    const off = Math.abs(ms - target)
+    if (off < bestOff) {
+      best = p
+      bestOff = off
+    }
+  }
+  if (best === null || bestOff > toleranceMs) return null
+  return { change_ft: Math.round((latest.height_ft - best.height_ft) * 100) / 100, from_at: best.at }
+}
+
+/**
+ * The gage height nearest an instant, within `toleranceMs`, or null: a visit's
+ * reading on the Gauges card. Never a neighbour from hours away.
+ */
+export function riverHeightNear(points: readonly RiverPoint[], atMs: number, toleranceMs = 3_600_000): number | null {
+  let best: RiverPoint | null = null
+  let bestOff = Infinity
+  for (const p of points) {
+    const ms = Date.parse(p.at)
+    if (!Number.isFinite(ms) || !Number.isFinite(p.height_ft)) continue
+    const off = Math.abs(ms - atMs)
+    if (off < bestOff) {
+      best = p
+      bestOff = off
+    }
+  }
+  return best === null || bestOff > toleranceMs ? null : best.height_ft
 }

@@ -252,6 +252,12 @@ async function run(): Promise<void> {
     const ownGuide = await call<null>('GET', `/guidebook/${locA}`, { auth: `Session ${token}` })
     check('GET /guidebook/:id on A\'s own location is 200', ownGuide.status === 200, `got ${ownGuide.status}`)
 
+    // Visits are forecast checks read by location: B's must not reach A.
+    const crossVisits = await call<null>('GET', `/visits/${locB}`, { auth: `Session ${token}` })
+    check("GET /visits/:id on B's location is 404 for A", crossVisits.status === 404, `got ${crossVisits.status}`)
+    const ownVisits = await call<unknown[]>('GET', `/visits/${locA}`, { auth: `Session ${token}` })
+    check("GET /visits/:id on A's own location is 200", ownVisits.status === 200, `got ${ownVisits.status}`)
+
     const stillThere = await db
       .select({ id: locations.id })
       .from(locations)

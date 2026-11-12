@@ -424,14 +424,9 @@ export type RockTabProps = {
   }
   /** When the sun is on each wall; null except at a crag the owner has confirmed (`sunWallsFor`). */
   sunWalls: SunWalls | null
-  /**
-   * The crag's river gauges (`RiverGaugeCard`), or null at a crag with none.
-   * Optional so a test can render without it.
-   */
-  river?: ReactNode
 }
 
-export function RockTab({ rockType, identity, live, sunWalls, river = null }: RockTabProps) {
+export function RockTab({ rockType, identity, live, sunWalls }: RockTabProps) {
   const guide = rockType === null ? null : rockGuide(rockType)
   const name = guide === null || rockType === null ? 'Rock type not recorded' : rockTypeLabel(rockType)
 
@@ -464,7 +459,6 @@ export function RockTab({ rockType, identity, live, sunWalls, river = null }: Ro
                   />
                 ),
               },
-          river === null ? null : { id: 'river', title: 'River level', node: river },
           sunWalls === null ? null : { id: 'sunOnWall', title: 'Sun on the wall', node: <SunOnWallCard data={sunWalls} /> },
           guide === null
             ? null

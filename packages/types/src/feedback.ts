@@ -334,3 +334,19 @@ export function feedbackSnapshotFor(
  * (the seeded user).
  */
 export type FeedbackFromAnyone = Feedback & { username: string | null };
+
+/** How far back `GET /visits/:locationId` reaches: the Gauges card's 15-day charts (#589). */
+export const VISIT_WINDOW_DAYS = 15;
+
+/**
+ * A visit to a crag, as the Gauges card marks it (#589): one of the reader's own
+ * forecast checks at that location, resolved or not, with its time and what
+ * they saw. Never anyone else's, and never app feedback.
+ */
+export type Visit = {
+  id: string;
+  observed_at: string;
+  observed_conditions: ObservedConditions;
+  /** The reader's own words, or null when they wrote none. */
+  message: string | null;
+};

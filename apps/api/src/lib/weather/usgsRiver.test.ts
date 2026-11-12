@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fetchRiverPoints, parseRiverPoints, riverItemsUrl } from './usgsRiver.js'
+import { fetchRiverPoints, parseRiverPoints, riverItemsUrl, thinToHourly } from './usgsRiver.js'
 
 const feature = (time: unknown, value: unknown, unit: unknown = 'ft') => ({
   type: 'Feature',
@@ -52,6 +52,25 @@ describe('riverItemsUrl', () => {
   })
 })
 
+describe('thinToHourly', () => {
+  it('keeps the last point of each clock hour, so the newest survives as it came', () => {
+    const pts = ['13:00', '13:15', '13:45', '14:00', '14:15'].map((t, i) => ({ at: `2026-11-09T${t}:00.000Z`, height_ft: [4.8, 4.81, 4.82, 4.83, 4.84][i]! }))
+    expect(thinToHourly(pts)).toEqual([
+      { at: '2026-11-09T13:45:00.000Z', height_ft: 4.82 },
+      { at: '2026-11-09T14:15:00.000Z', height_ft: 4.84 },
+    ])
+  })
+
+  it('keeps an hour with one point and skips none across a gap', () => {
+    const pts = [
+      { at: '2026-11-09T10:30:00.000Z', height_ft: 5 },
+      { at: '2026-11-09T14:00:00.000Z', height_ft: 4.9 },
+    ]
+    expect(thinToHourly(pts)).toEqual(pts)
+    expect(thinToHourly([])).toEqual([])
+  })
+})
+
 describe('fetchRiverPoints', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -65,7 +84,16 @@ describe('fetchRiverPoints', () => {
     expect(await fetchRiverPoints('USGS-05336700')).toEqual([])
   })
 
-  it('returns the parsed points on success', async () => {
+  it('returns the parsed points, thinned to the hour, on success', async () => {
+    const body = { features: [feature('2026-11-09T14:15:00Z', '4.86'), feature('2026-11-09T14:00:00Z', '4.87'), feature('2026-11-09T13:45:00Z', '4.9')] }
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })))
+    expect(await fetchRiverPoints('USGS-05336700')).toEqual([
+      { at: '2026-11-09T13:45:00.000Z', height_ft: 4.9 },
+      { at: '2026-11-09T14:15:00.000Z', height_ft: 4.86 },
+    ])
+  })
+
+  it('returns a single point on success', async () => {
     const body = { features: [feature('2026-11-09T13:00:00Z', '4.88')] }
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })))
     expect(await fetchRiverPoints('USGS-05336700')).toEqual([{ at: '2026-11-09T13:00:00.000Z', height_ft: 4.88 }])

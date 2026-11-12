@@ -33,13 +33,27 @@ export function climbableLine(lineFt: number): string {
   return `Climbable at ${formatFt(lineFt)} or lower`
 }
 
-/** The spot's word for a state: what the line says, not what the river is doing. */
-export function spotWord(state: RiverState): string {
+/**
+ * `Falling 0.09 ft in 25 h`; null when no point sits near a day back
+ * (`riverChangeFt`). **The hours are measured from the points**, not the span
+ * asked for, so a reading posted late says so.
+ */
+export function changeLine(reading: Pick<RiverGaugeReading, 'points'>): string | null {
+  const change = riverChangeFt(reading.points)
+  const latest = reading.points.at(-1)
+  if (change === null || latest === undefined) return null
+  const hours = Math.round((Date.parse(latest.at) - Date.parse(change.from_at)) / 3_600_000)
+  if (change.change_ft === 0) return `Steady in ${hours} h`
+  return `${change.change_ft < 0 ? 'Falling' : 'Rising'} ${Math.abs(change.change_ft).toFixed(2)} ft in ${hours} h`
+}
+
+/** The River tab's status word (#589): what the line says, in two words. */
+export function riverTabWord(state: RiverState): string {
   switch (state.kind) {
     case 'reachable':
-      return 'Low enough to climb'
+      return 'Low enough'
     case 'high':
-      return 'Too high to climb'
+      return 'Too high'
     case 'stale':
       return 'No recent reading'
     case 'unavailable':
@@ -47,19 +61,35 @@ export function spotWord(state: RiverState): string {
   }
 }
 
+/** Worst first: the tab speaks for the gauge a reader would act on. */
+const STATE_RANK: Record<RiverState['kind'], number> = { high: 0, unavailable: 1, stale: 2, reachable: 3 }
+
+/** The state the River tab's word reads, when a crag has more than one gauge: the worst. Null for none. */
+export function worstRiverState(states: readonly RiverState[]): RiverState | null {
+  return [...states].sort((a, b) => STATE_RANK[a.kind] - STATE_RANK[b.kind])[0] ?? null
+}
+
 /**
- * `Falling 0.09 ft over 25 h`; null when the points do not cover most of a
- * day. **The hours are measured from the points**, not the window asked for:
- * USGS's posting lag and any gap move the span between 18 and 26 h.
+ * The spot's line under the River tab's figure (#589 mockup): `Beach boulder
+ * is reachable` or `Too high for the Beach boulder`, with the line beside it.
+ * A stale or missing reading says no reading, never which side of the line.
  */
-export function changeLine(reading: Pick<RiverGaugeReading, 'points'>): string | null {
-  const change = riverChangeFt(reading.points)
-  const first = reading.points[0]
-  const latest = reading.points.at(-1)
-  if (change === null || first === undefined || latest === undefined) return null
-  const hours = Math.round((Date.parse(latest.at) - Date.parse(first.at)) / 3_600_000)
-  if (change === 0) return `Steady over ${hours} h`
-  return `${change < 0 ? 'Falling' : 'Rising'} ${Math.abs(change).toFixed(2)} ft over ${hours} h`
+export function spotLine(reading: Pick<RiverGaugeReading, 'boulder' | 'reachable_at_or_below_ft'>, state: RiverState): { word: string; line: string } {
+  const line = `your line is ${formatFt(reading.reachable_at_or_below_ft)}`
+  switch (state.kind) {
+    case 'reachable':
+      return { word: `${reading.boulder} is reachable`, line }
+    case 'high':
+      return { word: `Too high for the ${reading.boulder}`, line }
+    case 'stale':
+    case 'unavailable':
+      return { word: 'No recent reading', line }
+  }
+}
+
+/** `Nov 11, 2:00 PM` on the crag's clock, for a reading too old to stand for now. */
+export function readingWhen(at: string, utcOffsetSeconds: number | null): string | null {
+  return formatAt(at, utcOffsetSeconds, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 }
 
 /**
