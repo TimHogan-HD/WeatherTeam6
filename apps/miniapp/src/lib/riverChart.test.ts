@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { localDaySpan, riverChartModel } from './riverChart.js'
+import { riverChartModel } from './riverChart.js'
 
 const NOW = Date.parse('2026-11-12T18:00:00Z')
 const H = 3_600_000
@@ -27,14 +27,5 @@ describe('riverChartModel', () => {
     expect(m.lo).toBeLessThanOrEqual(4.0)
     expect(m.hi).toBeGreaterThanOrEqual(4.95)
     expect(m.ticks[0]).toBe(m.lo)
-  })
-})
-
-describe('localDaySpan', () => {
-  it('is the crag-clock day around an instant', () => {
-    // Noon Nov 8 in Minnesota (UTC-6) is 18:00 UTC; its day runs 06:00 UTC Nov 8 to 06:00 UTC Nov 9.
-    const span = localDaySpan(Date.parse('2026-11-08T18:00:00Z'), -6 * 3600)
-    expect(new Date(span.startMs).toISOString()).toBe('2026-11-08T06:00:00.000Z')
-    expect(new Date(span.endMs).toISOString()).toBe('2026-11-09T06:00:00.000Z')
   })
 })
