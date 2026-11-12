@@ -3,12 +3,14 @@ import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import {
   EM_DASH,
   formatPrecipIn,
+  formatTempF,
   hourLabel,
   OBSERVED_CONDITIONS_LABEL,
   riverHeightNear,
   riverState,
   type RainGaugeReadings,
   type RiverGaugeReading,
+  type SoilReading,
   type Visit,
 } from '@weatherteam6/types'
 import { typeV2, withOpacity } from '../theme/tokens.css.js'
@@ -34,6 +36,17 @@ import {
 } from '../lib/gaugeGrid.js'
 import { changeLine, formatFt, readingClock, readingWhen, riverTabWord, spotLine, worstRiverState } from '../lib/riverGauge.js'
 import { localDaySpan, riverChartModel } from '../lib/riverChart.js'
+import {
+  formatVwc,
+  groundChartModel,
+  groundNear,
+  groundPill,
+  groundState,
+  groundTabWord,
+  groundTrend,
+  ordinalPct,
+  type GroundState,
+} from '../lib/groundGauge.js'
 import { weekdayOf } from '../lib/precipHistory.js'
 import { sectCard } from './charts/DayCharts.js'
 import { Sect } from './charts/liquid.js'
@@ -42,7 +55,8 @@ import { InlineError, Skeleton } from './States.js'
 /**
  * The Precip tab's Gauges card (#589; owner, 2026-11-12, mockup version 13):
  * one card, a tab per kind of gauge the crag has. Rain wherever a gauge is in
- * reach; the River only at a crag in `RIVER_GAUGES`. A crag with one kind gets
+ * reach; the River only at a crag in `RIVER_GAUGES`; the Ground only at a crag
+ * in `SOIL_STATIONS` (#589 part 2). A crag with one kind gets
  * no tab strip, and the caller draws no card for a crag with none.
  *
  * **Readings beside the score, never part of it.** Nothing here feeds Crag A.
@@ -63,6 +77,8 @@ export type GaugesCardProps = {
   rain?: GaugeQuery<RainGaugeReadings>
   /** Absent: the crag has no river gauge, so no River tab. */
   river?: { data: RiverGaugeReading[] | undefined; isError: boolean }
+  /** Absent: the crag has no NOAA station, so no Ground tab. */
+  soil?: GaugeQuery<SoilReading | null>
   /** The reader's own visits here. Absent or failed draws no marks and says so once. */
   visits?: { data: Visit[] | undefined; isError: boolean }
   /** The models' per-day rain, from the hours the tab draws (`modelDays`). */
@@ -74,13 +90,19 @@ export type GaugesCardProps = {
   nowMs: number
 }
 
-type Kind = 'rain' | 'river'
+type Kind = 'rain' | 'river' | 'ground'
+
+const KIND_NAME: Record<Kind, string> = { rain: 'Rain', river: 'River', ground: 'Ground' }
 
 const RAIN_LOADING_H = 160
 const NAME_COL_W = 68
 
-export function GaugesCard({ rain, river, visits, models, today, utcOffsetSeconds, nowMs }: GaugesCardProps) {
-  const kinds: Kind[] = [...(rain === undefined ? [] : ['rain' as const]), ...(river === undefined ? [] : ['river' as const])]
+export function GaugesCard({ rain, river, soil, visits, models, today, utcOffsetSeconds, nowMs }: GaugesCardProps) {
+  const kinds: Kind[] = [
+    ...(rain === undefined ? [] : ['rain' as const]),
+    ...(river === undefined ? [] : ['river' as const]),
+    ...(soil === undefined ? [] : ['ground' as const]),
+  ]
   const [picked, setPicked] = useState<Kind>(kinds[0] ?? 'rain')
   const baseId = useId()
   const active: Kind = kinds.includes(picked) ? picked : (kinds[0] ?? 'rain')
@@ -97,6 +119,8 @@ export function GaugesCard({ rain, river, visits, models, today, utcOffsetSecond
         })
   const riverStates = (river?.data ?? []).map((r) => riverState(r, nowMs))
   const worst = worstRiverState(riverStates)
+  const soilData = soil?.data ?? null
+  const ground: GroundState | null = soilData === null ? null : groundState(soilData.points, nowMs)
 
   const status: Record<Kind, { word: string; color: string }> = {
     rain: {
@@ -108,8 +132,13 @@ export function GaugesCard({ rain, river, visits, models, today, utcOffsetSecond
       color:
         worst?.kind === 'reachable' ? colorsV2.goodInk : worst?.kind === 'high' ? colorsV2.poorInk : colorsV2.txt2,
     },
+    ground: {
+      word: soil?.isError === true ? 'No reading' : ground === null ? EM_DASH : groundTabWord(ground),
+      color: groundColor(ground),
+    },
   }
-  const title = kinds.length === 1 && kinds[0] === 'rain' ? 'Rain gauges' : kinds.length === 1 ? 'River gauge' : 'Gauges'
+  const only = kinds.length === 1 ? kinds[0] : undefined
+  const title = only === 'rain' ? 'Rain gauges' : only === 'river' ? 'River gauge' : only === 'ground' ? 'Ground' : 'Gauges'
 
   const onKey = (e: KeyboardEvent<HTMLButtonElement>, i: number) => {
     const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
@@ -126,6 +155,8 @@ export function GaugesCard({ rain, river, visits, models, today, utcOffsetSecond
       <RainPanel rain={rain} models={models} today={today} visits={visitList} utcOffsetSeconds={utcOffsetSeconds} />
     ) : active === 'river' && river !== undefined ? (
       <RiverPanel river={river} visits={visitList} utcOffsetSeconds={utcOffsetSeconds} nowMs={nowMs} />
+    ) : active === 'ground' && soil !== undefined ? (
+      <GroundPanel soil={soil} visits={visitList} utcOffsetSeconds={utcOffsetSeconds} nowMs={nowMs} />
     ) : null
 
   return (
@@ -178,7 +209,7 @@ export function GaugesCard({ rain, river, visits, models, today, utcOffsetSecond
                   }}
                 >
                   <span style={{ ...typeV2.sect, color: on ? colorsV2.brandInk : colorsV2.txtTab }}>
-                    {k === 'rain' ? 'Rain' : 'River'}
+                    {KIND_NAME[k]}
                   </span>
                   <span
                     style={{
@@ -202,7 +233,7 @@ export function GaugesCard({ rain, river, visits, models, today, utcOffsetSecond
           </div>
         </>
       )}
-      <Visits visits={visits} river={river?.data} utcOffsetSeconds={utcOffsetSeconds} />
+      <Visits visits={visits} river={river?.data} soil={soilData} utcOffsetSeconds={utcOffsetSeconds} />
     </section>
   )
 }
@@ -249,6 +280,7 @@ function RainPanel({
       : oneVolunteer === undefined
         ? 'volunteer: nearest reporting'
         : `volunteer ${miles(oneVolunteer.distance_km)} mi`,
+    data.noaa == null ? null : `NOAA ${miles(data.noaa.distance_km)} mi`,
   ].filter((s): s is string => s !== null)
   const footnote = [
     `Inches.${where.length === 0 ? '' : ` ${where.join(' · ')}.`}`,
@@ -503,12 +535,8 @@ function RiverChart({
   const x = (ms: number) => CL + ((ms - model.fromMs) / (model.toMs - model.fromMs)) * pw
   const y = (ft: number) => CT + (1 - (ft - model.lo) / (model.hi - model.lo)) * ph
   const lineY = y(reading.reachable_at_or_below_ft)
-  const shown = visits
-    .map((v) => ({ v, ms: Date.parse(v.observed_at) }))
-    .filter((p) => Number.isFinite(p.ms) && p.ms >= model.fromMs && p.ms <= model.toMs)
-  const newest = shown[shown.length - 1]
-  const dayLabel = (ms: number) =>
-    new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(ms + utcOffsetSeconds * 1000)
+  const shown = visitsIn(visits, model.fromMs, model.toMs)
+  const dayLabel = chartDay(utcOffsetSeconds)
   const places = model.hi - model.lo < 0.5 ? 2 : 1
 
   return (
@@ -519,12 +547,7 @@ function RiverChart({
         aria-label={`${reading.river} gage height, ${dayLabel(model.fromMs)} to ${dayLabel(model.toMs)}, with your ${formatFt(reading.reachable_at_or_below_ft)} line`}
         style={{ display: 'block', width: '100%', height: 'auto' }}
       >
-        {shown.map(({ v, ms }) => {
-          const span = localDaySpan(ms, utcOffsetSeconds)
-          const x0 = Math.max(CL, x(span.startMs))
-          const x1 = Math.min(CW - CR, x(span.endMs))
-          return <rect key={`band-${v.id}`} x={x0} y={CT} width={Math.max(0, x1 - x0)} height={ph} fill={colorsV2.txt1} fillOpacity={0.07} />
-        })}
+        <VisitBands shown={shown} x={x} utcOffsetSeconds={utcOffsetSeconds} />
         {/* Above the line the spot is cut off: a faint band, so the dashed line reads as an edge. */}
         {lineY > CT ? <rect x={CL} y={CT} width={pw} height={lineY - CT} fill={colorsV2.poorInk} fillOpacity={0.06} /> : null}
         {model.ticks.map((t) => (
@@ -561,25 +584,8 @@ function RiverChart({
         {model.latest === null ? null : (
           <circle cx={x(model.latest.ms)} cy={y(model.latest.ft)} r={4.5} fill={colorsV2.river} stroke={colorsV2.card} strokeWidth={2.5} />
         )}
-        {shown.map(({ v, ms }) => (
-          <line key={`line-${v.id}`} x1={x(ms)} x2={x(ms)} y1={CT} y2={CT + ph} stroke={colorsV2.brandInk} strokeWidth={1.5} />
-        ))}
-        {newest === undefined ? null : (
-          <text
-            x={x(newest.ms) > CW - 140 ? x(newest.ms) - 5 : x(newest.ms) + 5}
-            y={CT + 10}
-            textAnchor={x(newest.ms) > CW - 140 ? 'end' : 'start'}
-            style={{ ...typeV2.sect, fontSize: 10, letterSpacing: 0.6, fill: colorsV2.brandInk }}
-          >
-            {`Your visit · ${dayLabel(newest.ms)}`}
-          </text>
-        )}
-        <text x={CL} y={CH - 6} textAnchor="start" style={{ ...typeV2.axisTick, fill: colorsV2.txtTab }}>
-          {dayLabel(model.fromMs)}
-        </text>
-        <text x={CW - CR} y={CH - 6} textAnchor="end" style={{ ...typeV2.axisTick, fill: colorsV2.txtTab }}>
-          {dayLabel(model.toMs)}
-        </text>
+        <VisitLines shown={shown} x={x} dayLabel={dayLabel} />
+        <EdgeDates fromMs={model.fromMs} toMs={model.toMs} dayLabel={dayLabel} />
       </svg>
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }} aria-hidden="true">
         <Key swatch={<i style={{ width: 14, height: 3, borderRadius: 2, background: colorsV2.river, display: 'inline-block' }} />}>
@@ -606,15 +612,396 @@ function Key({ swatch, children }: { swatch: ReactNode; children: ReactNode }) {
   )
 }
 
+/* ---------------------------------------------------------------- ground */
+
+/** The tab word's colour: wetter in `fairInk`, soaked in `poorInk`, as the mockup draws it; anything else neutral. */
+function groundColor(state: GroundState | null): string {
+  if (state?.kind !== 'reading') return colorsV2.txt2
+  return state.top.word === 'Soaked' ? colorsV2.poorInk : state.top.word === 'Wetter than usual' ? colorsV2.fairInk : colorsV2.txt2
+}
+
+function GroundPanel({
+  soil,
+  visits,
+  utcOffsetSeconds,
+  nowMs,
+}: {
+  soil: GaugeQuery<SoilReading | null>
+  visits: readonly Visit[]
+  utcOffsetSeconds: number
+  nowMs: number
+}) {
+  if (soil.isPending) return <Skeleton height={RAIN_LOADING_H} />
+  if (soil.isError || soil.data === undefined || soil.data === null) {
+    return <InlineError message="Couldn't load the ground reading." onRetry={soil.refetch} />
+  }
+  const data = soil.data
+  const state = groundState(data.points, nowMs)
+  const where = `NOAA ${data.station.name}, ${miles(data.station.distance_km)} mi ${data.station.direction}`
+  const clock = (iso: string) => readingWhen(iso, utcOffsetSeconds) ?? 'at an unknown time'
+  const figure = state.kind === 'reading' ? formatVwc(state.top.vwc).replace(/%$/, '') : EM_DASH
+  const pill =
+    state.kind === 'reading'
+      ? groundPill(state.top.word)
+      : state.kind === 'frozen'
+        ? 'Frozen ground'
+        : state.kind === 'stale'
+          ? 'No recent reading'
+          : 'No reading'
+  const pillColor = state.kind === 'reading' ? groundColor(state) : state.kind === 'frozen' ? colorsV2.rangeFrost : colorsV2.txtMuted
+  const sub =
+    state.kind === 'reading'
+      ? `Water in the top 5 cm of soil, by volume, at ${readingClock(state.at, utcOffsetSeconds) ?? 'an unknown time'}`
+      : state.kind === 'frozen'
+        ? `Soil is at ${formatTempF(state.temp_c)}, ${clock(state.at)}. The sensor can't read frozen ground.`
+        : state.kind === 'stale'
+          ? `Last reading ${clock(state.at)}, too old to show.`
+          : data.answered
+            ? 'The station has no recent soil reading.'
+            : 'The NOAA station did not answer.'
+  const trend = state.kind === 'reading' ? groundTrend(data.points, utcOffsetSeconds) : null
+
+  return (
+    <div style={stack(spacing.listGapLg)}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+        <span style={{ ...typeV2.statFigure, color: state.kind === 'reading' ? colorsV2.txt1 : colorsV2.txtMuted }}>
+          {figure}
+          {state.kind === 'reading' ? (
+            <small style={{ fontSize: 18, fontWeight: 600, color: colorsV2.txtMuted, marginLeft: 2 }}>%</small>
+          ) : null}
+        </span>
+        <span
+          style={{
+            ...typeV2.rowSmall,
+            fontWeight: 600,
+            color: pillColor,
+            border: `1px solid ${withOpacity(pillColor, 0.4)}`,
+            background: withOpacity(pillColor, 0.1),
+            borderRadius: 999,
+            padding: '3px 10px',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {pill}
+        </span>
+      </div>
+      <p style={state.kind === 'reading' ? typeV2.note : { ...typeV2.rowSmall, fontSize: 14 }}>{sub}</p>
+      {state.kind === 'reading' ? (
+        <>
+          <PercentileRail top={state.top.pct} below={state.below?.pct ?? null} />
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'auto 1fr auto',
+              gap: '6px 12px',
+              alignItems: 'baseline',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            <DepthRow
+              dot={colorsV2.txt1}
+              depth="5 cm"
+              words={`${ordinalPct(state.top.pct)} percentile for the date`}
+              value={formatVwc(state.top.vwc)}
+            />
+            <DepthRow
+              dot={colorsV2.rainAmount}
+              depth="20 cm"
+              words={
+                state.below === null
+                  ? 'No reading'
+                  : `${ordinalPct(state.below.pct)} percentile${state.wetBelow ? ' · still wet below' : ''}`
+              }
+              value={state.below === null ? EM_DASH : formatVwc(state.below.vwc)}
+            />
+          </div>
+          {trend === null ? null : <p style={{ ...typeV2.rowSmall, fontSize: 14 }}>{trend}</p>}
+        </>
+      ) : null}
+      <GroundChart data={data} visits={visits} utcOffsetSeconds={utcOffsetSeconds} nowMs={nowMs} />
+      <p style={typeV2.note}>
+        {where}, {data.station.setting}. Shaded ground at the crag stays wetter. Not a reading of the rock.
+      </p>
+    </div>
+  )
+}
+
+function DepthRow({ dot, depth, words, value }: { dot: string; depth: string; words: string; value: string }) {
+  return (
+    <>
+      <span style={{ ...typeV2.axisTick, fontSize: 12, color: colorsV2.txtMuted }}>
+        <i
+          aria-hidden="true"
+          style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: dot, marginRight: 6 }}
+        />
+        {depth}
+      </span>
+      <span style={{ ...typeV2.rowSmall, color: colorsV2.txt2 }}>{words}</span>
+      <span style={{ ...typeV2.axisTick, fontSize: 13, color: colorsV2.txt1, textAlign: 'right' }}>{value}</span>
+    </>
+  )
+}
+
+/** Where today's readings fall among the station's for the date: the middle half dashed off, 5 cm and 20 cm marked. */
+function PercentileRail({ top, below }: { top: number; below: number | null }) {
+  const mark = (pct: number, color: string, size: number) => (
+    <span
+      style={{
+        position: 'absolute',
+        top: '50%',
+        left: `${Math.min(100, Math.max(0, pct * 100))}%`,
+        width: size,
+        height: size,
+        borderRadius: '50%',
+        background: color,
+        border: `${size > 12 ? 3 : 2}px solid ${colorsV2.surface}`,
+        boxShadow: `0 0 0 1px ${color}`,
+        transform: 'translate(-50%, -50%)',
+      }}
+    />
+  )
+  return (
+    <div style={stack(6)} aria-hidden="true">
+      <div
+        style={{
+          position: 'relative',
+          height: 10,
+          borderRadius: 999,
+          border: `1px solid ${colorsV2.line}`,
+          background: `linear-gradient(90deg, ${withOpacity(colorsV2.soil, 0.1)}, ${withOpacity(colorsV2.soil, 0.22)} 50%, ${withOpacity(colorsV2.rainAmount, 0.35)})`,
+        }}
+      >
+        <span
+          style={{
+            position: 'absolute',
+            top: -3,
+            bottom: -3,
+            left: '25%',
+            width: '50%',
+            borderLeft: `1px dashed ${colorsV2.txtTab}`,
+            borderRight: `1px dashed ${colorsV2.txtTab}`,
+          }}
+        />
+        {below === null ? null : mark(below, colorsV2.rainAmount, 12)}
+        {mark(top, colorsV2.txt1, 16)}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', ...typeV2.axisTick, fontSize: 10, color: colorsV2.txtTab }}>
+        <span>Driest</span>
+        <span>Middle half</span>
+        <span>Wettest</span>
+      </div>
+    </div>
+  )
+}
+
+function GroundChart({
+  data,
+  visits,
+  utcOffsetSeconds,
+  nowMs,
+}: {
+  data: SoilReading
+  visits: readonly Visit[]
+  utcOffsetSeconds: number
+  nowMs: number
+}) {
+  const model = groundChartModel(data.points, data.rain_days, utcOffsetSeconds, nowMs)
+  if (model === null) return null
+  const pw = CW - CL - CR
+  const ph = CH - CT - CB
+  const x = (ms: number) => CL + ((ms - model.fromMs) / (model.toMs - model.fromMs)) * pw
+  const y = (pts: number) => CT + (1 - (pts - model.lo) / (model.hi - model.lo)) * ph
+  // Rain bars rise from the floor to about half the plot at `rainTopMm`.
+  const rainH = (mm: number) => (mm / model.rainTopMm) * ph * 0.55
+  const dayW = pw / ((model.toMs - model.fromMs) / (24 * 3_600_000))
+  const shown = visitsIn(visits, model.fromMs, model.toMs)
+  const dayLabel = chartDay(utcOffsetSeconds)
+  const hasRain = model.rain.length > 0 || model.rainGaps.length > 0
+  // The wettest day carries its figure, so the bars have a scale on screen.
+  const wettest = model.rain.reduce<(typeof model.rain)[number] | null>((m, r) => (m === null || r.mm > m.mm ? r : m), null)
+
+  return (
+    <div style={stack(spacing.listGapSm)}>
+      <svg
+        viewBox={`0 0 ${CW} ${CH}`}
+        role="img"
+        aria-label={`Soil moisture at 5 cm${hasRain ? ' with daily rain at the station' : ''}, ${dayLabel(model.fromMs)} to ${dayLabel(model.toMs)}`}
+        style={{ display: 'block', width: '100%', height: 'auto' }}
+      >
+        <VisitBands shown={shown} x={x} utcOffsetSeconds={utcOffsetSeconds} />
+        {model.ticks.map((t) => (
+          <text key={t} x={CL - 6} y={y(t) + 3.5} textAnchor="end" style={{ ...typeV2.axisTick, fill: colorsV2.txtTab }}>
+            {`${t}%`}
+          </text>
+        ))}
+        <line x1={CL} x2={CW - CR} y1={CT + ph} y2={CT + ph} stroke={colorsV2.line} strokeWidth={1} />
+        {model.rain.map((r) => {
+          const h = Math.max(1.5, rainH(r.mm))
+          return (
+            <rect
+              key={r.midMs}
+              x={x(r.midMs) - dayW * 0.18}
+              y={CT + ph - h}
+              width={dayW * 0.36}
+              height={h}
+              rx={1.5}
+              fill={colorsV2.rainAmount}
+              fillOpacity={0.35}
+            />
+          )
+        })}
+        {model.rainGaps.map((midMs) => (
+          <rect
+            key={`gap-${midMs}`}
+            x={x(midMs) - dayW * 0.18}
+            y={CT + ph - 8}
+            width={dayW * 0.36}
+            height={8}
+            rx={1.5}
+            fill="none"
+            stroke={colorsV2.rainAmount}
+            strokeOpacity={0.6}
+            strokeWidth={1}
+            strokeDasharray="2 2"
+          />
+        ))}
+        {wettest === null ? null : (
+          <text
+            x={Math.min(CW - CR, Math.max(CL, x(wettest.midMs)))}
+            y={CT + ph - Math.max(1.5, rainH(wettest.mm)) - 4}
+            textAnchor="middle"
+            style={{ ...typeV2.axisTick, fill: colorsV2.txtTab }}
+          >
+            {formatPrecipIn(wettest.mm)}
+          </text>
+        )}
+        {model.runs.map((run) =>
+          run.length === 1 && run[0] !== undefined ? (
+            <circle key={run[0].ms} cx={x(run[0].ms)} cy={y(run[0].pts)} r={1.5} fill={colorsV2.soil} />
+          ) : (
+            <path
+              key={run[0]?.ms}
+              d={run.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(p.ms).toFixed(1)} ${y(p.pts).toFixed(1)}`).join('')}
+              fill="none"
+              stroke={colorsV2.soil}
+              strokeWidth={2.5}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+          ),
+        )}
+        {model.latest === null ? null : (
+          <circle cx={x(model.latest.ms)} cy={y(model.latest.pts)} r={4.5} fill={colorsV2.soil} stroke={colorsV2.card} strokeWidth={2.5} />
+        )}
+        <VisitLines shown={shown} x={x} dayLabel={dayLabel} />
+        <EdgeDates fromMs={model.fromMs} toMs={model.toMs} dayLabel={dayLabel} />
+      </svg>
+      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }} aria-hidden="true">
+        <Key swatch={<i style={{ width: 14, height: 3, borderRadius: 2, background: colorsV2.soil, display: 'inline-block' }} />}>
+          5 cm moisture
+        </Key>
+        {hasRain ? (
+          <Key
+            swatch={
+              <i
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 2,
+                  background: withOpacity(colorsV2.rainAmount, 0.35),
+                  display: 'inline-block',
+                }}
+              />
+            }
+          >
+            Daily rain at the station{model.rainGaps.length > 0 ? ', dashed where not all reported' : ''}
+          </Key>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------ shared chart parts */
+
+type ShownVisit = { v: Visit; ms: number }
+
+/** The visits inside a chart's window, oldest first. */
+function visitsIn(visits: readonly Visit[], fromMs: number, toMs: number): ShownVisit[] {
+  return visits
+    .map((v) => ({ v, ms: Date.parse(v.observed_at) }))
+    .filter((p) => Number.isFinite(p.ms) && p.ms >= fromMs && p.ms <= toMs)
+}
+
+/** `Nov 8` on the crag's clock. */
+function chartDay(utcOffsetSeconds: number): (ms: number) => string {
+  return (ms) =>
+    new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(ms + utcOffsetSeconds * 1000)
+}
+
+/** A faint band over each visit's local day, drawn first so the data sits on it. */
+function VisitBands({ shown, x, utcOffsetSeconds }: { shown: readonly ShownVisit[]; x: (ms: number) => number; utcOffsetSeconds: number }) {
+  const ph = CH - CT - CB
+  return (
+    <>
+      {shown.map(({ v, ms }) => {
+        const span = localDaySpan(ms, utcOffsetSeconds)
+        const x0 = Math.max(CL, x(span.startMs))
+        const x1 = Math.min(CW - CR, x(span.endMs))
+        return <rect key={`band-${v.id}`} x={x0} y={CT} width={Math.max(0, x1 - x0)} height={ph} fill={colorsV2.txt1} fillOpacity={0.07} />
+      })}
+    </>
+  )
+}
+
+/** A line at each visit, and the newest one named. */
+function VisitLines({ shown, x, dayLabel }: { shown: readonly ShownVisit[]; x: (ms: number) => number; dayLabel: (ms: number) => string }) {
+  const ph = CH - CT - CB
+  const newest = shown[shown.length - 1]
+  return (
+    <>
+      {shown.map(({ v, ms }) => (
+        <line key={`line-${v.id}`} x1={x(ms)} x2={x(ms)} y1={CT} y2={CT + ph} stroke={colorsV2.brandInk} strokeWidth={1.5} />
+      ))}
+      {newest === undefined ? null : (
+        <text
+          x={x(newest.ms) > CW - 140 ? x(newest.ms) - 5 : x(newest.ms) + 5}
+          y={CT + 10}
+          textAnchor={x(newest.ms) > CW - 140 ? 'end' : 'start'}
+          style={{ ...typeV2.sect, fontSize: 10, letterSpacing: 0.6, fill: colorsV2.brandInk }}
+        >
+          {`Your visit · ${dayLabel(newest.ms)}`}
+        </text>
+      )}
+    </>
+  )
+}
+
+/** The window's first and last dates under the plot. */
+function EdgeDates({ fromMs, toMs, dayLabel }: { fromMs: number; toMs: number; dayLabel: (ms: number) => string }) {
+  return (
+    <>
+      <text x={CL} y={CH - 6} textAnchor="start" style={{ ...typeV2.axisTick, fill: colorsV2.txtTab }}>
+        {dayLabel(fromMs)}
+      </text>
+      <text x={CW - CR} y={CH - 6} textAnchor="end" style={{ ...typeV2.axisTick, fill: colorsV2.txtTab }}>
+        {dayLabel(toMs)}
+      </text>
+    </>
+  )
+}
+
 /* ---------------------------------------------------------------- visits */
 
 function Visits({
   visits,
   river,
+  soil,
   utcOffsetSeconds,
 }: {
   visits: GaugesCardProps['visits']
   river: readonly RiverGaugeReading[] | undefined
+  soil: SoilReading | null
   utcOffsetSeconds: number
 }) {
   if (visits === undefined) return null
@@ -640,7 +1027,9 @@ function Visits({
             const ft = riverHeightNear(r.points, at)
             return `River ${ft === null ? EM_DASH : formatFt(ft)}`
           })
-          const facts = [`You saw ${OBSERVED_CONDITIONS_LABEL[v.observed_conditions].toLowerCase()}`, ...rivers].join(' · ')
+          const groundAt = soil === null ? null : groundNear(soil.points, at)
+          const grounds = soil === null ? [] : [`Ground ${groundAt === null ? EM_DASH : formatVwc(groundAt)}`]
+          const facts = [`You saw ${OBSERVED_CONDITIONS_LABEL[v.observed_conditions].toLowerCase()}`, ...rivers, ...grounds].join(' · ')
           return (
             <div key={v.id} style={stack(spacing.micro)}>
               <span style={{ ...typeV2.rowSmall, fontSize: 14, fontWeight: 600, color: colorsV2.txt1 }}>

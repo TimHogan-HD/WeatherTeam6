@@ -14,6 +14,7 @@ import {
   type RecentPrecip,
   type RiverGaugeReading,
   type RockType,
+  type SoilReading,
   type Visit,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
@@ -44,7 +45,7 @@ import { DryingClock } from './DryingClock.js'
 import { PrecipHourTable } from './PrecipHourTable.js'
 import { Stats, type Stat } from './StatTiles.js'
 import { InlineError, Skeleton } from './States.js'
-import { GaugesCard } from './GaugesCard.js'
+import { GaugesCard, type GaugeQuery } from './GaugesCard.js'
 
 /**
  * The Precip tab in the hybrid look (`docs/handoffs/design-mockups/weatherteam6-hybrid.html`,
@@ -106,6 +107,8 @@ export type PrecipTabProps = {
   river?: { data: RiverGaugeReading[] | undefined; isError: boolean }
   /** The reader's own visits here, marked on the Gauges card. */
   visits?: { data: Visit[] | undefined; isError: boolean }
+  /** The NOAA station's soil, the Gauges card's Ground tab; absent for a crag without a station. */
+  soil?: GaugeQuery<SoilReading | null>
 }
 
 const LOADING_H = 480
@@ -157,6 +160,7 @@ export function PrecipTab({
   gauges,
   river,
   visits,
+  soil,
 }: PrecipTabProps) {
   const now = useNow()
   const ahead = hoursAhead(hours, now)
@@ -184,6 +188,9 @@ export function PrecipTab({
   // at a crag with a river gauge; no card when neither.
   const rainShown = gauges !== undefined && (gauges.data === undefined || hasGauges(gauges.data))
   const riverShown = river !== undefined && (river.isError || (river.data?.length ?? 0) > 0)
+  // A Ground tab at a crag with a NOAA station; `null` is the API saying it has none.
+  const groundShown = soil !== undefined && soil.data !== null
+  const shownKinds = [rainShown, riverShown, groundShown].filter(Boolean).length
   /** `today 1pm`, `Mon 1pm`. */
   const when = (validAtLocal: string) => {
     const label = dayLabel(validAtLocal, today)
@@ -320,15 +327,16 @@ export function PrecipTab({
               </Card>
             ),
           },
-          rainShown || riverShown
+          shownKinds > 0
             ? {
                 id: 'gauges',
-                title: rainShown && riverShown ? 'Gauges' : rainShown ? 'Rain gauges' : 'River gauge',
+                title: shownKinds > 1 ? 'Gauges' : rainShown ? 'Rain gauges' : riverShown ? 'River gauge' : 'Ground',
                 node: (
                   <GaugesCard
                     {...(rainShown && gauges !== undefined ? { rain: gauges } : {})}
                     {...(riverShown && river !== undefined ? { river } : {})}
                     {...(visits === undefined ? {} : { visits })}
+                    {...(groundShown && soil !== undefined ? { soil } : {})}
                     models={modelDays(data.hours)}
                     today={today}
                     utcOffsetSeconds={offset}

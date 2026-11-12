@@ -20,7 +20,7 @@ export type GridCell =
   /** `why` is for a screen reader: the cell itself prints an em dash. */
   | { kind: 'gap'; why: string }
 
-export type GridRowKey = 'models' | 'airport' | 'volunteer'
+export type GridRowKey = 'models' | 'airport' | 'volunteer' | 'noaa'
 
 export type GridRow = {
   key: GridRowKey
@@ -72,6 +72,22 @@ export function rainGrid(r: RainGaugeReadings, models: ReadonlyMap<string, Model
         'Volunteer',
         r.days.map((d): GridCell =>
           d.volunteer_gauge == null ? { kind: 'gap', why: missing } : { kind: 'value', mm: d.volunteer_gauge.rain_mm },
+        ),
+      ),
+    )
+  }
+  if (r.noaa != null) {
+    const missing = missingLabel(r, 'noaa')
+    rows.push(
+      row(
+        'noaa',
+        'NOAA',
+        r.days.map((d): GridCell =>
+          d.noaa_gauge == null
+            ? { kind: 'gap', why: missing }
+            : d.noaa_gauge.rain_mm === null
+              ? { kind: 'part' }
+              : { kind: 'value', mm: d.noaa_gauge.rain_mm },
         ),
       ),
     )
@@ -144,10 +160,12 @@ export function rainTabWord(sides: readonly GaugeSide[]): string {
   return told.some((s) => s.read === 'matched') ? 'Partly matched' : 'Gauges disagree'
 }
 
+const SIDE_NAME: Record<GaugeSide['kind'], string> = { airport: 'Airport', volunteer: 'Volunteer', noaa: 'NOAA' }
+
 /** One gauge's figures under the headline: `Airport 0 in · models 0.05 in, over 5 whole days`. */
 export function sideNote(s: GaugeSide): string {
   const days = `${s.days} whole ${s.days === 1 ? 'day' : 'days'}`
-  return `${s.kind === 'airport' ? 'Airport' : 'Volunteer'} ${formatPrecipIn(s.gaugeMm)} · models ${formatPrecipIn(s.modelsMm)}, over ${days}`
+  return `${SIDE_NAME[s.kind]} ${formatPrecipIn(s.gaugeMm)} · models ${formatPrecipIn(s.modelsMm)}, over ${days}`
 }
 
 /** An instant's local date on the crag's clock (`YYYY-MM-DD`), or null if unreadable. */

@@ -53,7 +53,7 @@ function dateBefore(iso: string): string {
 
 /** Whether a place has any gauge to read: the Precip tab draws no gauge card otherwise. */
 export function hasGauges(r: RainGaugeReadings): boolean {
-  return r.airport !== null || r.volunteer.stations > 0
+  return r.airport !== null || r.volunteer.stations > 0 || (r.noaa ?? null) !== null
 }
 
 /**
@@ -63,6 +63,7 @@ export function hasGauges(r: RainGaugeReadings): boolean {
 export function gaugeGaps(r: RainGaugeReadings): string[] {
   const gaps: string[] = []
   if (r.airport !== null && !r.airport.answered) gaps.push(`The airport gauge at ${r.airport.station} did not answer.`)
+  if (r.noaa != null && !r.noaa.answered) gaps.push(`The NOAA gauge at ${r.noaa.name} did not answer.`)
   if (r.volunteer.failed > 0) {
     gaps.push(
       r.volunteer.failed === r.volunteer.stations
@@ -79,11 +80,19 @@ export function gaugeGaps(r: RainGaugeReadings): string[] {
  * the reading is missing rather than that nothing was reported (defect class 2).
  */
 export function missingLabel(r: RainGaugeReadings, kind: GaugeKind): string {
-  const failed = kind === 'airport' ? r.airport !== null && !r.airport.answered : r.volunteer.failed > 0
+  const failed =
+    kind === 'airport'
+      ? r.airport !== null && !r.airport.answered
+      : kind === 'noaa'
+        ? r.noaa != null && !r.noaa.answered
+        : r.volunteer.failed > 0
   return failed ? 'no reading' : 'no report'
 }
 
-export type GaugeKind = 'airport' | 'volunteer'
+export type GaugeKind = 'airport' | 'volunteer' | 'noaa'
+
+/** How a gauge kind is named in a sentence: "the NOAA gauge". */
+export const GAUGE_KIND_NAME: Record<GaugeKind, string> = { airport: 'airport', volunteer: 'volunteer', noaa: 'NOAA' }
 
 /** Below this on both sides of a comparison there is too little rain to say anything: 0.10 in. */
 export const COMPARE_MIN_MM = 2.54
@@ -123,6 +132,7 @@ export function compareGauges(r: RainGaugeReadings, modelsMm: (localDate: string
   return [
     side('airport', (d) => d.gauge?.rain_mm ?? null),
     side('volunteer', (d) => d.volunteer_gauge?.rain_mm ?? null),
+    side('noaa', (d) => d.noaa_gauge?.rain_mm ?? null),
   ].filter((s): s is GaugeSide => s !== null)
 }
 
@@ -144,7 +154,7 @@ export function verdictHeadline(sides: readonly GaugeSide[]): string | null {
   const told = sides.filter((s) => s.read !== 'little')
   const first = told[0]
   if (first === undefined) return 'Too little rain to compare'
-  const gauge = (s: GaugeSide) => `the ${s.kind} gauge`
+  const gauge = (s: GaugeSide) => `the ${GAUGE_KIND_NAME[s.kind]} gauge`
   const ran = (read: SideRead) => (read === 'matched' ? 'matched' : `ran ${read} than`)
   if (told.every((s) => s.read === first.read)) {
     return `The models ${ran(first.read)} ${told.length === 1 ? gauge(first) : 'the gauges'}`

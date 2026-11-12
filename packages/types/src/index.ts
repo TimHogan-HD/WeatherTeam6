@@ -505,6 +505,12 @@ export type RainGaugeReadings = {
   airport: { station: string; distance_km: number; answered: boolean } | null
   /** The volunteer gauges in reach (`stations`), and how many of their reads failed. */
   volunteer: { stations: number; failed: number }
+  /**
+   * The NOAA climate station of a crag in `SOIL_STATIONS` (#589), or null for
+   * a crag without one. `answered` is false when its read failed. Absent
+   * from an older API, which the client reads as null.
+   */
+  noaa?: { station: string; name: string; distance_km: number; answered: boolean } | null
   days: RainGaugeDay[]
 }
 
@@ -513,6 +519,19 @@ export type RainGaugeDay = {
   local_date: string
   gauge: TripDayGauge | null
   volunteer_gauge: TripDayVolunteerGauge | null
+  /** The NOAA station's day; absent from an older API, read as null. */
+  noaa_gauge?: NoaaGaugeDay | null
+}
+
+/**
+ * One local day at a NOAA climate station (USCRN), summed from its hourly
+ * rain. `rain_mm` is null unless every hour of the day reported, as for an
+ * airport day, so a short day never reads drier than it was.
+ */
+export type NoaaGaugeDay = {
+  rain_mm: number | null
+  hours_reported: number
+  hours_expected: number
 }
 
 /**
@@ -673,3 +692,4 @@ export type RainNow = {
 
 export * from './areaRock.js'
 export * from './riverGauges.js'
+export * from './soilStations.js'

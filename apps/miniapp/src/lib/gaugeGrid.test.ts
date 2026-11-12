@@ -76,6 +76,24 @@ describe('rainGrid', () => {
     const g = rainGrid(readings({ airport: null, volunteer: { stations: 0, failed: 0 } }), allModels)
     expect(g.rows.map((x) => x.key)).toEqual(['models'])
   })
+  it("adds the NOAA row: a short day is part, a failed read a gap, and an older API none", () => {
+    const noaa = { station: "54932", name: "Sandstone 6 W", distance_km: 10.4, answered: true }
+    const r = readings({ noaa })
+    const days = r.days.map((d, i) => ({
+      ...d,
+      noaa_gauge: i === 0 ? { rain_mm: null, hours_reported: 23, hours_expected: 24 } : i === 1 ? { rain_mm: 0, hours_reported: 24, hours_expected: 24 } : { rain_mm: 0.03 * IN, hours_reported: 24, hours_expected: 24 },
+    }))
+    const row = rainGrid({ ...r, days }, allModels).rows.find((x) => x.key === "noaa")
+    expect(row?.name).toBe("NOAA")
+    expect(row?.cells.map(cellText)).toEqual(["part", "0", "0.03"])
+    expect(totalText(row!)).toBe("0.03")
+
+    const failed = rainGrid(readings({ noaa: { ...noaa, answered: false } }), allModels).rows.find((x) => x.key === "noaa")
+    expect(failed?.cells[0]).toEqual({ kind: "gap", why: "no reading" })
+    expect(failed?.totalMm).toBeNull()
+
+    expect(rainGrid(readings(), allModels).rows.some((x) => x.key === "noaa")).toBe(false)
+  })
 })
 
 describe('inchFigure and cellShade', () => {
