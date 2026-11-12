@@ -732,8 +732,9 @@ describe('DetailView — Precip tab', () => {
         expect(html).toContain('role="tablist" aria-label="Gauges"')
         expect(html).toMatch(/>Rain<\/span><span[^>]*>Models drier</)
         expect(html).toMatch(/>River<\/span><span[^>]*>Low enough</)
-        // The visit is listed under the tabs, with the river at the time and their own words.
-        expect(html).toContain('Your visits')
+        // The visit is listed under the tabs, closed until opened, with the river at the time and their own words.
+        expect(html).toMatch(/<details class="wt6-why"[^>]*><summary[^>]*><span[^>]*>Your visits<\/span><span[^>]*>1<\/span>/)
+        expect(html).not.toMatch(/<details class="wt6-why"[^>]*open/)
         expect(html).toContain('You saw dry · River 4.90 ft')
         expect(html).toContain('Beach boulder just reachable.')
         // And tagged above its day in the grid.

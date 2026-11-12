@@ -216,7 +216,8 @@ the rain gauges; the next 48 hours; each day's wettest hour.
     high or has no reading.
   - **Visits** (`GET /visits/:locationId`): the reader's own forecast checks at the place
     over 15 days, as a tag over the rain grid's column, a line and day band on the river
-    chart, and a "Your visits" list under the tabs.
+    chart, and a "Your visits" list at the foot of the card, closed until tapped (owner,
+    2026-11-12).
 
 **Rock** (`RockTab.tsx`; crags only): the crag's live readings — the drying clock and the
 Condensation card (`RockReadings.tsx`: air minus dew point as the figure, the model's
