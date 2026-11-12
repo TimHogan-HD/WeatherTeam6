@@ -40,4 +40,29 @@ describe('rockGuide', () => {
     expect(guide.styles.length).toBeLessThanOrEqual(4)
     expect(guide.care.length + guide.avoid.length).toBeLessThanOrEqual(3)
   })
+
+  // "Most similar to" points an obscure rock at a familiar one (owner,
+  // 2026-11-12). It points away from the family, so a sandstone is never
+  // "most similar to" sandstone, and at a rock that has a guide of its own.
+  const FAMILIAR = ['granite', 'sandstone', 'limestone', 'basalt']
+  it.each(recorded)('%s names a similar rock only outside its own family', (rockType) => {
+    const similar = rockGuide(rockType)?.similar ?? null
+    const family = FAMILIAR.find((f) => rockType === f || rockType.startsWith(`${f}_`))
+    if (family !== undefined) {
+      expect(similar).toBeNull()
+      return
+    }
+    if (similar === null) return
+    expect(similar.rock).not.toBe(rockType)
+    expect(rockGuide(similar.rock)).not.toBeNull()
+    expect(similar.why).toMatch(/^[A-Z].*\.$/)
+    expect(similar.why.length).toBeLessThanOrEqual(80)
+    expect(similar.why).not.toMatch(/\b(nodules?|matrix|joints?|climbs?|friction)\b/i)
+  })
+
+  it('compares gneiss to granite and leaves unsourced rocks without a comparison', () => {
+    expect(rockGuide('gneiss_schist')?.similar?.rock).toBe('granite')
+    expect(rockGuide('anorthosite')?.similar).toBeNull()
+    expect(rockGuide('slate')?.similar).toBeNull()
+  })
 })
