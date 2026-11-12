@@ -70,17 +70,19 @@ export function worstRiverState(states: readonly RiverState[]): RiverState | nul
 }
 
 /**
- * The spot's line under the River tab's figure (#589 mockup): `Beach boulder
- * is reachable` or `Too high for the Beach boulder`, with the line beside it.
+ * The spot's line under the River tab's figure (#589): `Beach boulder landing
+ * is above water` or `... under water`, with the line beside it. The boulder sits
+ * on the shore, so a high river floods its landing (owner, 2026-11-12); there is
+ * nothing to cross, and the copy never says there is.
  * A stale or missing reading says no reading, never which side of the line.
  */
 export function spotLine(reading: Pick<RiverGaugeReading, 'boulder' | 'reachable_at_or_below_ft'>, state: RiverState): { word: string; line: string } {
   const line = `your line is ${formatFt(reading.reachable_at_or_below_ft)}`
   switch (state.kind) {
     case 'reachable':
-      return { word: `${reading.boulder} is reachable`, line }
+      return { word: `${reading.boulder} landing is above water`, line }
     case 'high':
-      return { word: `Too high for the ${reading.boulder}`, line }
+      return { word: `${reading.boulder} landing is under water`, line }
     case 'stale':
     case 'unavailable':
       return { word: 'No recent reading', line }

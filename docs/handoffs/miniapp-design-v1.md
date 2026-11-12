@@ -209,8 +209,9 @@ the rain gauges; the next 48 hours; each day's wettest hour.
     **withholds its row's total** (a part day is left out of the total instead). The
     footnote names the gauges with distances.
   - **River** (crags in `RIVER_GAUGES`, `GET /river-gauges/:locationId`): the height, river,
-    clock and the change over about 25 h; `Beach boulder is reachable · your line is 4.95 ft`
-    or `Too high for the Beach boulder`; a 15-day chart (`lib/riverChart.ts`) with the line
+    clock and the change over about 25 h; `Beach boulder landing is above water · your line is 4.95 ft`
+    or `... under water` (the boulder is on the shore: high water floods the landing, owner
+    2026-11-12); a 15-day chart (`lib/riverChart.ts`) with the line
     dashed and broken at gaps over 3 h. Stale or unanswered is a dash and words, never a low
     river. The river card left the Rock tab; the Overview keeps its line when the river is
     high or has no reading.

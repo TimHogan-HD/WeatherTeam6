@@ -19,7 +19,7 @@ export type RiverGauge = {
   spot: string
   /** The boulder or wall `spot` is on. */
   boulder: string
-  /** Gage height, ft, at or below which `spot` was reachable. */
+  /** Gage height, ft, at or below which `spot`'s landing is above water (the boulder is on the shore). */
   reachable_at_or_below_ft: number
   /** Who set the line and from what reading. */
   line_source: string

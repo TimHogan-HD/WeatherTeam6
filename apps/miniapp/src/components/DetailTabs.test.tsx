@@ -747,10 +747,10 @@ describe('DetailView — Precip tab', () => {
         expect(html).not.toContain('role="tablist" aria-label="Gauges"')
         expect(html).toMatch(/>4\.68<small[^>]*>ft</)
         expect(html).toContain('falling 0.06 ft in 25 h')
-        expect(html).toContain('Beach boulder is reachable')
+        expect(html).toContain('Beach boulder landing is above water')
         expect(html).toContain('your line is 4.95 ft')
         expect(html).toContain('Your visit · Sep 13')
-        expect(html).toContain('check the water before you cross')
+        expect(html).toContain('check the landing before you climb')
       })
 
       it('shows a gap, never the last figure, when the newest reading is too old', () => {

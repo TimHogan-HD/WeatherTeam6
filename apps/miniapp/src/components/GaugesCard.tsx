@@ -472,7 +472,7 @@ function RiverReading({
       </p>
       <RiverChart reading={reading} visits={visits} utcOffsetSeconds={utcOffsetSeconds} nowMs={nowMs} />
       <p style={typeV2.note}>
-        {reading.spot}. {reading.line_source}. USGS data is provisional; check the water before you cross.
+        {reading.spot}. {reading.line_source}. USGS data is provisional; check the landing before you climb.
       </p>
     </div>
   )
