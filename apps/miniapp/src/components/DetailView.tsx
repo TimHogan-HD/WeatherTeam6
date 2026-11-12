@@ -12,12 +12,13 @@ import type {
   RainGaugeReadings,
   RecentPrecip,
   RiverGaugeReading,
+  SoilReading,
   Visit,
   Wall,
   WeatherAlert,
 } from '@weatherteam6/types'
 import { RiverOverviewLines } from './RiverGauge.js'
-import { CLIMB_HOURS_DEFAULT, GUIDEBOOK_SOURCE_LABEL, modelName, RECENT_PRECIP_SOURCE_LABEL, SUN_WALLS_SOURCE_LABEL, riverGaugesFor, sunWallsFor } from '@weatherteam6/types'
+import { CLIMB_HOURS_DEFAULT, GUIDEBOOK_SOURCE_LABEL, modelName, RECENT_PRECIP_SOURCE_LABEL, SUN_WALLS_SOURCE_LABEL, riverGaugesFor, soilStationFor, sunWallsFor } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { stack } from '../theme/styles.js'
 import { alertsUnchecked, findToday, forecastSourceLabel } from '../lib/forecast.js'
@@ -33,6 +34,7 @@ import { CragTab, type CragTabProps } from './guidebook/CragTab.js'
 import type { HeaderTab } from './DetailHeader.js'
 import { OverviewTab } from './OverviewTab.js'
 import { PrecipTab } from './PrecipTab.js'
+import type { GaugeQuery } from './GaugesCard.js'
 import { DayCharts } from './charts/DayCharts.js'
 import { dayIsDrawable } from './charts/hourlySeries.js'
 import { TEMP_VIEW_H } from './charts/chartStyle.js'
@@ -159,6 +161,11 @@ export type DetailViewProps = {
    * card. Asked only while that tab is open. Optional only so a test can render without it.
    */
   visits?: { data: Visit[] | undefined; isError: boolean }
+  /**
+   * The NOAA station's soil (#589 part 2), the Gauges card's Ground tab. Asked
+   * only while the Precip tab is open, for a crag in `SOIL_STATIONS`. Optional only so a test can render without it.
+   */
+  soil?: GaugeQuery<SoilReading | null>
   /** Radar's rain at every saved place (#313); `undefined` while loading or failed, which says nothing. */
   rainNow?: RainNow | null
   /** The crag's named walls, for the identity block. Optional only so a test can render without it; `LocationDetail` always passes it. */
@@ -222,6 +229,7 @@ export function DetailView({
   recentPrecip,
   rainGauges,
   visits,
+  soil,
   rainNow,
   walls,
   location,
@@ -282,6 +290,14 @@ export function DetailView({
     { label: 'Sunshine', value: sunshineModel === null ? null : `${modelName(sunshineModel)} via Open-Meteo` },
     { label: 'Sun', value: sunWalls === null ? null : `${SUN_WALLS_SOURCE_LABEL}, ${formatTickDate(sunWalls.computed)}` },
     // Named only once a gauge answered with a reading: an empty answer showed nothing of USGS's.
+    // Named only once the station answered with soil: a failed read showed nothing of NCEI's.
+    {
+      label: 'Ground',
+      value:
+        soilStationFor(location?.known_crag) !== null && soil?.data != null && soil.data.points.length > 0
+          ? `NOAA USCRN ${soil.data.station.name}`
+          : null,
+    },
     {
       label: 'River',
       value: river?.data?.some((r) => r.points.length > 0) === true ? 'USGS Water Data, provisional' : null,
@@ -396,6 +412,7 @@ export function DetailView({
           {...(rainGauges === undefined ? {} : { gauges: rainGauges })}
           {...(river === undefined || riverGaugesFor(location?.known_crag).length === 0 ? {} : { river })}
           {...(visits === undefined ? {} : { visits })}
+          {...(soil === undefined || soilStationFor(location?.known_crag) === null ? {} : { soil })}
           isClimbingLocation={showScore}
           rockType={location?.rock_type ?? null}
           hours={hourly?.data?.hours ?? []}

@@ -24,7 +24,7 @@ rainGaugesRouter.get('/rain-gauges/:locationId', async (req: Request, res: Respo
 
   try {
     const rows = await db
-      .select({ lat: locations.lat, lon: locations.lon })
+      .select({ lat: locations.lat, lon: locations.lon, known_crag: locations.known_crag })
       .from(locations)
       .where(and(eq(locations.id, locationId), eq(locations.user_id, req.userId)))
       .limit(1)
@@ -36,7 +36,12 @@ rainGaugesRouter.get('/rain-gauges/:locationId', async (req: Request, res: Respo
     }
 
     // `lat`/`lon` are numeric columns and arrive from the driver as strings.
-    const data = await rainGaugeReadings(parseNumericRequired(row.lat), parseNumericRequired(row.lon), new Date())
+    const data = await rainGaugeReadings(
+      parseNumericRequired(row.lat),
+      parseNumericRequired(row.lon),
+      new Date(),
+      row.known_crag,
+    )
     const response: ApiResponse<RainGaugeReadings> = { data, error: null, status: 200 }
     res.status(200).json(response)
   } catch (err) {

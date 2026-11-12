@@ -2,12 +2,14 @@ import { queryOptions, useQuery, type UseQueryResult } from '@tanstack/react-que
 import { apiGet } from '../lib/api.js'
 import {
   riverGaugesFor,
+  soilStationFor,
   type Conditions,
   type ForecastSnapshot,
   type RadarLayers,
   type RainGaugeReadings,
   type RainNow,
   type RiverGaugeReading,
+  type SoilReading,
   type Visit,
   type WeatherAlert,
 } from '@weatherteam6/types'
@@ -145,6 +147,27 @@ export const rainGaugesQuery = (id: string | undefined, enabled: boolean) =>
 
 export function useRainGauges(id: string | undefined, enabled: boolean): UseQueryResult<RainGaugeReadings> {
   return useQuery(rainGaugesQuery(id, enabled))
+}
+
+/**
+ * The NOAA station's soil near a crag in `SOIL_STATIONS` (#589 part 2), for the
+ * Gauges card's Ground tab. Asked only while the Precip tab is open, and only
+ * for such a crag; kept an hour, since NCEI posts the file hourly.
+ */
+export const soilQuery = (id: string | undefined, knownCrag: string | null | undefined, enabled: boolean) =>
+  queryOptions({
+    queryKey: ['soil', id ?? ''] as const,
+    queryFn: () => apiGet<SoilReading | null>(`/soil/${id ?? ''}`),
+    enabled: enabled && id !== undefined && id !== '' && soilStationFor(knownCrag) !== null,
+    staleTime: 60 * 60_000,
+  })
+
+export function useSoil(
+  id: string | undefined,
+  knownCrag: string | null | undefined,
+  enabled: boolean,
+): UseQueryResult<SoilReading | null> {
+  return useQuery(soilQuery(id, knownCrag, enabled))
 }
 
 /** The key every visits query sits under, so a saved forecast check can mark it stale. */

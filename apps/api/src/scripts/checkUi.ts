@@ -461,9 +461,9 @@ async function run(): Promise<void> {
       await gaugeTabs()
     }
 
-    // The Precip tab's Gauges card (#589): at a crag with a river gauge, Rain
-    // and River in tabs, each with its word; the River tab draws its chart;
-    // the river card has left the Rock tab.
+    // The Precip tab's Gauges card (#589): at a crag with a river gauge and a
+    // NOAA station, Rain, River and Ground in tabs, each with its word; the
+    // River and Ground tabs draw their charts; the river card has left the Rock tab.
     async function gaugeTabs(): Promise<void> {
       // Narrowed above, but a closure does not keep the narrowing.
       const auth = token
@@ -489,13 +489,16 @@ async function run(): Promise<void> {
           .waitFor({ timeout: 60_000 })
           .then(() => true)
           .catch(() => false)
-        check('a crag with a river and rain gauges gets the Gauges tabs', shown)
+        check('a crag with river, rain and soil gauges gets the Gauges tabs', shown)
         if (!shown) return
         const names = await strip.getByRole('tab').allInnerTexts()
         check(
-          'the tabs are Rain then River, each with a status word',
+          'the tabs are Rain, River then Ground, each with a status word',
           // The names are uppercased by CSS, which innerText reflects; a dash is a pending or empty answer.
-          names.length === 2 && /^rain\s*[^\s—]/i.test(names[0] ?? '') && /^river\s*[^\s—]/i.test(names[1] ?? ''),
+          names.length === 3 &&
+            /^rain\s*[^\s—]/i.test(names[0] ?? '') &&
+            /^river\s*[^\s—]/i.test(names[1] ?? '') &&
+            /^ground\s*[^\s—]/i.test(names[2] ?? ''),
           names.join(' | '),
         )
         await strip.getByRole('tab', { name: /^river/i }).click()
@@ -508,6 +511,16 @@ async function run(): Promise<void> {
         // A reading draws its chart; only a request that failed or a USGS gap has none.
         check('the River tab draws the 15-day chart when USGS answered', chart || /No reading/.test(riverWord), riverWord)
         await screen('tab-precip-river')
+        await strip.getByRole('tab', { name: /^ground/i }).click()
+        const soilChart = await page
+          .getByRole('img', { name: /Soil moisture at 5 cm/ })
+          .waitFor({ timeout: 10_000 })
+          .then(() => true)
+          .catch(() => false)
+        const groundWord = (names[2] ?? '').replace(/^ground\s*/i, '')
+        // A reading draws its chart; only a failed request or a station gap has none.
+        check('the Ground tab draws the 15-day chart when NCEI answered', soilChart || /No reading/.test(groundWord), groundWord)
+        await screen('tab-precip-ground')
         await page.getByRole('tab', { name: 'Rock', exact: true }).click()
         await page.waitForTimeout(1_000)
         const onRock = await page.getByText('Kettle River', { exact: false }).count()

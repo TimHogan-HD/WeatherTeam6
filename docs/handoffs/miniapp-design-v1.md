@@ -207,7 +207,18 @@ the rain gauges; the next 48 hours; each day's wettest hour.
     total. A cell with rain is shaded on one fixed scale (`cellShade`), a measured zero is a
     faint `0`, `part` and `trace` are words, and a day with no figure is a dash that
     **withholds its row's total** (a part day is left out of the total instead). The
-    footnote names the gauges with distances.
+    footnote names the gauges with distances. Where a crag has a NOAA USCRN station
+    (`SOIL_STATIONS`, today Robinson Park only), a **NOAA** row joins the grid: whole local
+    days from the station's hourly rain, a day with any hour missing withheld (#589 part 2).
+  - **Ground** (#589 part 2, crags in `SOIL_STATIONS`, `GET /soil/:locationId`,
+    `lib/groundGauge.ts`): 5 cm soil moisture by volume with its percentile for the date in
+    the owner's words (under 25 Drier than usual, 25-75 Typical, 75-90 Wetter than usual,
+    90 up Soaked), 20 cm below it, the move since the last turn (`groundTrend`), a 15-day
+    line over daily station rain with the wettest day's inches printed. **Frozen (5 cm at
+    or below 0 °C), stale (over 8 h) or a row without the temperature withholds the figure**:
+    the sensor reads frozen soil as dry. The note says it is an open field N miles off and
+    not a reading of the rock. Departures from the mockup: no "Typical" band line, frozen
+    copy in °F, a one-line trend.
   - **River** (crags in `RIVER_GAUGES`, `GET /river-gauges/:locationId`): the height, river,
     clock and the change over about 25 h; `Beach boulder landing is above water · your line is 4.95 ft`
     or `... under water` (the boulder is on the shore: high water floods the landing, owner

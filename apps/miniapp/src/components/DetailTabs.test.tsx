@@ -9,6 +9,8 @@ import type {
   RainGaugeReadings,
   RecentPrecip,
   RiverGaugeReading,
+  SoilPoint,
+  SoilReading,
   Visit,
   WeatherAlert,
 } from '@weatherteam6/types'
@@ -563,7 +565,7 @@ describe('DetailView — Precip tab', () => {
     isClimbingLocation = true,
     hourlySeries: HourlySeries = series,
     rainGauges?: RainGaugeReadings,
-    extra: { location?: Location; river?: RiverGaugeReading[] | 'error'; visits?: Visit[] } = {},
+    extra: { location?: Location; river?: RiverGaugeReading[] | 'error'; visits?: Visit[]; soil?: SoilReading | null | 'error' } = {},
   ): string {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-15T09:30:00Z'))
@@ -582,6 +584,14 @@ describe('DetailView — Precip tab', () => {
           ? {}
           : { river: extra.river === 'error' ? { data: undefined, isError: true } : { data: extra.river, isError: false } })}
         {...(extra.visits === undefined ? {} : { visits: { data: extra.visits, isError: false } })}
+        {...(extra.soil === undefined
+          ? {}
+          : {
+              soil:
+                extra.soil === 'error'
+                  ? { data: undefined, isPending: false, isError: true, refetch: () => {} }
+                  : { data: extra.soil, isPending: false, isError: false, refetch: () => {} },
+            })}
       />,
     )
     vi.useRealTimers()
@@ -766,6 +776,62 @@ describe('DetailView — Precip tab', () => {
       it('says no reading on the tab when the river request failed, never low enough', () => {
         const html = renderPrecip(wholeDays, true, series, gauges, { location: robinson, river: 'error' })
         expect(html).toMatch(/>River<\/span><span[^>]*>No reading</)
+      })
+
+      describe('and a NOAA soil station (#589 part 2)', () => {
+        // Hourly to 09:00 UTC on the 15th: 5 cm at 23.4%, 47th percentile; 20 cm at the 83rd.
+        const soilPoint = (k: number, over: Partial<SoilPoint> = {}): SoilPoint => ({
+          at: new Date(NOW_MS - (15 * 24 - 1 - k) * 3_600_000).toISOString(),
+          vwc_5: k === 15 * 24 - 1 ? 0.234 : k === 100 ? 0.306 : 0.25,
+          pct_5: 0.473,
+          temp_5_c: 6.6,
+          vwc_20: 0.236,
+          pct_20: 0.83,
+          temp_20_c: 7.7,
+          ...over,
+        })
+        const soil: SoilReading = {
+          station: { wban: '54932', name: 'Sandstone 6 W', distance_km: 10.4, direction: 'west', setting: 'in an open field' },
+          answered: true,
+          points: Array.from({ length: 15 * 24 }, (_, k) => soilPoint(k)),
+          rain_days: [{ local_date: '2026-09-05', rain_mm: 28 }],
+        }
+
+        it('adds a Ground tab with its percentile word', () => {
+          const html = renderPrecip(wholeDays, true, series, gauges, { location: robinson, river: [reading], soil })
+          expect(html).toMatch(/>Ground<\/span><span[^>]*>Typical</)
+        })
+
+        it('reads the top 5 cm against the date, and 20 cm as still wet below', () => {
+          const html = renderPrecip(wholeDays, true, series, undefined, { location: robinson, soil, visits: [visit] })
+          expect(html).toMatch(/>23\.4<small[^>]*>%</)
+          expect(html).toContain('Typical for the date')
+          expect(html).toContain('47th percentile for the date')
+          expect(html).toContain('83rd percentile · still wet below')
+          expect(html).toContain('Down 7.2 points since')
+          expect(html).toContain('NOAA Sandstone 6 W, 6 mi west, in an open field. Shaded ground at the crag stays wetter. Not a reading of the rock.')
+          expect(html).toContain('Your visit · Sep 13')
+          expect(html).toContain('You saw dry · Ground 25.0%')
+        })
+
+        it('shows a gap, never a figure, on frozen ground, and gives the temperature in °F', () => {
+          const frozen = { ...soil, points: [...soil.points.slice(0, -1), soilPoint(15 * 24 - 1, { temp_5_c: -1.8 })] }
+          const html = renderPrecip(wholeDays, true, series, undefined, { location: robinson, soil: frozen })
+          expect(html).not.toMatch(/>23\.4<small/)
+          expect(html).toContain('Frozen ground')
+          expect(html).toContain('Soil is at 29°F')
+          expect(html).not.toContain('°C')
+        })
+
+        it('says no reading on the tab when the soil request failed', () => {
+          const html = renderPrecip(wholeDays, true, series, gauges, { location: robinson, soil: 'error' })
+          expect(html).toMatch(/>Ground<\/span><span[^>]*>No reading</)
+        })
+
+        it('draws no Ground tab at a crag without a station', () => {
+          const html = renderPrecip(wholeDays, true, series, gauges, { location: { ...robinson, known_crag: null }, soil })
+          expect(html).not.toContain('>Ground<')
+        })
       })
 
       it('draws no River tab at a crag with no river gauge, even when a reading is passed', () => {

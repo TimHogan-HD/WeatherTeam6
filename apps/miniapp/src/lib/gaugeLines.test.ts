@@ -100,6 +100,29 @@ describe('compareGauges', () => {
     expect(verdictHeadline(c)).toBe('Too little rain to compare')
   })
 
+  it("sets the NOAA station beside the models on its own whole days, and names it", () => {
+    const r = readings(WEEK, {
+      airport: null,
+      volunteer: { stations: 0, failed: 0 },
+      noaa: { station: "54932", name: "Sandstone 6 W", distance_km: 10.4, answered: true },
+    })
+    // NOAA reads every day at twice the models, except a short Monday it leaves out.
+    const days = r.days.map((d) => {
+      const m = modelsOf()(d.local_date)
+      const short = d.local_date === "2026-11-09"
+      return {
+        ...d,
+        gauge: null,
+        volunteer_gauge: null,
+        noaa_gauge: { rain_mm: short || m === null ? null : m * 2, hours_reported: short ? 23 : 24, hours_expected: 24 },
+      }
+    })
+    const c = compareGauges({ ...r, days }, modelsOf())
+    expect(c.map((s) => [s.kind, s.read])).toEqual([["noaa", "drier"]])
+    expect(c[0]?.days).toBe(days.filter((d) => d.noaa_gauge.rain_mm !== null).length)
+    expect(verdictHeadline(c)).toBe("The models ran drier than the NOAA gauge")
+  })
+
   it('is empty when no gauge has a whole day to compare', () => {
     const rows = WEEK.map((r) => ({ ...r, air: 'none' as const, vol: null }))
     const c = compareGauges(readings(rows), modelsOf(rows))
