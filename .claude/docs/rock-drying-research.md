@@ -2939,6 +2939,8 @@ Rumbling Bald, the Buttermilks); Taylors Falls was relabelled *dense*, not colum
 | Palisade Head | `rhyolite` | rhyolitic lava flow | [source](https://en.wikipedia.org/wiki/Palisade_Head) |
 | Shovel Point | `rhyolite` | columnar-jointed rhyolite flow (Minnesota Geological Survey) | [source](https://conservancy.umn.edu/server/api/core/bitstreams/fe62ca02-242e-4908-9f34-4d79306b0337/content) |
 | Carlton Peak | `anorthosite` | "The rock is anorthosite, very strong, but also very abrasive" | [source](https://www.mountainproject.com/area/105814854/carlton-peak) |
+| Silver Creek Cliff | `basalt_dense` | Silver Cliff sill, "principally olivine diabase"; MGS S-21 names the sill. Diabase → `basalt_dense` is inference (owner, 2026-11-12, #582) | [source](https://www.flickr.com/photos/jsjgeology/23234833475) · [MGS S-21 via Macrostrat](https://macrostrat.org/api/v2/mobile/map_query?lat=47.0698&lng=-91.5922&z=12) |
+| Vicksburg County Park | `gneiss_schist` | MGS S-21: "Granitoid gneiss with dioritic to amphibolitic enclaves" at every point in the local guide; locals call it granite (#582) | [MGS S-21 via Macrostrat](https://macrostrat.org/api/v2/mobile/map_query?lat=44.657245&lng=-95.23074&z=12) |
 | Blue Mounds | `quartzite` | Precambrian Sioux Quartzite | [source](https://en.wikipedia.org/wiki/Blue_Mounds_State_Park) |
 | Devil's Lake | `quartzite` | "primarily quartzite" | [source](https://en.wikipedia.org/wiki/Devil%27s_Lake_State_Park_(Wisconsin)) |
 | The Needles | `granite` | granite, pegmatite | [source](https://en.wikipedia.org/wiki/Needles_(Black_Hills)) |

@@ -39,7 +39,8 @@ import type { RockType } from './index.js'
  * - **Mixed or ambiguous rock** — Sinks Canyon (three rocks stacked in one
  *   canyon), the Gunks (conglomerate that behaves as quartzite), Kalymnos and the
  *   tufa crags (a fast-drying wall and a seeping tufa on the same day), Devils
- *   Tower and the Palisades (phonolite and diabase have no §7 value).
+ *   Tower (phonolite has no §7 value). Diabase maps to `basalt_dense` since
+ *   Silver Creek Cliff (#582); the Palisades are still unchecked against it.
  * - **Not resolvable on OSM** — Red River Gorge, Ten Sleep, Wild Iris (the only
  *   hit was a road of that name near Laramie, 280 km away), the Happy and Sad
  *   Boulders, Little Cottonwood (only road fragments at Alta).
@@ -96,6 +97,15 @@ export const KNOWN_CRAGS: readonly KnownCrag[] = [
   // Head and Shovel Point, 60 km south-west near Duluth.
   { slug: 'tettegouche', name: 'Tettegouche State Park', facts: 'Palisade Head and Shovel Point', rock_type: 'rhyolite', osm: 'openbeta/94f21cb4-21bf-59f0-96f7-c319bfe5a61b', bbox: box(46.84985, 46.84985, -92.32298, -92.32298) },
   { slug: 'carlton-peak', name: 'Carlton Peak', facts: 'Carlton Peak', rock_type: 'anorthosite', osm: 'node/1743950114', bbox: box(47.5842551, 47.5842551, -90.8598093, -90.8598093) },
+  // The Silver Cliff diabase sill (#582, owner 2026-11-12): diabase locked as
+  // basalt_dense. OpenBeta pins the area and all its children 4.4 km north-east
+  // of the tunnel, where /add saves them; MGS S-21 has the same sill unit there,
+  // so the pin gets its own entry (as Blue Mounds' stray pins do).
+  { slug: 'silver-creek-cliff', name: 'Silver Creek Cliff', facts: 'Silver Creek Cliff', rock_type: 'basalt_dense', osm: 'way/44076264', bbox: box(47.0666128, 47.0692939, -91.5960505, -91.5924076) },
+  { slug: 'silver-creek-cliff-openbeta', name: 'Silver Creek Cliff', facts: 'Silver Creek Cliff', rock_type: 'basalt_dense', osm: 'openbeta/9a056e4e-f8b8-5a42-a9e4-68b287040eea', bbox: box(47.095605, 47.095605, -91.55209, -91.55209) },
+  // Granitoid gneiss (#582, owner 2026-11-12). Whispering Ridge AMA, across the
+  // river, is ~1.1 km outside the box and on the same map unit, so it locks here.
+  { slug: 'vicksburg', name: 'Vicksburg County Park', facts: 'Vicksburg County Park', rock_type: 'gneiss_schist', osm: 'way/415092287', bbox: box(44.6520149, 44.6691003, -95.2447247, -95.2258399) },
   // Every area under OpenBeta's "Sandstone" is the Hinckley quarry at Robinson
   // Park (owner, 2026-10-15). The park's box (Nominatim, 2026-10-15) reaches all of its walls and
   // boulders. OpenBeta pins the parent area 11 km west of the park; `/add`
