@@ -107,7 +107,7 @@ export type PrecipTabProps = {
   river?: { data: RiverGaugeReading[] | undefined; isError: boolean }
   /** The reader's own visits here, marked on the Gauges card. */
   visits?: { data: Visit[] | undefined; isError: boolean }
-  /** The NOAA station's soil, the Gauges card's Ground tab; absent for a crag without a station. */
+  /** The soil station's reading, the Gauges card's Ground tab; absent for a crag without a station. */
   soil?: GaugeQuery<SoilReading | null>
 }
 
@@ -188,7 +188,7 @@ export function PrecipTab({
   // at a crag with a river gauge; no card when neither.
   const rainShown = gauges !== undefined && (gauges.data === undefined || hasGauges(gauges.data))
   const riverShown = river !== undefined && (river.isError || (river.data?.length ?? 0) > 0)
-  // A Ground tab at a crag with a NOAA station; `null` is the API saying it has none.
+  // A Ground tab at a crag with a soil station; `null` is the API saying it has none.
   const groundShown = soil !== undefined && soil.data !== null
   const shownKinds = [rainShown, riverShown, groundShown].filter(Boolean).length
   /** `today 1pm`, `Mon 1pm`. */

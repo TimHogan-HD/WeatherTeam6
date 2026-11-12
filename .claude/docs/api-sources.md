@@ -150,6 +150,12 @@ No longer called (deleted 2026-10-01 and 2026-11-03). A source line naming it is
 - **Which stations:** `SOIL_STATIONS` in `packages/types/src/soilStations.ts`, keyed by known crag (Robinson Park: Sandstone 6 W, WBAN 54932, 10 km west, open field). Display only, never the score.
 - **Read by:** `GET /soil/:locationId` (soil plus daily rain for the chart) and `GET /rain-gauges/:locationId` (the NOAA grid row), live, while the Precip tab is open; the client keeps each an hour.
 
+## Wisconet (station soil, #589 part 3, 2026-11-12)
+- **Endpoint:** `https://api.wisconet.wisc.edu/api/v1/stations/{id}/measures?fields=…&start_time=…&end_time=…` (Unix seconds; OpenAPI at `/openapi.json`). Keyless. One request covers 30 days of hourly rows (~73 KB, under 1 s on 2026-11-12). `lib/weather/wisconet.ts`.
+- **Shape:** `{ data: [{ collection_time, measures: [[fieldId, value]] }], fieldlist }`; ids are read from `fieldlist` by standard name (`60min_soil_moisture_pct_avg@2in` is 5 cm and a fraction, `@8in` is 20 cm; `60min_soil_temp_f_avg@…` in °F; `60min_rain_in_tot` in inches). Time is the end of the hour. A missing hour is an absent row; a missing value an absent pair or null. A bare `/measures` with no `fields` answered 503 once; with fields it answered every time.
+- **Which stations:** `SOIL_STATIONS` (Devil's Lake: Prairie du Sac, DFRC, 8 km south, soil since Sep 2023). Ranked against its own last 30 days, never the date. Display only, never the score; no Rain grid row.
+- **Read by:** `GET /soil/:locationId`, live, 15 s budget (`WISCONET_BUDGET_MS`).
+
 ## USGS Water Data (river gage height, 2026-11-09)
 - **Endpoint:** `https://api.waterdata.usgs.gov/ogcapi/v0/collections/continuous/items` with `monitoring_location_id=USGS-<site>`, `parameter_code=00065` (gage height, ft), `time=<from>/<to>` (ISO interval), `properties=time,value,unit_of_measure`, `skipGeometry=true`. Values arrive as strings. Fetched by the API (`lib/weather/usgsRiver.ts`, `GET /river-gauges/:locationId`), live per request, 15 s budget. Since #589 a reading covers `RIVER_HISTORY_DAYS` (15) with `limit=2000` (about 1,440 points at 15 minutes), thinned on the server to the last observation per hour (`thinToHourly`, ~360 points, ~18 KB); the change line reads the point nearest 25 h back (`riverChangeFt`).
 - **Which gauges:** `RIVER_GAUGES` in `packages/types/src/riverGauges.ts`, keyed by known crag, each with the owner's line for one spot (Kettle River below Sandstone, `USGS-05336700`, Beach boulder at or below 4.95 ft). Display only, never the score.

@@ -150,7 +150,7 @@ export function useRainGauges(id: string | undefined, enabled: boolean): UseQuer
 }
 
 /**
- * The NOAA station's soil near a crag in `SOIL_STATIONS` (#589 part 2), for the
+ * The soil station's reading near a crag in `SOIL_STATIONS` (#589), for the
  * Gauges card's Ground tab. Asked only while the Precip tab is open, and only
  * for such a crag; kept an hour, since NCEI posts the file hourly.
  */

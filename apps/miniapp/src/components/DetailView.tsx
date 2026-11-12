@@ -162,7 +162,7 @@ export type DetailViewProps = {
    */
   visits?: { data: Visit[] | undefined; isError: boolean }
   /**
-   * The NOAA station's soil (#589 part 2), the Gauges card's Ground tab. Asked
+   * The soil station's reading (#589: NOAA, or Wisconet at Devil's Lake), the Gauges card's Ground tab. Asked
    * only while the Precip tab is open, for a crag in `SOIL_STATIONS`. Optional only so a test can render without it.
    */
   soil?: GaugeQuery<SoilReading | null>
@@ -290,12 +290,12 @@ export function DetailView({
     { label: 'Sunshine', value: sunshineModel === null ? null : `${modelName(sunshineModel)} via Open-Meteo` },
     { label: 'Sun', value: sunWalls === null ? null : `${SUN_WALLS_SOURCE_LABEL}, ${formatTickDate(sunWalls.computed)}` },
     // Named only once a gauge answered with a reading: an empty answer showed nothing of USGS's.
-    // Named only once the station answered with soil: a failed read showed nothing of NCEI's.
+    // Named only once the station answered with soil: a failed read showed nothing of its network's.
     {
       label: 'Ground',
       value:
         soilStationFor(location?.known_crag) !== null && soil?.data != null && soil.data.points.length > 0
-          ? `NOAA USCRN ${soil.data.station.name}`
+          ? `${soil.data.station.network === 'wisconet' ? 'Wisconet' : 'NOAA USCRN'} ${soil.data.station.name}`
           : null,
     },
     {

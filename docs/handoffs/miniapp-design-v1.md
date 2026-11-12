@@ -219,6 +219,13 @@ the rain gauges; the next 48 hours; each day's wettest hour.
     the sensor reads frozen soil as dry. The note says it is an open field N miles off and
     not a reading of the rock. Departures from the mockup: no "Typical" band line, frozen
     copy in °F, a one-line trend.
+    **Devil's Lake reads Wisconet Prairie du Sac** (#589 part 3): the station dates from 2023, too
+    short for a percentile for the date, so each hour is ranked against its own last 30 days
+    (`SoilReading.basis`). The words say "lately" (`recentWord`: Drier, Mid-range, Wetter
+    lately; pill "Wetter than most of the last 30 days"), never Typical, Soaked or "still wet
+    below"; the rail runs from the 30-day low to the high; the note adds "Too little history to
+    say what's typical." Its rain draws on the Ground chart but is no Rain grid row
+    (`rainStationFor`): the mockup draws none, and an unheated gauge reads snow as nothing.
   - **River** (crags in `RIVER_GAUGES`, `GET /river-gauges/:locationId`): the height, river,
     clock and the change over about 25 h; `Beach boulder landing is above water · your line is 4.95 ft`
     or `... under water` (the boulder is on the shore: high water floods the landing, owner

@@ -92,6 +92,8 @@ const SECOND_CRAG = { name: `ZZ UI check — Red Wing ${STAMP}`, lat: 44.5625, l
 
 /** Robinson Park: the one crag in `RIVER_GAUGES`, so the Gauges card has a River tab (#589). */
 const RIVER_CRAG = { name: `ZZ UI check — Robinson Park ${STAMP}`, lat: 46.1316, lon: -92.8589 }
+/** Devil's Lake, whose Ground tab reads Wisconet against its last 30 days (#589 part 3). */
+const WISCONET_CRAG = { name: `ZZ UI check — Devil's Lake ${STAMP}`, lat: 43.418, lon: -89.715 }
 
 /** The device's date `n` days on, as the trip screens read "today". */
 function isoDayFromNow(n: number): string {
@@ -459,6 +461,54 @@ async function run(): Promise<void> {
       await rearrangeCards()
       await guidebookLevels()
       await gaugeTabs()
+      await wisconetGround()
+    }
+
+    // Devil's Lake (#589 part 3): Rain and Ground, the Ground tab read from
+    // Wisconet and said against the last 30 days, never "for the date".
+    async function wisconetGround(): Promise<void> {
+      const auth = token
+      if (auth === null) return
+      const made = await api<Location>('POST', '/locations', auth, { ...WISCONET_CRAG, is_climbing_location: true })
+      const id = made.payload.data?.id ?? null
+      check(
+        "Devil's Lake saves as its known crag",
+        made.status === 201 && made.payload.data?.known_crag === 'devils-lake',
+        `got ${made.status}, ${made.payload.data?.known_crag ?? 'no crag'}`,
+      )
+      if (id === null) return
+      try {
+        await page.goto(`${WEB}/location/${id}`)
+        await page.getByRole('tab').first().waitFor({ timeout: 60_000 })
+        const soilAnswer = page.waitForResponse((r) => r.url().includes('/api/v1/soil/'), { timeout: 60_000 }).catch(() => null)
+        await page.getByRole('tab', { name: 'Precip', exact: true }).click()
+        await soilAnswer
+        await page.waitForTimeout(500)
+        const strip = page.getByRole('tablist', { name: 'Gauges' })
+        const shown = await strip
+          .waitFor({ timeout: 60_000 })
+          .then(() => true)
+          .catch(() => false)
+        check("Devil's Lake gets the Gauges tabs", shown)
+        if (!shown) return
+        const names = await strip.getByRole('tab').allInnerTexts()
+        const ground = names.find((n) => /^ground/i.test(n)) ?? ''
+        check(
+          "Devil's Lake has a Ground tab whose word says lately, or that there is no reading",
+          /lately|No reading|Frozen/i.test(ground),
+          names.join(' | '),
+        )
+        const groundTab = strip.getByRole('tab', { name: /^ground/i })
+        await groundTab.click()
+        const panelId = (await groundTab.getAttribute('aria-controls')) ?? ''
+        const panel = page.locator(`[id="${panelId}"]`)
+        const text = (await panel.innerText().catch(() => '')).replace(/\s+/g, ' ')
+        check('the Ground tab names Wisconet Prairie du Sac', /Wisconet Prairie du Sac/.test(text), text.slice(-160))
+        check('the Ground tab never says "for the date" at a Wisconet station', !/for the date/.test(text), text.slice(0, 160))
+        await screen('tab-precip-ground-wisconet')
+      } finally {
+        await api<null>('DELETE', `/locations/${id}`, auth)
+      }
     }
 
     // The Precip tab's Gauges card (#589): at a crag with a river gauge and a
