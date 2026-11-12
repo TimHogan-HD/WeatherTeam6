@@ -971,6 +971,8 @@ function GroundChart({
             }
           >
             Daily rain at the station{model.rainGaps.length > 0 ? ', dashed where not all reported' : ''}
+            {/* Wisconet's gauge may be unheated: a snowy day can read as none, so the key says so rather than let a bare floor read as dry. */}
+            {data.station.network === 'wisconet' ? '. It may not count snow.' : ''}
           </Key>
         ) : null}
       </div>

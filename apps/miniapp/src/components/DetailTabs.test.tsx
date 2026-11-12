@@ -791,7 +791,8 @@ describe('DetailView — Precip tab', () => {
           ...over,
         })
         const soil: SoilReading = {
-          station: { wban: '54932', name: 'Sandstone 6 W', distance_km: 10.4, direction: 'west', setting: 'in an open field' },
+          // An older API: no network and no basis, read as NOAA against the date.
+          station: { name: 'Sandstone 6 W', distance_km: 10.4, direction: 'west', setting: 'in an open field' },
           answered: true,
           points: Array.from({ length: 15 * 24 }, (_, k) => soilPoint(k)),
           rain_days: [{ local_date: '2026-09-05', rain_mm: 28 }],
@@ -826,6 +827,26 @@ describe('DetailView — Precip tab', () => {
         it('says no reading on the tab when the soil request failed', () => {
           const html = renderPrecip(wholeDays, true, series, gauges, { location: robinson, soil: 'error' })
           expect(html).toMatch(/>Ground<\/span><span[^>]*>No reading</)
+        })
+
+        it('reads a Wisconet station against its last 30 days, never the date, and says its rain may miss snow', () => {
+          const wisconet: SoilReading = {
+            ...soil,
+            station: { network: 'wisconet', name: 'Prairie du Sac', distance_km: 7.9, direction: 'south', setting: 'on farmland' },
+            basis: { kind: 'recent', days: 30, lo_5: 0.185, hi_5: 0.272 },
+            points: soil.points.map((p) => ({ ...p, pct_5: 0.8, pct_20: 0.95 })),
+          }
+          // With the rain gauges the tab strip shows; alone, the Ground panel draws.
+          const tabs = renderPrecip(wholeDays, true, series, gauges, { location: { ...robinson, known_crag: 'devils-lake' }, soil: wisconet })
+          expect(tabs).toMatch(/>Ground<\/span><span[^>]*>Wetter lately</)
+          const html = renderPrecip(wholeDays, true, series, undefined, { location: { ...robinson, known_crag: 'devils-lake' }, soil: wisconet })
+          expect(html).toContain('Wetter than most of the last 30 days')
+          expect(html).toContain('80th percentile of the last 30 days')
+          expect(html).toContain('30-day low 18.5%')
+          expect(html).not.toContain('for the date')
+          expect(html).not.toContain('still wet below')
+          expect(html).toContain('Wisconet Prairie du Sac, 5 mi south, on farmland. Too little history')
+          expect(html).toContain('It may not count snow.')
         })
 
         it('draws no Ground tab at a crag without a station', () => {

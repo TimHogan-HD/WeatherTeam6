@@ -225,7 +225,8 @@ the rain gauges; the next 48 hours; each day's wettest hour.
     lately; pill "Wetter than most of the last 30 days"), never Typical, Soaked or "still wet
     below"; the rail runs from the 30-day low to the high; the note adds "Too little history to
     say what's typical." Its rain draws on the Ground chart but is no Rain grid row
-    (`rainStationFor`): the mockup draws none, and an unheated gauge reads snow as nothing.
+    (`rainStationFor`): the mockup draws none, and an unheated gauge reads snow as nothing. The
+    chart's key says "It may not count snow." for that station.
   - **River** (crags in `RIVER_GAUGES`, `GET /river-gauges/:locationId`): the height, river,
     clock and the change over about 25 h; `Beach boulder landing is above water · your line is 4.95 ft`
     or `... under water` (the boulder is on the shore: high water floods the landing, owner
