@@ -128,7 +128,7 @@ describe('groundTrend', () => {
 })
 
 describe('groundChartModel', () => {
-  it('breaks the line at a gap and at a frozen hour, and drops partial rain days', () => {
+  it('breaks the line at a gap and at a frozen hour, and marks a partial rain day as a gap, never a dry one', () => {
     const pts = [pt(30 * HOUR), pt(29 * HOUR), pt(20 * HOUR), pt(19 * HOUR, { temp_5_c: -1 }), pt(18 * HOUR), pt(17 * HOUR)]
     const m = groundChartModel(
       pts,
@@ -142,6 +142,7 @@ describe('groundChartModel', () => {
     )
     expect(m?.runs.map((r) => r.length)).toEqual([2, 1, 2])
     expect(m?.rain).toEqual([{ midMs: Date.UTC(2026, 10, 10, 18), mm: 5 }])
+    expect(m?.rainGaps).toEqual([Date.UTC(2026, 10, 11, 18)])
     expect(m?.rainTopMm).toBe(25.4)
   })
 

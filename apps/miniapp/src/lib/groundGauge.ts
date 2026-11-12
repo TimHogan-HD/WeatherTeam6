@@ -147,8 +147,10 @@ export type GroundChartModel = {
   ticks: number[]
   runs: { ms: number; pts: number }[][]
   latest: { ms: number; pts: number } | null
-  /** Each local day's rain, mm, centred on the day; a partial day draws no bar. */
+  /** Each local day's rain, mm, centred on the day; a partial day is in `rainGaps` instead. */
   rain: { midMs: number; mm: number }[]
+  /** Days in the window the station did not report in full (today, always): drawn as a dashed stub, never as a dry day. */
+  rainGaps: number[]
   /** The rain axis's top, mm: a day at it reaches about half the plot. */
   rainTopMm: number
 }
@@ -190,10 +192,17 @@ export function groundChartModel(
   const values = pts.map((p) => p.pts)
   const ticks = niceTicks(Math.min(...values) - 0.5, Math.max(...values) + 0.5, 3, 1)
   const offsetMs = utcOffsetSeconds * 1000
+  const dayMid = (date: string): number | null => {
+    const midMs = Date.parse(`${date}T12:00:00Z`) - offsetMs
+    return Number.isFinite(midMs) && midMs >= fromMs && midMs <= toMs ? midMs : null
+  }
   const rain = rainDays.flatMap((d) => {
-    if (d.rain_mm === null || d.rain_mm <= 0) return []
-    const midMs = Date.parse(`${d.local_date}T12:00:00Z`) - offsetMs
-    return Number.isFinite(midMs) && midMs >= fromMs && midMs <= toMs ? [{ midMs, mm: d.rain_mm }] : []
+    const midMs = dayMid(d.local_date)
+    return midMs === null || d.rain_mm === null || d.rain_mm <= 0 ? [] : [{ midMs, mm: d.rain_mm }]
+  })
+  const rainGaps = rainDays.flatMap((d) => {
+    const midMs = dayMid(d.local_date)
+    return midMs === null || d.rain_mm !== null ? [] : [midMs]
   })
   return {
     fromMs,
@@ -204,6 +213,7 @@ export function groundChartModel(
     runs,
     latest: pts[pts.length - 1] ?? null,
     rain,
+    rainGaps,
     rainTopMm: Math.max(RAIN_TOP_MIN_MM, ...rain.map((r) => r.mm)),
   }
 }

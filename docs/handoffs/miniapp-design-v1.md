@@ -214,7 +214,7 @@ the rain gauges; the next 48 hours; each day's wettest hour.
     `lib/groundGauge.ts`): 5 cm soil moisture by volume with its percentile for the date in
     the owner's words (under 25 Drier than usual, 25-75 Typical, 75-90 Wetter than usual,
     90 up Soaked), 20 cm below it, the move since the last turn (`groundTrend`), a 15-day
-    line over daily station rain with the wettest day's inches printed. **Frozen (5 cm at
+    line over daily station rain with the wettest day's inches printed and a day the station did not report in full (today, always) as a dashed stub, never a dry day. **Frozen (5 cm at
     or below 0 °C), stale (over 8 h) or a row without the temperature withholds the figure**:
     the sensor reads frozen soil as dry. The note says it is an open field N miles off and
     not a reading of the rock. Departures from the mockup: no "Typical" band line, frozen

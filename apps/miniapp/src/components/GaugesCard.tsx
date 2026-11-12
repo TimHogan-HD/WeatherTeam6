@@ -816,7 +816,7 @@ function GroundChart({
   const dayW = pw / ((model.toMs - model.fromMs) / (24 * 3_600_000))
   const shown = visitsIn(visits, model.fromMs, model.toMs)
   const dayLabel = chartDay(utcOffsetSeconds)
-  const hasRain = model.rain.length > 0
+  const hasRain = model.rain.length > 0 || model.rainGaps.length > 0
   // The wettest day carries its figure, so the bars have a scale on screen.
   const wettest = model.rain.reduce<(typeof model.rain)[number] | null>((m, r) => (m === null || r.mm > m.mm ? r : m), null)
 
@@ -850,6 +850,21 @@ function GroundChart({
             />
           )
         })}
+        {model.rainGaps.map((midMs) => (
+          <rect
+            key={`gap-${midMs}`}
+            x={x(midMs) - dayW * 0.18}
+            y={CT + ph - 8}
+            width={dayW * 0.36}
+            height={8}
+            rx={1.5}
+            fill="none"
+            stroke={colorsV2.rainAmount}
+            strokeOpacity={0.6}
+            strokeWidth={1}
+            strokeDasharray="2 2"
+          />
+        ))}
         {wettest === null ? null : (
           <text
             x={Math.min(CW - CR, Math.max(CL, x(wettest.midMs)))}
@@ -899,7 +914,7 @@ function GroundChart({
               />
             }
           >
-            Daily rain at the station
+            Daily rain at the station{model.rainGaps.length > 0 ? ', dashed where not all reported' : ''}
           </Key>
         ) : null}
       </div>
