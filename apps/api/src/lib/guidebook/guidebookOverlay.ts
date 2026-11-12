@@ -10,6 +10,10 @@
  * carries its name, grade and Mountain Project id, nothing else: no write-up is
  * copied. No boulder has a point; `area_locations` is where a phone records one.
  *
+ * Vicksburg's areas and problems come from a printed mini-guide, by name and
+ * grade only. An entry's parent may be an earlier entry in this list, which is
+ * how a guide's area holds its lettered boulders.
+ *
  * The ids are fixed UUIDs minted once for this file. **Never change one**: a
  * saved forecast check or tick names it.
  */
@@ -41,6 +45,32 @@ function mpOnly(id: string, name: string, vscale: string, mpId: string): Guidebo
     safety: null,
     left_right: null,
     mp_id: mpId,
+    description: null,
+  }
+}
+
+/** OpenBeta's Vicksburg County Park, a top-level Minnesota area. */
+export const VICKSBURG = '091dfed7-69d1-5105-aad7-6d1e88f74d73'
+const STRAWBERRY = '5bd7373c-151d-44db-94b5-e599ea9df8b3'
+const RAMPART = '2e15fbfb-1632-40ab-9bf9-5004d64e3967'
+const WHISPERING_RIDGE = '5d29f450-06f2-4425-b971-ce6dcb0f4ca8'
+
+/**
+ * A problem from a printed guide: its name and grade, nothing else (no
+ * write-up is copied). A grade the guide does not give is null, never guessed.
+ */
+function fromGuide(id: string, name: string, vscale: string | null): GuidebookRoute {
+  return {
+    id,
+    name,
+    yds: null,
+    french: null,
+    vscale,
+    kinds: ['boulder'],
+    first_ascent: null,
+    safety: null,
+    left_right: null,
+    mp_id: null,
     description: null,
   }
 }
@@ -327,6 +357,123 @@ export const GUIDEBOOK_OVERLAY: readonly OverlayArea[] = [
     ],
     routes: [
       mpOnly('007695c0-b0ce-45f7-9b52-186073c3703a', 'Big Little', 'V4', '201830125'),
+    ],
+  },
+
+  // Vicksburg County Park and Whispering Ridge AMA (#582), from the Vicksburg
+  // Bouldering Mini-Guide (P. Enis, 2025), which the owner supplied on
+  // 2026-11-12. Its areas and lettered boulders, in its order. OpenBeta's six
+  // problems on the park are on none of them and keep a group of their own.
+  {
+    id: 'ffdc9296-0b3c-4dd1-982d-5f9d194e0475',
+    name: 'Other problems (OpenBeta)',
+    parent: VICKSBURG,
+    route_ids: [
+      '1347421e-8967-5e81-acb8-d7eaa9752507', // Get Sprayed
+      '28a8ba4c-ecd0-5041-aa87-c5e3256cf348', // Saturated Sponge
+      '2c948070-5de2-5938-9018-f2ddead86142', // Blowhole
+      '2ed4464d-a44e-5c85-baf4-34488ef96696', // Swirly
+      '68b0f9a7-1934-55ef-8db3-6511f89a3726', // Starfish Slap
+      'a2aa0cc9-d34b-5bc7-99d0-e576f488de89', // Will You Wonk Me
+    ],
+    routes: [],
+  },
+  { id: STRAWBERRY, name: 'Strawberry Path Boulders', parent: VICKSBURG, route_ids: [], routes: [] },
+  {
+    id: '926c4c84-cde8-4b6a-a7d0-dc7334280aff',
+    name: 'Bulge',
+    parent: STRAWBERRY,
+    route_ids: [],
+    routes: [fromGuide('63e5c3c1-fc07-4a5a-9b27-645155875714', 'Berry Bulge', 'V3')],
+  },
+  {
+    id: '7aeb68ae-dc89-4a08-b231-fef7d5cc81ef',
+    name: 'Slab',
+    parent: STRAWBERRY,
+    route_ids: [],
+    routes: [fromGuide('a652100c-b1d6-4271-8bec-3cf4a4f2a47e', 'Strawberry Slab', null)],
+  },
+  {
+    id: '3801f11f-7907-46ab-9835-d81bdcc09f2c',
+    name: 'Main',
+    parent: STRAWBERRY,
+    route_ids: [],
+    routes: [
+      fromGuide('f5595db8-26e7-415d-83c2-90754c37b254', 'Strawberry Swirls', 'V2'),
+      fromGuide('7cac4c0e-d626-48d5-9f46-8c80e8c3adb9', 'Strawberry Swirls Sit', 'V4'),
+      fromGuide('21adc57b-1eab-41e6-8f94-d84735d67e41', 'Strawberry Patch Left', 'V1'),
+      fromGuide('f109753f-c6e3-4ad4-b6c3-0267239101f8', 'Strawberry Patch Right', 'V2'),
+      fromGuide('92416c15-cb27-49a4-9122-12dbc0a462d5', 'Shitty Face Climb', null),
+      fromGuide('3f80bf09-93af-40a3-8fbb-bfc6e04c2e92', 'Strawberry Shortcake', 'V5'),
+    ],
+  },
+  {
+    id: 'c9d5a84d-37e8-4371-8fa2-6363fd961442',
+    name: 'Easy Bake Oven',
+    parent: STRAWBERRY,
+    route_ids: [],
+    routes: [
+      fromGuide('abbe27f4-7d1d-4298-abc7-b3f9b3751336', 'Easy Bake Oven', 'V2'),
+      fromGuide('b93b186f-7902-486c-acd0-543e8667e4f5', 'Hard Bake Oven', 'V8'),
+    ],
+  },
+  {
+    id: 'a5d186d4-54cb-4522-85d3-8a85e561edae',
+    name: 'Toaster Oven',
+    parent: STRAWBERRY,
+    route_ids: [],
+    routes: [fromGuide('9f268702-4f3c-4067-ba56-26e0ed2af42d', 'Toaster Oven', null)],
+  },
+  {
+    id: 'daff208f-9d94-4089-b6da-9f6e77fe812d',
+    name: 'Sport Wall',
+    parent: VICKSBURG,
+    route_ids: [],
+    routes: [
+      {
+        ...fromGuide('33251376-a960-4680-91dd-85df94c47eb6', 'Firewatch', null),
+        yds: '5.12',
+        kinds: ['sport'],
+      },
+    ],
+  },
+  { id: RAMPART, name: 'Rampart Boulders', parent: VICKSBURG, route_ids: [], routes: [] },
+  {
+    id: '8f9e3a92-6539-4165-9a42-5fb36c2964ee',
+    name: 'First Wall',
+    parent: RAMPART,
+    route_ids: [],
+    routes: [
+      fromGuide('7095bfe6-cba6-401a-a7d0-384814648913', 'The Drawbridge', 'V3'),
+      fromGuide('dde47de0-bef5-4c54-a4ec-10add17f6833', 'Portcullis', 'V4'),
+      fromGuide('770301e7-bd8b-4103-98ae-ea898e4592c1', 'Crenellations', 'V0'),
+      fromGuide('bdb1b858-9760-4ae9-9275-d802a8ba7b6f', 'The Garderobe Chute', 'V1'),
+      fromGuide('1801cfa3-0421-4e78-9413-925d54d0aca2', 'Bow and Arrow', 'V4'),
+      fromGuide('00996a08-7309-44ae-af9e-58af3b676b48', 'Siege Warfare', 'V5'),
+      fromGuide('8dbf48a3-7028-4059-aada-c6abcbcd1997', 'Trebuchet', 'V10'),
+    ],
+  },
+  { id: WHISPERING_RIDGE, name: 'Whispering Ridge AMA', parent: VICKSBURG, route_ids: [], routes: [] },
+  {
+    id: '5d8f69ca-b119-4e4d-b79d-2308a1829c02',
+    name: 'High Plains',
+    parent: WHISPERING_RIDGE,
+    route_ids: [],
+    routes: [
+      fromGuide('becb0eb6-3baa-4d33-b060-d82adee55322', 'Arete north of highball', null),
+      fromGuide('cac70ce8-0273-4980-8161-bf11f84065ef', 'High Plains Shifter', 'V7'),
+      fromGuide('a42f656e-a7ec-49cd-acf6-24c10bfd3869', 'High Plains Grifter', null),
+    ],
+  },
+  {
+    id: '7f97c273-84c3-4536-92b7-62ef8526f596',
+    name: 'Baguette',
+    parent: WHISPERING_RIDGE,
+    route_ids: [],
+    routes: [
+      fromGuide('a00dd889-91fe-436f-a948-78d53e0ed1d0', 'Baguette Arete', 'V7'),
+      fromGuide('5cfdf63b-e16a-4f2f-a110-2f46d30ba257', 'Score', 'V2'),
+      fromGuide('d57780cb-f074-4149-923f-44179f3a9d30', 'Bread Knife', 'V3'),
     ],
   },
 ]

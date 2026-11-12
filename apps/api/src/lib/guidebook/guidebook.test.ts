@@ -3,7 +3,7 @@ import type { GuidebookRoute } from '@weatherteam6/types'
 import { applyOverlay, CRAG_MAX_SPAN_KM, GUIDEBOOK_REACH_KM, guidebookFor, type SnapshotArea } from './guidebook.js'
 import { MN_GUIDEBOOK } from './guidebookMn.js'
 import { REPINNED_AREAS } from '../weather/climbingAreaRepins.js'
-import { ELDON, GUIDEBOOK_OVERLAY, type OverlayArea } from './guidebookOverlay.js'
+import { ELDON, GUIDEBOOK_OVERLAY, VICKSBURG, type OverlayArea } from './guidebookOverlay.js'
 import { stopsGuidebookProblem } from '../feedback/parseFeedback.js'
 
 const route = (id: string, left_right: number | null = null): GuidebookRoute => ({
@@ -253,6 +253,27 @@ describe('the Minnesota snapshot', () => {
     expect(new Set(ids).size).toBe(ids.length)
   })
 
+  it("offers the mini-guide's Vicksburg areas at stevedew2's saved point, with OpenBeta's problems kept (#582)", () => {
+    const g = guidebookFor(44.661, -95.236)
+    expect(g?.crag.id).toBe(VICKSBURG)
+    expect(g?.walls.map((w) => w.name)).toEqual([
+      'Other problems (OpenBeta)',
+      'Rampart Boulders',
+      'Sport Wall',
+      'Strawberry Path Boulders',
+      'Whispering Ridge AMA',
+    ])
+    // Six from OpenBeta, 11 + 1 + 7 + 6 from the guide: none dropped by nesting.
+    expect(g?.walls.flatMap((w) => w.routes)).toHaveLength(6 + 11 + 1 + 7 + 6)
+    const strawberry = g?.walls.find((w) => w.name === 'Strawberry Path Boulders')
+    expect(strawberry?.sub_walls?.map((s) => s.name)).toEqual(['Bulge', 'Easy Bake Oven', 'Main', 'Slab', 'Toaster Oven'])
+    const oven = strawberry?.sub_walls?.find((s) => s.name === 'Easy Bake Oven')
+    const names = (oven?.route_ids ?? []).map((id) => strawberry?.routes.find((r) => r.id === id)?.name)
+    expect(names).toEqual(['Easy Bake Oven', 'Hard Bake Oven'])
+    // A grade the guide leaves out stays a gap.
+    expect(strawberry?.routes.find((r) => r.name === 'Shitty Face Climb')?.vscale).toBeNull()
+  })
+
   it('finds Silver Creek’s routes at its cliff, where /add now saves it (#582)', () => {
     expect(guidebookFor(47.06756, -91.59324)?.crag.name).toBe('Silver Creek Tunnel Rock')
   })
@@ -271,7 +292,7 @@ describe('the Minnesota snapshot', () => {
     expect(g?.nearby?.map((c) => c.name)).toEqual(['Sandstone Bouldering'])
     const eldon = g?.walls.find((w) => w.id === ELDON)
     expect(eldon?.routes).toHaveLength(37 + 21)
-    expect(eldon?.sub_walls).toHaveLength(GUIDEBOOK_OVERLAY.length)
+    expect(eldon?.sub_walls).toHaveLength(GUIDEBOOK_OVERLAY.filter((b) => b.parent === ELDON).length)
     const raven = eldon?.sub_walls?.find((s) => s.name === 'Raven Boulder')
     const names = (raven?.route_ids ?? []).map((id) => eldon?.routes.find((r) => r.id === id)?.name)
     expect(names).toEqual(['The Raven', 'The Raven Stand', 'Chairman Meow', 'Apocalypse Meow', 'Raven Droppings'])
