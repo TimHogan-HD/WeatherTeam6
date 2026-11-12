@@ -625,38 +625,45 @@ function Visits({
     new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' }).format(
       Date.parse(iso) + utcOffsetSeconds * 1000,
     )
+  // Closed by default (owner, 2026-11-12): the marks on the charts carry the
+  // dates, and the descriptions open on demand at the foot of the card.
   return (
-    <div style={{ ...stack(spacing.listGapSm), borderTop: `1px solid ${colorsV2.line}`, paddingTop: spacing.listGapLg }}>
-      <span style={{ ...typeV2.gaugeLabel, color: colorsV2.txtMuted }}>Your visits</span>
-      {[...list].reverse().map((v) => {
-        const at = Date.parse(v.observed_at)
-        const rivers = (river ?? []).map((r) => {
-          const ft = riverHeightNear(r.points, at)
-          return `River ${ft === null ? EM_DASH : formatFt(ft)}`
-        })
-        const facts = [`You saw ${OBSERVED_CONDITIONS_LABEL[v.observed_conditions].toLowerCase()}`, ...rivers].join(' · ')
-        return (
-          <div key={v.id} style={stack(spacing.micro)}>
-            <span style={{ ...typeV2.rowSmall, fontSize: 14, fontWeight: 600, color: colorsV2.txt1 }}>
-              <i
-                aria-hidden="true"
-                style={{
-                  display: 'inline-block',
-                  width: 10,
-                  height: 12,
-                  marginRight: 6,
-                  verticalAlign: -1,
-                  background: withOpacity(colorsV2.txt1, 0.1),
-                  borderLeft: `2px solid ${colorsV2.brandInk}`,
-                }}
-              />
-              {dateOf(v.observed_at)}
-            </span>
-            <span style={{ ...typeV2.axisTick, fontSize: 12, color: colorsV2.txt2 }}>{facts}</span>
-            {v.message === null ? null : <span style={typeV2.note}>{v.message}</span>}
-          </div>
-        )
-      })}
-    </div>
+    <details className="wt6-why" style={{ borderTop: `1px solid ${colorsV2.line}`, paddingTop: spacing.listGapSm }}>
+      <summary style={{ display: 'flex', alignItems: 'center', gap: '10px', minHeight: '32px', cursor: 'pointer' }}>
+        <span style={{ ...typeV2.gaugeLabel, color: colorsV2.txtMuted }}>Your visits</span>
+        <span style={{ ...typeV2.axisTick, fontSize: 12, color: colorsV2.txtMuted, marginLeft: 'auto' }}>{list.length}</span>
+      </summary>
+      <div style={{ ...stack(spacing.listGapSm), marginTop: spacing.listGapSm }}>
+        {[...list].reverse().map((v) => {
+          const at = Date.parse(v.observed_at)
+          const rivers = (river ?? []).map((r) => {
+            const ft = riverHeightNear(r.points, at)
+            return `River ${ft === null ? EM_DASH : formatFt(ft)}`
+          })
+          const facts = [`You saw ${OBSERVED_CONDITIONS_LABEL[v.observed_conditions].toLowerCase()}`, ...rivers].join(' · ')
+          return (
+            <div key={v.id} style={stack(spacing.micro)}>
+              <span style={{ ...typeV2.rowSmall, fontSize: 14, fontWeight: 600, color: colorsV2.txt1 }}>
+                <i
+                  aria-hidden="true"
+                  style={{
+                    display: 'inline-block',
+                    width: 10,
+                    height: 12,
+                    marginRight: 6,
+                    verticalAlign: -1,
+                    background: withOpacity(colorsV2.txt1, 0.1),
+                    borderLeft: `2px solid ${colorsV2.brandInk}`,
+                  }}
+                />
+                {dateOf(v.observed_at)}
+              </span>
+              <span style={{ ...typeV2.axisTick, fontSize: 12, color: colorsV2.txt2 }}>{facts}</span>
+              {v.message === null ? null : <span style={typeV2.note}>{v.message}</span>}
+            </div>
+          )
+        })}
+      </div>
+    </details>
   )
 }
