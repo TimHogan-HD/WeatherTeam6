@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from 'express'
-import { and, asc, eq, gte } from 'drizzle-orm'
+import { and, desc, eq, gte } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { feedback, locations } from '../db/schema.js'
 import { isUuid, sendServerError } from '../lib/http.js'
@@ -7,7 +7,7 @@ import { isObservedConditions, VISIT_WINDOW_DAYS, type ApiResponse, type Visit }
 
 export const visitsRouter = Router()
 
-/** More than anyone checks one crag in 15 days; a cap, not a page. */
+/** More than anyone checks one crag in 15 days; a cap that keeps the newest, not a page. */
 const VISIT_LIMIT = 50
 
 /**
@@ -51,12 +51,13 @@ visitsRouter.get('/visits/:locationId', async (req: Request, res: Response) => {
           gte(feedback.observed_at, since),
         ),
       )
-      .orderBy(asc(feedback.observed_at))
+      .orderBy(desc(feedback.observed_at))
       .limit(VISIT_LIMIT)
 
+    // Newest first so the cap drops the oldest, then back to oldest first.
     // The table's CHECK makes both non-null for a forecast check; a row that
     // somehow is not is left out rather than drawn at an invented time.
-    const data: Visit[] = rows.flatMap((r) =>
+    const data: Visit[] = rows.reverse().flatMap((r) =>
       r.observed_at === null || !isObservedConditions(r.observed_conditions)
         ? []
         : [
