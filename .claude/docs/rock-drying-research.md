@@ -2158,6 +2158,17 @@ on a vertical wall, before the existing angle/wind/humidity modifiers.
 > around it) and does not guess at hold shapes. Search-result summaries were not used. The
 > earlier fact sources are in git history before this date.
 >
+> **"Most similar to" (`SIMILAR` in `rockGuide.ts`, owner 2026-11-12)** compares a rock as a
+> material only, never how it climbs, and was checked against the same rows' pages on
+> 2026-11-12 plus [Syenite](https://en.wikipedia.org/wiki/Syenite) ("similar to that of
+> granite, but deficient in quartz") and [Breccia](https://en.wikipedia.org/wiki/Breccia)
+> ("Like conglomerate…"). Gneiss → granite rests on "granite gneisses"; rhyolite on "the
+> extrusive equivalent of granite"; welded tuff on "commonly rhyolitic"; quartzite on
+> "originally pure quartz sandstone"; dolomite on "magnesium replacement of limestone";
+> conglomerate on "closely related to sandstones"; cherty carbonate on "nodular chert is most
+> common in limestone". **None found** for anorthosite, slate or non-welded tuff, so they show
+> no comparison.
+>
 > | Row | Sources |
 > | --- | --- |
 > | `granite` | [1](https://en.wikipedia.org/wiki/Granite) · [2](https://avilaclimbingco.com/blogs/blogs/climbing-rock-types-for-climbing-guide) |

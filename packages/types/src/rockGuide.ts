@@ -79,11 +79,20 @@ export type RockGuide = {
   care: readonly string[]
   /** Don't. */
   avoid: readonly string[]
+  /** The familiar rock it is most like as a material; null for a familiar rock, or none sourced. */
+  similar: RockSimilar | null
+}
+
+/** "Most similar to: Granite", and the one sourced reason why. */
+export type RockSimilar = {
+  rock: Exclude<RockType, 'unknown'>
+  /** One sentence, in its own words, of what the source says. */
+  why: string
 }
 
 const NO_WIRE = 'Scrub with a wire brush — use nylon or bristle'
 
-const GUIDES: Record<Exclude<RockType, 'unknown'>, RockGuide> = {
+const GUIDES: Record<Exclude<RockType, 'unknown'>, Omit<RockGuide, 'similar'>> = {
   granite: {
     swatch: 'granite',
     texture: 'crystalline',
@@ -454,9 +463,46 @@ const GUIDES: Record<Exclude<RockType, 'unknown'>, RockGuide> = {
   },
 }
 
+/**
+ * **The familiar rock an obscure one is most like, as a material** (owner,
+ * 2026-11-12): what it formed from or shares its make-up with, never how it
+ * climbs, which would be an opinion. Sourced like `formed` (the pages are in
+ * `rock-drying-research.md` beside §7). The familiar rocks themselves and
+ * their variants have none, and so does any rock no page compares
+ * (anorthosite, slate, non-welded tuff): a gap, never a guess.
+ */
+const SIMILAR: Record<Exclude<RockType, 'unknown'>, RockSimilar | null> = {
+  granite: null,
+  granite_weathered: null,
+  anorthosite: null,
+  syenite_porous: { rock: 'granite', why: 'Close to granite in make-up, with little or no quartz.' },
+  rhyolite: { rock: 'granite', why: 'Granite’s volcanic twin: it erupted instead of cooling underground.' },
+  basalt_dense: null,
+  basalt: null,
+  basalt_vesicular: null,
+  tuff_welded: { rock: 'rhyolite', why: 'Welded tuff is usually rhyolite ash, fused solid.' },
+  tuff_nonwelded: null,
+  volcanic_breccia: { rock: 'conglomerate', why: 'Like conglomerate, but its chunks are sharp, not rounded.' },
+  quartzite: { rock: 'sandstone', why: 'It began as quartz sandstone, hardened by heat and pressure.' },
+  slate: null,
+  gneiss_schist: { rock: 'granite', why: 'Much gneiss is granite, banded later by heat and pressure.' },
+  sandstone: null,
+  sandstone_quartz_arenite: null,
+  sandstone_ferruginous: null,
+  sandstone_arkose: null,
+  sandstone_eolian: null,
+  sandstone_soft: null,
+  limestone: null,
+  limestone_dense: null,
+  limestone_porous: null,
+  dolomite: { rock: 'limestone', why: 'Most dolomite began as limestone and was changed by magnesium.' },
+  carbonate_cherty: { rock: 'limestone', why: 'Limestone or dolomite with hard chert set in it.' },
+  conglomerate: { rock: 'sandstone', why: 'A close relative of sandstone, with rounded gravel in place of sand.' },
+}
+
 /** The guide for a rock type; `null` for `unknown` — nobody recorded the rock. */
 export function rockGuide(rockType: RockType): RockGuide | null {
-  return rockType === 'unknown' ? null : GUIDES[rockType]
+  return rockType === 'unknown' ? null : { ...GUIDES[rockType], similar: SIMILAR[rockType] }
 }
 
 /** The word under a drying gauge. */

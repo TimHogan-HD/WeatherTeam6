@@ -351,6 +351,14 @@ function Hero({ name, guide }: { name: string; guide: RockGuide | null }) {
         <p style={typeV2.body}>
           {guide?.tagline ?? 'Rock type not set. Add it in Edit crag.'}
         </p>
+        {guide?.similar == null ? null : (
+          <div style={stack(spacing.micro)}>
+            <span style={{ ...typeV2.gaugeLabel, color: colorsV2.txtMuted }}>
+              Most similar to: <span style={{ color: colorsV2.txt1 }}>{rockTypeLabel(guide.similar.rock)}</span>
+            </span>
+            <span style={{ ...typeV2.body, color: colorsV2.txtMuted }}>{guide.similar.why}</span>
+          </div>
+        )}
         {guide === null ? null : (
           <div
             style={{
