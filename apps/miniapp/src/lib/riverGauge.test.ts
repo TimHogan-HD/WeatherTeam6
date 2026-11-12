@@ -75,10 +75,10 @@ describe('riverTabWord and spotLine', () => {
   it('names the boulder each side of the line', () => {
     const at = new Date(NOW).toISOString()
     expect(spotLine(gauge, { kind: 'reachable', height_ft: 4.68, at })).toEqual({
-      word: 'Beach boulder is reachable',
+      word: 'Beach boulder landing is above water',
       line: 'your line is 4.95 ft',
     })
-    expect(spotLine(gauge, { kind: 'high', height_ft: 5.1, at }).word).toBe('Too high for the Beach boulder')
+    expect(spotLine(gauge, { kind: 'high', height_ft: 5.1, at }).word).toBe('Beach boulder landing is under water')
     expect(riverTabWord({ kind: 'reachable', height_ft: 4.68, at })).toBe('Low enough')
   })
 
