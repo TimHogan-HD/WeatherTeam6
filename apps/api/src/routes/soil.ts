@@ -3,15 +3,15 @@ import { and, eq } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { locations } from '../db/schema.js'
 import { isUuid, sendServerError } from '../lib/http.js'
-import { soilReading } from '../lib/weather/soilReading.js'
+import { servedSoilStation, soilReading } from '../lib/weather/soilReading.js'
 import { soilStationFor, type ApiResponse, type SoilReading } from '@weatherteam6/types'
 
 export const soilRouter = Router()
 
 /**
- * The NOAA station's soil near a crag in `SOIL_STATIONS` (#589 part 2), for
- * the Gauges card's Ground tab. `data: null` for a crag without one, with no
- * call to NCEI. A failed read is a 200 with `answered: false`, never dry ground.
+ * The soil station's reading near a crag in `SOIL_STATIONS` (#589), for the
+ * Gauges card's Ground tab. `data: null` for a crag without one, with no
+ * upstream call; a Wisconet station needs `?basis=recent` (`servedSoilStation`). A failed read is a 200 with `answered: false`, never dry ground.
  */
 soilRouter.get('/soil/:locationId', async (req: Request, res: Response) => {
   const locationId = req.params['locationId']
@@ -33,7 +33,7 @@ soilRouter.get('/soil/:locationId', async (req: Request, res: Response) => {
       return
     }
 
-    const station = soilStationFor(row.known_crag)
+    const station = servedSoilStation(soilStationFor(row.known_crag), req.query['basis'])
     const data = station === null ? null : await soilReading(station, Date.now())
     const response: ApiResponse<SoilReading | null> = { data, error: null, status: 200 }
     res.status(200).json(response)

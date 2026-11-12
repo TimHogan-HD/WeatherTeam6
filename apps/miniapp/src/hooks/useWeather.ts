@@ -157,7 +157,8 @@ export function useRainGauges(id: string | undefined, enabled: boolean): UseQuer
 export const soilQuery = (id: string | undefined, knownCrag: string | null | undefined, enabled: boolean) =>
   queryOptions({
     queryKey: ['soil', id ?? ''] as const,
-    queryFn: () => apiGet<SoilReading | null>(`/soil/${id ?? ''}`),
+    // `basis=recent`: this build reads a Wisconet rank against its last 30 days, so the API may send one.
+    queryFn: () => apiGet<SoilReading | null>(`/soil/${id ?? ''}?basis=recent`),
     enabled: enabled && id !== undefined && id !== '' && soilStationFor(knownCrag) !== null,
     staleTime: 60 * 60_000,
   })

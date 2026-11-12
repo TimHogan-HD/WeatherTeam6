@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { SOIL_STATIONS } from '@weatherteam6/types'
-import { soilReading, type SoilFetchers } from './soilReading.js'
+import { servedSoilStation, soilReading, type SoilFetchers } from './soilReading.js'
 
 const STATION = SOIL_STATIONS['robinson-park']
 const DFRC = SOIL_STATIONS['devils-lake']
@@ -11,6 +11,16 @@ const never = vi.fn(async () => {
   throw new Error('not this network')
 })
 const fetchers = (over: Partial<SoilFetchers>): SoilFetchers => ({ soil: never, rain: never, wisconet: never, ...over })
+
+describe('servedSoilStation', () => {
+  it('sends a Wisconet reading only to a client that reads its basis, and NOAA to any', () => {
+    expect(servedSoilStation(DFRC ?? null, undefined)).toBeNull()
+    expect(servedSoilStation(DFRC ?? null, 'date')).toBeNull()
+    expect(servedSoilStation(DFRC ?? null, 'recent')).toBe(DFRC)
+    expect(servedSoilStation(STATION ?? null, undefined)).toBe(STATION)
+    expect(servedSoilStation(null, 'recent')).toBeNull()
+  })
+})
 
 describe('soilReading (NOAA)', () => {
   it('says a failed soil read rather than returning dry ground, and keeps the rain it did get', async () => {

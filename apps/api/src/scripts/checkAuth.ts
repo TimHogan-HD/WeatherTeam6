@@ -261,7 +261,7 @@ async function run(): Promise<void> {
     // Soil is read by location: B's id must not reach the station of B's crag.
     const crossSoil = await call<null>('GET', `/soil/${locB}`, { auth: `Session ${token}` })
     check("GET /soil/:id on B's location is 404 for A", crossSoil.status === 404, `got ${crossSoil.status}`)
-    const ownSoil = await call<null>('GET', `/soil/${locA}`, { auth: `Session ${token}` })
+    const ownSoil = await call<null>('GET', `/soil/${locA}?basis=recent`, { auth: `Session ${token}` })
     check("GET /soil/:id on A's own location is 200", ownSoil.status === 200, `got ${ownSoil.status}`)
 
     const stillThere = await db

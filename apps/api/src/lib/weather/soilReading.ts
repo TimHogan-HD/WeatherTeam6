@@ -15,6 +15,18 @@ export type SoilFetchers = { soil: typeof fetchSoilPoints; rain: typeof fetchHou
 const LIVE: SoilFetchers = { soil: fetchSoilPoints, rain: fetchHourlyRain, wisconet: fetchWisconetHours }
 
 /**
+ * The station to serve a caller, or null. **A Wisconet reading goes only to
+ * a client that asks for `basis=recent`**: a build from before part 3 knows no
+ * `basis`, so it would read a 30-day rank as a percentile for the date
+ * ("Soaked for the date") and name NOAA as its source. Without the ask it
+ * gets null, which it already reads as no station: no Ground tab.
+ */
+export function servedSoilStation(station: SoilStation | null, basisParam: unknown): SoilStation | null {
+  if (station === null) return null
+  return station.network === 'uscrn' || basisParam === 'recent' ? station : null
+}
+
+/**
  * A crag's soil station over the last `SOIL_HISTORY_DAYS` (#589): its soil,
  * hour by hour, and its own rain by local day for the Ground tab's bars.
  *
