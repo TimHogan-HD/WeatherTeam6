@@ -12,11 +12,12 @@ import type {
   RainGaugeReadings,
   RecentPrecip,
   RiverGaugeReading,
+  Visit,
   Wall,
   WeatherAlert,
 } from '@weatherteam6/types'
-import { RiverGaugeCard, RiverOverviewLines } from './RiverGauge.js'
-import { CLIMB_HOURS_DEFAULT, GUIDEBOOK_SOURCE_LABEL, modelName, RECENT_PRECIP_SOURCE_LABEL, SUN_WALLS_SOURCE_LABEL, sunWallsFor } from '@weatherteam6/types'
+import { RiverOverviewLines } from './RiverGauge.js'
+import { CLIMB_HOURS_DEFAULT, GUIDEBOOK_SOURCE_LABEL, modelName, RECENT_PRECIP_SOURCE_LABEL, SUN_WALLS_SOURCE_LABEL, riverGaugesFor, sunWallsFor } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { stack } from '../theme/styles.js'
 import { alertsUnchecked, findToday, forecastSourceLabel } from '../lib/forecast.js'
@@ -153,6 +154,11 @@ export type DetailViewProps = {
     isError: boolean
     refetch: () => void
   }
+  /**
+   * The reader's own visits here (#589), marked on the Precip tab's Gauges
+   * card. Asked only while that tab is open. Optional only so a test can render without it.
+   */
+  visits?: { data: Visit[] | undefined; isError: boolean }
   /** Radar's rain at every saved place (#313); `undefined` while loading or failed, which says nothing. */
   rainNow?: RainNow | null
   /** The crag's named walls, for the identity block. Optional only so a test can render without it; `LocationDetail` always passes it. */
@@ -215,6 +221,7 @@ export function DetailView({
   hourly,
   recentPrecip,
   rainGauges,
+  visits,
   rainNow,
   walls,
   location,
@@ -282,20 +289,6 @@ export function DetailView({
   ]
 
   const utcOffsetSeconds = hourly?.data?.utc_offset_seconds ?? null
-  const riverCard: ReactNode =
-    river === undefined
-      ? null
-      : river.isError
-        ? <InlineError message="Couldn't load the river gauge." />
-        : river.data === undefined || river.data.length === 0
-          ? null
-          : (
-              <div style={stack(spacing.listGapLg)}>
-                {river.data.map((r) => (
-                  <RiverGaugeCard key={r.site + r.spot} reading={r} nowMs={now} utcOffsetSeconds={utcOffsetSeconds} />
-                ))}
-              </div>
-            )
   // The Overview carries a gauge only when it is above its line or has no
   // reading (owner, 2026-11-09). A failed request shows too: nothing there
   // would read as "low enough".
@@ -401,6 +394,8 @@ export function DetailView({
         <PrecipTab
           recent={recentPrecip}
           {...(rainGauges === undefined ? {} : { gauges: rainGauges })}
+          {...(river === undefined || riverGaugesFor(location?.known_crag).length === 0 ? {} : { river })}
+          {...(visits === undefined ? {} : { visits })}
           isClimbingLocation={showScore}
           rockType={location?.rock_type ?? null}
           hours={hourly?.data?.hours ?? []}
@@ -415,7 +410,6 @@ export function DetailView({
       <RockTab
         rockType={location?.rock_type ?? null}
         sunWalls={sunWalls}
-        river={riverCard}
         {...(showScore && hourly?.data !== undefined
           ? {
               live: {

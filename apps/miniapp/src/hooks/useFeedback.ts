@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient, type UseQueryR
 import type { CreateFeedbackInput, Feedback, FeedbackFromAnyone } from '@weatherteam6/types'
 import { apiGet, apiPost } from '../lib/api.js'
 import { TRIP_SUMMARY_KEY } from './useTrips.js'
+import { VISITS_KEY } from './useWeather.js'
 
 const feedbackKey = ['feedback'] as const
 /** Under `feedbackKey`, so resolving or saving refreshes both lists. */
@@ -19,13 +20,15 @@ export function useFeedbackList(): UseQueryResult<Feedback[]> {
  * What a saved check makes stale: both feedback lists, and every trip
  * summary, whose `checked_in` it may have just set. Without the second, an
  * ended trip opened from the check showed its cached "How was it?" for the
- * query's whole stale time, and a second tap saved a duplicate check.
+ * query's whole stale time, and a second tap saved a duplicate check. And
+ * every visits list, which marks the check on the Gauges card (#589).
  * Returned so the mutation waits for it before its caller navigates.
  */
 export function invalidateAfterFeedback(queryClient: QueryClient): Promise<unknown> {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: feedbackKey }),
     queryClient.invalidateQueries({ queryKey: [TRIP_SUMMARY_KEY] }),
+    queryClient.invalidateQueries({ queryKey: [VISITS_KEY] }),
   ])
 }
 

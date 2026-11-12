@@ -1,6 +1,6 @@
 import { logger } from '../logger.js'
 import { fetchWithRetry } from './openMeteo.js'
-import type { RiverPoint } from '@weatherteam6/types'
+import { RIVER_HISTORY_DAYS, type RiverPoint } from '@weatherteam6/types'
 
 /**
  * Gage height (USGS parameter 00065, ft) from USGS's Water Data OGC API,
@@ -13,8 +13,13 @@ import type { RiverPoint } from '@weatherteam6/types'
 const ITEMS_URL = 'https://api.waterdata.usgs.gov/ogcapi/v0/collections/continuous/items'
 const GAGE_HEIGHT = '00065'
 
-/** How far back a reading's points reach: a day, plus the posting lag. */
-export const RIVER_WINDOW_MS = 26 * 3_600_000
+/**
+ * How far back a reading's points reach: the Gauges card's 15-day chart (#589).
+ * The change line still reads about a day of it (`riverChangeFt`).
+ */
+export const RIVER_WINDOW_MS = RIVER_HISTORY_DAYS * 24 * 3_600_000
+
+const HOUR_MS = 3_600_000
 
 /**
  * A request-time fetch: short, so a slow USGS holds up only this card and
@@ -31,8 +36,10 @@ export function riverItemsUrl(site: string, fromMs: number, toMs: number): strin
     time: `${new Date(fromMs).toISOString()}/${new Date(toMs).toISOString()}`,
     properties: 'time,value,unit_of_measure',
     skipGeometry: 'true',
-    // 26 h of 15-minute points is 104; room for a site that reports every 5.
-    limit: '500',
+    // 15 days of 15-minute points is about 1,440 (1,436 at 05336700 on
+    // 2026-11-12). A site reporting every 5 minutes would overflow it and could
+    // lose its newest points, which reads as stale (a gap), never a wrong height.
+    limit: '2000',
   })
   return `${ITEMS_URL}?${params.toString()}`
 }
@@ -67,6 +74,24 @@ export function parseRiverPoints(body: unknown): RiverPoint[] {
 }
 
 /**
+ * The last observation in each clock hour, oldest first: 15 days of 15-minute
+ * points is ~1,400, and the card draws hours. The newest observation is the
+ * last of its hour, so it is always kept and `riverState` reads it as it came.
+ * Expects `points` oldest first, as `parseRiverPoints` returns them.
+ */
+export function thinToHourly(points: readonly RiverPoint[]): RiverPoint[] {
+  const out: RiverPoint[] = []
+  let lastHour: number | null = null
+  for (const p of points) {
+    const hour = Math.floor(Date.parse(p.at) / HOUR_MS)
+    if (hour === lastHour) out[out.length - 1] = p
+    else out.push(p)
+    lastHour = hour
+  }
+  return out
+}
+
+/**
  * The last `RIVER_WINDOW_MS` of gage height at `site`. **Empty when USGS did not
  * answer**, which the card shows as a gap, never as a low river.
  */
@@ -83,7 +108,7 @@ export async function fetchRiverPoints(site: string, nowMs: number = Date.now())
     return []
   }
   try {
-    return parseRiverPoints(await res.json())
+    return thinToHourly(parseRiverPoints(await res.json()))
   } catch (err) {
     logger.warn({ site, err: err instanceof Error ? err.message : String(err) }, '[usgsRiver] unreadable body')
     return []

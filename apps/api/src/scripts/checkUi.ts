@@ -90,6 +90,9 @@ const CRAG = { name: `ZZ UI check — Taylors Falls ${STAMP}`, lat: 45.3955, lon
 /** Red Wing: a second crag, for a trip with two. */
 const SECOND_CRAG = { name: `ZZ UI check — Red Wing ${STAMP}`, lat: 44.5625, lon: -92.5338 }
 
+/** Robinson Park: the one crag in `RIVER_GAUGES`, so the Gauges card has a River tab (#589). */
+const RIVER_CRAG = { name: `ZZ UI check — Robinson Park ${STAMP}`, lat: 46.1316, lon: -92.8589 }
+
 /** The device's date `n` days on, as the trip screens read "today". */
 function isoDayFromNow(n: number): string {
   const d = new Date(Date.now() + n * 86_400_000)
@@ -455,6 +458,63 @@ async function run(): Promise<void> {
       }
       await rearrangeCards()
       await guidebookLevels()
+      await gaugeTabs()
+    }
+
+    // The Precip tab's Gauges card (#589): at a crag with a river gauge, Rain
+    // and River in tabs, each with its word; the River tab draws its chart;
+    // the river card has left the Rock tab.
+    async function gaugeTabs(): Promise<void> {
+      // Narrowed above, but a closure does not keep the narrowing.
+      const auth = token
+      if (auth === null) return
+      const made = await api<Location>('POST', '/locations', auth, { ...RIVER_CRAG, is_climbing_location: true })
+      const riverId = made.payload.data?.id ?? null
+      check(
+        'Robinson Park saves as its known crag',
+        made.status === 201 && made.payload.data?.known_crag === 'robinson-park',
+        `got ${made.status}, ${made.payload.data?.known_crag ?? 'no crag'}`,
+      )
+      if (riverId === null) return
+      try {
+        await page.goto(`${WEB}/location/${riverId}`)
+        await page.getByRole('tab').first().waitFor({ timeout: 60_000 })
+        const rainAnswer = page.waitForResponse((r) => r.url().includes('/api/v1/rain-gauges/'), { timeout: 60_000 }).catch(() => null)
+        await page.getByRole('tab', { name: 'Precip', exact: true }).click()
+        await rainAnswer
+        // The Rain tab's word follows the answer by a render.
+        await page.waitForTimeout(500)
+        const strip = page.getByRole('tablist', { name: 'Gauges' })
+        const shown = await strip
+          .waitFor({ timeout: 60_000 })
+          .then(() => true)
+          .catch(() => false)
+        check('a crag with a river and rain gauges gets the Gauges tabs', shown)
+        if (!shown) return
+        const names = await strip.getByRole('tab').allInnerTexts()
+        check(
+          'the tabs are Rain then River, each with a status word',
+          // The names are uppercased by CSS, which innerText reflects; a dash is a pending or empty answer.
+          names.length === 2 && /^rain\s*[^\s—]/i.test(names[0] ?? '') && /^river\s*[^\s—]/i.test(names[1] ?? ''),
+          names.join(' | '),
+        )
+        await strip.getByRole('tab', { name: /^river/i }).click()
+        const chart = await page
+          .getByRole('img', { name: /gage height/ })
+          .waitFor({ timeout: 10_000 })
+          .then(() => true)
+          .catch(() => false)
+        const riverWord = (names[1] ?? '').replace(/^river\s*/i, '')
+        // A reading draws its chart; only a request that failed or a USGS gap has none.
+        check('the River tab draws the 15-day chart when USGS answered', chart || /No reading/.test(riverWord), riverWord)
+        await screen('tab-precip-river')
+        await page.getByRole('tab', { name: 'Rock', exact: true }).click()
+        await page.waitForTimeout(1_000)
+        const onRock = await page.getByText('Kettle River', { exact: false }).count()
+        check('the river card has left the Rock tab', onRock === 0, `${onRock} match(es)`)
+      } finally {
+        await api<null>('DELETE', `/locations/${riverId}`, auth)
+      }
     }
 
     // The reader's card order (owner, 2026-11-03): moved, kept over a reload, and reset.

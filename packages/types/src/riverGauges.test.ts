@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { KNOWN_CRAGS } from './knownCrags.js'
-import { RIVER_GAUGES, RIVER_STALE_MS, riverChangeFt, riverGaugesFor, riverState, type RiverPoint } from './riverGauges.js'
+import {
+  RIVER_GAUGES,
+  RIVER_STALE_MS,
+  riverChangeFt,
+  riverGaugesFor,
+  riverHeightNear,
+  riverState,
+  type RiverPoint,
+} from './riverGauges.js'
 
 const NOW = Date.parse('2026-11-09T15:00:00Z')
 const iso = (msAgo: number) => new Date(NOW - msAgo).toISOString()
@@ -51,18 +59,40 @@ describe('riverState', () => {
 })
 
 describe('riverChangeFt', () => {
-  it('is null when the points span less than the window', () => {
+  it('is null when no point sits near 25 h back', () => {
     expect(riverChangeFt([{ at: iso(2 * H), height_ft: 5 }, { at: iso(H), height_ft: 4.9 }])).toBeNull()
     expect(riverChangeFt([])).toBeNull()
-  })
-
-  it('is newest minus oldest over a day, falling negative', () => {
+    // A gap across the mark: the nearest points are 3 h either side of it.
     expect(
       riverChangeFt([
-        { at: iso(24 * H), height_ft: 4.97 },
-        { at: iso(12 * H), height_ft: 4.94 },
-        { at: iso(0), height_ft: 4.88 },
+        { at: iso(28 * H), height_ft: 5.2 },
+        { at: iso(22 * H), height_ft: 5.0 },
+        { at: iso(0), height_ft: 4.8 },
       ]),
-    ).toBe(-0.09)
+    ).toBeNull()
+  })
+
+  it('measures from the point nearest 25 h back, not the first of 15 days', () => {
+    const points: RiverPoint[] = []
+    for (let h = 15 * 24; h >= 0; h--) points.push({ at: iso(h * H), height_ft: h === 25 ? 4.97 : h === 0 ? 4.88 : 3 + h / 100 })
+    expect(riverChangeFt(points)).toEqual({ change_ft: -0.09, from_at: iso(25 * H) })
+  })
+
+  it('reads rising positive', () => {
+    expect(riverChangeFt([{ at: iso(25.5 * H), height_ft: 4.5 }, { at: iso(0), height_ft: 4.75 }])?.change_ft).toBe(0.25)
+  })
+})
+
+describe('riverHeightNear', () => {
+  const points = [
+    { at: iso(10 * H), height_ft: 4.9 },
+    { at: iso(9 * H), height_ft: 4.94 },
+  ]
+  it('takes the nearest point within an hour', () => {
+    expect(riverHeightNear(points, NOW - 9.2 * H)).toBe(4.94)
+  })
+  it('is null when the nearest is further than an hour', () => {
+    expect(riverHeightNear(points, NOW - 7 * H)).toBeNull()
+    expect(riverHeightNear([], NOW)).toBeNull()
   })
 })

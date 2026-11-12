@@ -173,6 +173,8 @@ export const colorsV2 = {
   wind: '#7fd1c4',
   /** Gusts, dashed, beside `wind`. */
   gust: '#e8fbf7',
+  /** River gage height, as a line: the Gauges card's River chart (#589 mockup's `--river`). */
+  river: '#9ec5ff',
   /** The Rock tab's line of how far the rock sits above its dew point (hybrid mockup's condensation chart). */
   dewMargin: '#7fd1c4',
   /**

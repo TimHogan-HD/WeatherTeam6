@@ -196,17 +196,27 @@ the rain gauges; the next 48 hours; each day's wettest hour.
   or arrowing fills the readout with that hour's labelled values.
 - The figures are model estimates, and the footnote says so; no uncertainty or storm
   track is drawn.
-- **Rain gauges** (#479, `GaugeCard`, `GET /rain-gauges/:locationId`; owner picked variant B
-  of `rain-gauges-variants`, 2026-11-12): the answer first, whether the models ran wetter
-  or drier than each gauge or matched it (`compareGauges`, `verdictHeadline` in
-  `lib/gaugeLines.ts`), with each gauge's sum beside the models' over that gauge's own whole
-  days only: an airport day with every hour, a volunteer report, a model day with all 24
-  hours (`modelDays`). Then each of the last six complete days, newest first, as one bar per
-  source on one scale, printed in the aside, with its figure beside it. Stations are named
-  once, in the legend and the footnote. A missing figure is a word and no bar: `partial`,
-  `no report`, or `no reading` when that gauge's read failed (said once at the top). Zero
-  is a hairline, a measurement. No card where no gauge is in reach (every crag outside the
-  US). Asked only while the tab is open.
+- **Gauges** (#589 part 1, `GaugesCard.tsx`; mockup artifact UNzrJVpcdEcZ9uBaXQysvV v13):
+  one card with a tab per gauge kind, each tab carrying a status word; one kind has no tab
+  strip, none has no card. Asked only while the Precip tab is open. Gauges never feed the
+  score.
+  - **Rain** (#479, `GET /rain-gauges/:locationId`): the verdict first, whether the models
+    ran wetter or drier than each gauge or matched it (`compareGauges`, `verdictHeadline`,
+    `sideNote` over each gauge's own whole days, `modelDays`). Then a grid
+    (`lib/gaugeGrid.ts`): rows Models, Airport, Volunteer; the last six complete days and a
+    total. A cell with rain is shaded on one fixed scale (`cellShade`), a measured zero is a
+    faint `0`, `part` and `trace` are words, and a day with no figure is a dash that
+    **withholds its row's total** (a part day is left out of the total instead). The
+    footnote names the gauges with distances.
+  - **River** (crags in `RIVER_GAUGES`, `GET /river-gauges/:locationId`): the height, river,
+    clock and the change over about 25 h; `Beach boulder is reachable · your line is 4.95 ft`
+    or `Too high for the Beach boulder`; a 15-day chart (`lib/riverChart.ts`) with the line
+    dashed and broken at gaps over 3 h. Stale or unanswered is a dash and words, never a low
+    river. The river card left the Rock tab; the Overview keeps its line when the river is
+    high or has no reading.
+  - **Visits** (`GET /visits/:locationId`): the reader's own forecast checks at the place
+    over 15 days, as a tag over the rain grid's column, a line and day band on the river
+    chart, and a "Your visits" list under the tabs.
 
 **Rock** (`RockTab.tsx`; crags only): the crag's live readings — the drying clock and the
 Condensation card (`RockReadings.tsx`: air minus dew point as the figure, the model's

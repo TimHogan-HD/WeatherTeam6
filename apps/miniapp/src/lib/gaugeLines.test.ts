@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { RainGaugeDay, RainGaugeReadings } from '@weatherteam6/types'
-import { compareGauges, missingLabel, modelDays, sideLine, verdictHeadline } from './gaugeLines.js'
+import { compareGauges, missingLabel, modelDays, verdictHeadline } from './gaugeLines.js'
+import { rainTabWord, sideNote } from './gaugeGrid.js'
 
 const IN = 25.4
 
@@ -107,21 +108,24 @@ describe('compareGauges', () => {
   })
 })
 
-describe('verdictHeadline and sideLine', () => {
+describe('verdictHeadline, sideNote and rainTabWord', () => {
   it('names the gauge each part of a split answer is about', () => {
     expect(verdictHeadline(compareGauges(readings(), modelsOf()))).toBe(
       'The models ran wetter than the airport gauge and matched the volunteer gauge',
     )
+    expect(rainTabWord(compareGauges(readings(), modelsOf()))).toBe('Partly matched')
   })
 
   it('speaks for both gauges only when they agree', () => {
     const rows = WEEK.map((r) => ({ ...r, models: r.models === null ? null : r.models * 2 }))
     expect(verdictHeadline(compareGauges(readings(rows), modelsOf(rows)))).toBe('The models ran wetter than the gauges')
+    expect(rainTabWord(compareGauges(readings(rows), modelsOf(rows)))).toBe('Models wetter')
   })
 
   it('says the gauges disagree when one reads the models wetter and the other drier', () => {
     const rows = WEEK.map((r) => ({ ...r, vol: r.vol === null ? null : r.vol * 2 }))
     expect(verdictHeadline(compareGauges(readings(rows), modelsOf(rows)))).toBe('The gauges disagree with each other')
+    expect(rainTabWord(compareGauges(readings(rows), modelsOf(rows)))).toBe('Gauges disagree')
   })
 
   it('lets a gauge with too little rain stay silent beside one that can tell', () => {
@@ -141,10 +145,10 @@ describe('verdictHeadline and sideLine', () => {
 
   it('prints each sum with its day count', () => {
     const [air, vol] = compareGauges(readings(), modelsOf())
-    expect(air && sideLine(air)).toBe('Airport caught 0.79 in where the models had 1.08 in, over the 5 days it reported in full.')
-    expect(vol && sideLine(vol)).toBe('Volunteer caught 1.13 in where the models had 1.21 in, over the 5 days it reported.')
-    expect(sideLine({ kind: 'airport', gaugeMm: 0, modelsMm: 0, days: 1, read: 'little' })).toBe(
-      'Airport caught 0 in where the models had 0 in, over the 1 day it reported in full.',
+    expect(air && sideNote(air)).toBe('Airport 0.79 in · models 1.08 in, over 5 whole days')
+    expect(vol && sideNote(vol)).toBe('Volunteer 1.13 in · models 1.21 in, over 5 whole days')
+    expect(sideNote({ kind: 'airport', gaugeMm: 0, modelsMm: 0, days: 1, read: 'little' })).toBe(
+      'Airport 0 in · models 0 in, over 1 whole day',
     )
   })
 })

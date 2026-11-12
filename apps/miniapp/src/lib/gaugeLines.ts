@@ -155,13 +155,6 @@ export function verdictHeadline(sides: readonly GaugeSide[]): string | null {
   return `The models ${ran(off.read)} ${gauge(off)} and matched ${gauge(matched)}`
 }
 
-/** Each gauge's sum beside the models' over its days: `Airport caught 0.31 in where the models had 0.42 in, over the 4 days it reported in full.` */
-export function sideLine(s: GaugeSide): string {
-  const days = `${s.days} ${s.days === 1 ? 'day' : 'days'}`
-  const over = s.kind === 'airport' ? `over the ${days} it reported in full` : `over the ${days} it reported`
-  return `${s.kind === 'airport' ? 'Airport' : 'Volunteer'} caught ${formatPrecipIn(s.gaugeMm)} where the models had ${formatPrecipIn(s.modelsMm)}, ${over}.`
-}
-
 /**
  * The models' rain per local date, from the hours the grid above draws: a
  * day's total only when all 24 of its hours are there. A part day (the

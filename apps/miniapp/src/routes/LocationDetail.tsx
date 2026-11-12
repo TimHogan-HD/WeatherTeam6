@@ -13,7 +13,7 @@ import type { CragChoice } from '../components/CragBar.js'
 import { usePreferences } from '../hooks/usePreferences.js'
 import { draftFromPreferences } from '../lib/preferencesForm.js'
 import { effectiveClimbHours } from '@weatherteam6/types'
-import { useAlerts, useConditions, useForecast, useRainGauges, useRainNow, useRiverGauges } from '../hooks/useWeather.js'
+import { useAlerts, useConditions, useForecast, useRainGauges, useRainNow, useRiverGauges, useVisits } from '../hooks/useWeather.js'
 import { useHourly } from '../hooks/useHourly.js'
 import { useNow } from '../hooks/useNow.js'
 import { useRecentPrecip } from '../hooks/useRecentPrecip.js'
@@ -119,6 +119,7 @@ export function LocationDetail() {
   const options = location.data === undefined ? null : detailTabs(location.data.is_climbing_location)
   const activeTab = options === null || options.some((o) => o.value === tab) ? tab : 'overview'
   const rainGauges = useRainGauges(id, activeTab === 'precip')
+  const visits = useVisits(id, activeTab === 'precip')
 
   // Back names the section it returns to (`backTarget`); the phone's own back
   // still retraces history.
@@ -233,6 +234,7 @@ export function LocationDetail() {
           isError: recentPrecip.isError,
           refetch: () => void recentPrecip.refetch(),
         }}
+        visits={{ data: visits.data, isError: visits.isError }}
         rainGauges={{
           data: rainGauges.data,
           isPending: rainGauges.isPending,

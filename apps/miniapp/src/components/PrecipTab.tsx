@@ -4,7 +4,6 @@ import {
   EM_DASH,
   MEASURABLE_PRECIP_MM,
   formatPrecipIn,
-  hourLabel,
   mmToIn,
   recentPrecipSource,
   REWETTING_PRECIP_MM,
@@ -13,7 +12,9 @@ import {
   type HourlySample,
   type RainGaugeReadings,
   type RecentPrecip,
+  type RiverGaugeReading,
   type RockType,
+  type Visit,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { row, stack } from '../theme/styles.js'
@@ -34,19 +35,7 @@ import { dryAgain, drynessNow, type DryAgain } from '../lib/rockReadings.js'
 import { dryHours } from '../lib/hourlyDay.js'
 import { dayChance } from '../lib/overview.js'
 import { formatLocalHour } from '../lib/format.js'
-import {
-  compareGauges,
-  gaugeGaps,
-  hasGauges,
-  MATCH_MM,
-  MATCH_SHARE,
-  miles,
-  missingLabel,
-  modelDays,
-  type ModelDay,
-  sideLine,
-  verdictHeadline,
-} from '../lib/gaugeLines.js'
+import { hasGauges, modelDays } from '../lib/gaugeLines.js'
 import { useNow } from '../hooks/useNow.js'
 import { CardStack } from './CardStack.js'
 import { DAY_SCALES, RainChart, rainScaleUnit, sectCard } from './charts/DayCharts.js'
@@ -55,6 +44,7 @@ import { DryingClock } from './DryingClock.js'
 import { PrecipHourTable } from './PrecipHourTable.js'
 import { Stats, type Stat } from './StatTiles.js'
 import { InlineError, Skeleton } from './States.js'
+import { GaugesCard } from './GaugesCard.js'
 
 /**
  * The Precip tab in the hybrid look (`docs/handoffs/design-mockups/weatherteam6-hybrid.html`,
@@ -109,10 +99,16 @@ export type PrecipTabProps = {
     isError: boolean
     refetch: () => void
   }
+  /**
+   * The crag's river gauges (`RIVER_GAUGES`), the Gauges card's River tab
+   * (#589). Absent at a crag with none.
+   */
+  river?: { data: RiverGaugeReading[] | undefined; isError: boolean }
+  /** The reader's own visits here, marked on the Gauges card. */
+  visits?: { data: Visit[] | undefined; isError: boolean }
 }
 
 const LOADING_H = 480
-const GAUGE_LOADING_H = 160
 const HOUR_MS = 3_600_000
 const AHEAD_HOURS = 48
 
@@ -151,7 +147,17 @@ function hoursAhead(hours: readonly HourlySample[], nowMs: number): HourlySample
   })
 }
 
-export function PrecipTab({ recent, isClimbingLocation, rockType, rock, hours, utcOffsetSeconds, gauges }: PrecipTabProps) {
+export function PrecipTab({
+  recent,
+  isClimbingLocation,
+  rockType,
+  rock,
+  hours,
+  utcOffsetSeconds,
+  gauges,
+  river,
+  visits,
+}: PrecipTabProps) {
   const now = useNow()
   const ahead = hoursAhead(hours, now)
   const [readMs, setReadMs] = useState<number | null>(null)
@@ -174,6 +180,10 @@ export function PrecipTab({ recent, isClimbingLocation, rockType, rock, hours, u
   const grid = hourGrid(days, data.hours)
   const offset = Number.isFinite(data.utc_offset_seconds) ? data.utc_offset_seconds : 0
   const today = new Date(now + offset * 1000).toISOString().slice(0, 10)
+  // The Gauges card (#589): a Rain tab while gauges may be in reach, a River tab
+  // at a crag with a river gauge; no card when neither.
+  const rainShown = gauges !== undefined && (gauges.data === undefined || hasGauges(gauges.data))
+  const riverShown = river !== undefined && (river.isError || (river.data?.length ?? 0) > 0)
   /** `today 1pm`, `Mon 1pm`. */
   const when = (validAtLocal: string) => {
     const label = dayLabel(validAtLocal, today)
@@ -310,13 +320,23 @@ export function PrecipTab({ recent, isClimbingLocation, rockType, rock, hours, u
               </Card>
             ),
           },
-          gauges === undefined || (gauges.data !== undefined && !hasGauges(gauges.data))
-            ? null
-            : {
+          rainShown || riverShown
+            ? {
                 id: 'gauges',
-                title: 'Rain gauges',
-                node: <GaugeCard gauges={gauges} models={modelDays(data.hours)} today={today} />,
-              },
+                title: rainShown && riverShown ? 'Gauges' : rainShown ? 'Rain gauges' : 'River gauge',
+                node: (
+                  <GaugesCard
+                    {...(rainShown && gauges !== undefined ? { rain: gauges } : {})}
+                    {...(riverShown && river !== undefined ? { river } : {})}
+                    {...(visits === undefined ? {} : { visits })}
+                    models={modelDays(data.hours)}
+                    today={today}
+                    utcOffsetSeconds={offset}
+                    nowMs={now}
+                  />
+                ),
+              }
+            : null,
           axis === null || utcOffsetSeconds === null
             ? null
             : {
@@ -357,220 +377,6 @@ export function PrecipTab({ recent, isClimbingLocation, rockType, rock, hours, u
         mean; its chance is the likeliest of those hours, the share of wet ensemble members.
       </p>
     </>
-  )
-}
-
-/** One bar's content: a figure, or a word for why there is none. */
-type BarValue = { kind: 'value'; mm: number } | { kind: 'gap'; word: string }
-
-/** The smallest full-width bar: 0.10 in, so a trace never fills the track. */
-const BAR_SCALE_MIN_MM = 2.54
-const GAUGE_INK = colorsV2.txt1
-const VOLUNTEER_INK = colorsV2.txtMuted
-
-/**
- * Observed rain beside the models' (#479; owner picked variant B of the
- * mockup, 2026-11-12): the answer first, whether the models ran wetter or
- * drier than the gauges, each over that gauge's own whole days; then each
- * of the last complete days, newest first, as one bar per source on one
- * scale with its figure beside it. A missing figure is a word and no bar:
- * no report, no reading (a read that failed), partial, never 0.
- */
-function GaugeCard({
-  gauges,
-  models,
-  today,
-}: {
-  gauges: NonNullable<PrecipTabProps['gauges']>
-  models: Map<string, ModelDay>
-  today: string
-}) {
-  if (gauges.isPending) return <Skeleton height={GAUGE_LOADING_H} />
-  if (gauges.isError || gauges.data === undefined) {
-    return <InlineError message="Couldn't load the rain gauges." onRetry={gauges.refetch} />
-  }
-  const data = gauges.data
-  const gaps = gaugeGaps(data)
-  const modelOf = (date: string): BarValue => {
-    const m = models.get(date)
-    // Outside the window the grid drew, the models have no figure here: a dash, never 0.
-    return m === undefined ? { kind: 'gap', word: EM_DASH } : m.kind === 'partial' ? { kind: 'gap', word: 'partial' } : m
-  }
-  const sides = compareGauges(data, (date) => {
-    const m = models.get(date)
-    return m?.kind === 'value' ? m.mm : null
-  })
-  const headline = verdictHeadline(sides)
-
-  const showAirport = data.airport !== null
-  const showVolunteer = data.volunteer.stations > 0
-  const rows = [...data.days].reverse().map((day) => ({
-    date: day.local_date,
-    bars: [
-      { key: 'models', name: 'Models', color: colorsV2.rainAmount, opacity: 1, value: modelOf(day.local_date) },
-      ...(showAirport
-        ? [
-            {
-              key: 'airport',
-              name: 'Airport',
-              color: GAUGE_INK,
-              opacity: 1,
-              value:
-                day.gauge == null
-                  ? ({ kind: 'gap', word: missingLabel(data, 'airport') } as const)
-                  : day.gauge.rain_mm === null
-                    ? ({ kind: 'gap', word: 'partial' } as const)
-                    : ({ kind: 'value', mm: day.gauge.rain_mm } as const),
-            },
-          ]
-        : []),
-      ...(showVolunteer
-        ? [
-            {
-              key: 'volunteer',
-              name: 'Volunteer',
-              color: VOLUNTEER_INK,
-              opacity: 0.6,
-              value:
-                day.volunteer_gauge == null
-                  ? ({ kind: 'gap', word: missingLabel(data, 'volunteer') } as const)
-                  : ({ kind: 'value', mm: day.volunteer_gauge.rain_mm } as const),
-            },
-          ]
-        : []),
-    ],
-  }))
-  const scaleMm = Math.max(
-    BAR_SCALE_MIN_MM,
-    ...rows.flatMap((r) => r.bars.map((b) => (b.value.kind === 'value' ? b.value.mm : 0))),
-  )
-
-  // The volunteer named once: by its own name when every report came from one gauge, else as the nearest reporting.
-  const volunteers = data.days.flatMap((d) => (d.volunteer_gauge == null ? [] : [d.volunteer_gauge]))
-  const volunteerNames = [...new Set(volunteers.map((v) => v.name))]
-  const readHours = [...new Set(volunteers.map((v) => v.obs_hour))]
-  const oneVolunteer = volunteerNames.length === 1 ? volunteers[0] : undefined
-  const legend = [
-    { name: 'Models', color: colorsV2.rainAmount, opacity: 1 },
-    ...(data.airport === null
-      ? []
-      : [{ name: `Airport ${data.airport.station} · ${miles(data.airport.distance_km)} mi`, color: GAUGE_INK, opacity: 1 }]),
-    ...(showVolunteer
-      ? [
-          {
-            name: oneVolunteer === undefined ? 'Volunteer · nearest reporting' : `Volunteer · ${miles(oneVolunteer.distance_km)} mi`,
-            color: VOLUNTEER_INK,
-            opacity: 0.6,
-          },
-        ]
-      : []),
-  ]
-  const readAt = readHours.length === 1 && readHours[0] !== undefined ? ` at ${hourLabel(readHours[0])}` : ' once a day'
-  const footnote = [
-    showAirport ? 'The airport gauge is summed midnight to midnight.' : null,
-    showVolunteer
-      ? `${oneVolunteer === undefined ? 'A volunteer gauge' : `The volunteer gauge (${oneVolunteer.name})`} is read${readAt} for the 24 hours before, so overnight rain can land a day off.`
-      : null,
-    'The models’ bar is the day’s total in the grid above; partial means not every hour of the day reported.',
-    `Matched means within ${formatPrecipIn(MATCH_MM)} or ${Math.round(MATCH_SHARE * 100)}% of the larger total.`,
-    'Each gauge is one spot, which a passing shower can miss.',
-  ]
-    .filter((s): s is string => s !== null)
-    .join(' ')
-
-  return (
-    <Card title="Rain gauges" aside={`past ${rows.length} days · bars to ${formatPrecipIn(scaleMm)}`}>
-      <div style={{ ...stack(spacing.micro), paddingBottom: `${spacing.listGapLg}px`, borderBottom: `1px solid ${colorsV2.line}` }}>
-        {headline === null ? (
-          <span style={typeV2.rowSmall}>No whole day at a gauge to set beside the models yet.</span>
-        ) : (
-          <>
-            <span style={typeV2.cardName}>{headline}</span>
-            {sides.map((s) => (
-              <span key={s.kind} style={typeV2.rowSmall}>
-                {sideLine(s)}
-              </span>
-            ))}
-          </>
-        )}
-      </div>
-      {gaps.length === 0 ? null : <p style={{ ...typeV2.rowSmall, color: colorsV2.txtMuted }}>{gaps.join(' ')}</p>}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px' }} aria-hidden="true">
-        {legend.map((l) => (
-          <span key={l.name} style={{ ...typeV2.legendSm, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-            <i style={{ width: 10, height: 10, borderRadius: 2, background: l.color, opacity: l.opacity }} />
-            {l.name}
-          </span>
-        ))}
-      </div>
-      <div style={stack(0)}>
-        {rows.map((r, i) => (
-          <div
-            key={r.date}
-            role="group"
-            aria-label={dayLabel(r.date, today)}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '44px 1fr',
-              columnGap: '10px',
-              alignItems: 'start',
-              padding: '8px 0',
-              borderTop: i === 0 ? 'none' : `1px solid ${colorsV2.line}`,
-            }}
-          >
-            <span style={typeV2.dayPick}>{dayLabel(r.date, today)}</span>
-            <div style={{ ...stack(4), minWidth: 0 }}>
-              {r.bars.map((b) => (
-                <GaugeBar key={b.key} name={b.name} value={b.value} color={b.color} opacity={b.opacity} scaleMm={scaleMm} />
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-      <p style={typeV2.note}>{footnote}</p>
-    </Card>
-  )
-}
-
-/** One source's day: a bar on the card's scale and its figure, or no bar and the word for why. */
-function GaugeBar({ name, value, color, opacity, scaleMm }: { name: string; value: BarValue; color: string; opacity: number; scaleMm: number }) {
-  const text = value.kind === 'value' ? formatPrecipIn(value.mm) : value.word
-  return (
-    <div
-      role="img"
-      aria-label={`${name}: ${value.kind === 'value' ? text : value.word === EM_DASH ? 'no figure' : value.word}`}
-      style={{ display: 'grid', gridTemplateColumns: '1fr 64px', alignItems: 'center', columnGap: '8px', height: 14 }}
-    >
-      <div style={{ position: 'relative', height: 10 }}>
-        {value.kind === 'gap' ? null : value.mm === 0 ? (
-          // Zero is a measurement: a hairline at the start, not an empty track that reads as missing.
-          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 2, background: colorsV2.line }} />
-        ) : (
-          <div
-            style={{
-              position: 'absolute',
-              left: 0,
-              top: 0,
-              bottom: 0,
-              width: `${Math.min(100, (value.mm / scaleMm) * 100)}%`,
-              minWidth: 2,
-              background: color,
-              opacity,
-              borderRadius: '0 3px 3px 0',
-            }}
-          />
-        )}
-      </div>
-      <span
-        style={
-          value.kind === 'value'
-            ? { ...typeV2.axisTick, fontSize: 12, color: colorsV2.txt1, textAlign: 'right' }
-            : { ...typeV2.legendSm, fontSize: 12, textAlign: 'right' }
-        }
-      >
-        {text}
-      </span>
-    </div>
   )
 }
 
