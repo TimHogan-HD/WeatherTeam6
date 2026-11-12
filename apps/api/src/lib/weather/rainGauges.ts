@@ -1,4 +1,4 @@
-import { soilStationFor, type NoaaGaugeDay, type RainGaugeReadings } from '@weatherteam6/types'
+import { rainStationFor, type NoaaGaugeDay, type RainGaugeReadings } from '@weatherteam6/types'
 import { FETCH_BUDGET_MS } from './openMeteo.js'
 import { fetchGaugeDays, nearestGauge, type Gauge, type GaugeDay } from './asosGauge.js'
 import { fetchVolunteerReports, nearestVolunteerGauges, shiftDate, type VolunteerGauge, type VolunteerReport } from './cocorahsGauge.js'
@@ -57,7 +57,7 @@ export async function rainGaugeReadings(
   const dates = gaugeDates(now, airport?.tz ?? null, lon)
   const deadline = now.getTime() + FETCH_BUDGET_MS
 
-  const noaa = soilStationFor(knownCrag)
+  const noaa = rainStationFor(knownCrag)
   // From the station's midnight before the first date: its hours, bucketed onto its own days.
   const noaaFrom = Date.parse(`${dates[0] ?? ''}T00:00:00Z`) - 15 * 3_600_000
 

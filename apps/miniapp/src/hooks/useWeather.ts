@@ -150,14 +150,15 @@ export function useRainGauges(id: string | undefined, enabled: boolean): UseQuer
 }
 
 /**
- * The NOAA station's soil near a crag in `SOIL_STATIONS` (#589 part 2), for the
+ * The soil station's reading near a crag in `SOIL_STATIONS` (#589), for the
  * Gauges card's Ground tab. Asked only while the Precip tab is open, and only
  * for such a crag; kept an hour, since NCEI posts the file hourly.
  */
 export const soilQuery = (id: string | undefined, knownCrag: string | null | undefined, enabled: boolean) =>
   queryOptions({
     queryKey: ['soil', id ?? ''] as const,
-    queryFn: () => apiGet<SoilReading | null>(`/soil/${id ?? ''}`),
+    // `basis=recent`: this build reads a Wisconet rank against its last 30 days, so the API may send one.
+    queryFn: () => apiGet<SoilReading | null>(`/soil/${id ?? ''}?basis=recent`),
     enabled: enabled && id !== undefined && id !== '' && soilStationFor(knownCrag) !== null,
     staleTime: 60 * 60_000,
   })

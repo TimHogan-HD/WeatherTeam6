@@ -1,4 +1,4 @@
-import { SOIL_HISTORY_DAYS, type SoilPoint, type SoilRainDay } from '@weatherteam6/types'
+import { SOIL_HISTORY_DAYS, type SoilBasis, type SoilPoint, type SoilRainDay } from '@weatherteam6/types'
 import { niceTicks } from './chartTicks.js'
 
 /**
@@ -10,6 +10,10 @@ import { niceTicks } from './chartTicks.js'
  * as dry, so a 5 cm temperature at or below 0 °C withholds the reading; so
  * does a newest row older than `GROUND_STALE_MS`, or one missing the
  * temperature that would rule frost out. Percentile words are the owner's.
+ *
+ * **A Wisconet reading ranks against its own last 30 days** (part 3), not the
+ * date across years, so its words say "lately" and never "usual" or
+ * "Soaked": a month is not a climatology.
  */
 
 const HOUR_MS = 3_600_000
@@ -39,19 +43,40 @@ export function groundPill(word: GroundWord): string {
   return word === 'Typical' || word === 'Soaked' ? `${word} for the date` : word
 }
 
+export type RecentWord = 'Drier lately' | 'Mid-range lately' | 'Wetter lately'
+
+/** Words for a rank among the station's own last days: under 25, 25-75, 75 and up. */
+export function recentWord(pct: number): RecentWord {
+  if (pct >= 0.75) return 'Wetter lately'
+  if (pct >= 0.25) return 'Mid-range lately'
+  return 'Drier lately'
+}
+
+/** The pill for a rank among the last `days`. */
+export function recentPill(pct: number, days: number): string {
+  if (pct >= 0.75) return `Wetter than most of the last ${days} days`
+  if (pct >= 0.25) return `Middle of the last ${days} days`
+  return `Drier than most of the last ${days} days`
+}
+
+const DATE_BASIS: SoilBasis = { kind: 'date' }
+
 /** A soil temperature that rules frost out at a depth; null is not ruled out. */
 const thawed = (c: number | null): boolean => c !== null && c > 0
 
 export type GroundDepth = { vwc: number; pct: number; word: GroundWord }
 
 export type GroundState =
-  | { kind: 'reading'; at: string; top: GroundDepth; below: GroundDepth | null; wetBelow: boolean }
+  | { kind: 'reading'; at: string; top: GroundDepth; below: GroundDepth | null; wetBelow: boolean; basis: SoilBasis }
   | { kind: 'frozen'; at: string; temp_c: number }
   | { kind: 'stale'; at: string }
   | { kind: 'unavailable' }
 
-/** What the newest reading says, or why it says nothing. */
-export function groundState(points: readonly SoilPoint[], nowMs: number): GroundState {
+/**
+ * What the newest reading says, or why it says nothing. `basis` absent is an
+ * older API, which was NOAA only, so it ranks against the date.
+ */
+export function groundState(points: readonly SoilPoint[], nowMs: number, basis: SoilBasis = DATE_BASIS): GroundState {
   // The newest row the station logged anything in; an empty row is not a reading.
   const latest = [...points].reverse().find((p) => p.vwc_5 !== null || p.temp_5_c !== null)
   if (latest === undefined) return { kind: 'unavailable' }
@@ -65,14 +90,16 @@ export function groundState(points: readonly SoilPoint[], nowMs: number): Ground
     thawed(latest.temp_20_c) && latest.vwc_20 !== null && latest.pct_20 !== null
       ? { vwc: latest.vwc_20, pct: latest.pct_20, word: groundWord(latest.pct_20) }
       : null
-  return { kind: 'reading', at: latest.at, top, below, wetBelow: below !== null && below.pct >= 0.75 }
+  // "Still wet below" is a claim against the date; a month's rank cannot carry it.
+  const wetBelow = basis.kind === 'date' && below !== null && below.pct >= 0.75
+  return { kind: 'reading', at: latest.at, top, below, wetBelow, basis }
 }
 
 /** The Ground tab's status word. */
 export function groundTabWord(state: GroundState): string {
   switch (state.kind) {
     case 'reading':
-      return state.top.word
+      return state.basis.kind === 'recent' ? recentWord(state.top.pct) : state.top.word
     case 'frozen':
       return 'Frozen'
     case 'stale':

@@ -9,6 +9,8 @@ import {
   groundTrend,
   groundWord,
   ordinalPct,
+  recentPill,
+  recentWord,
 } from './groundGauge.js'
 
 const HOUR = 3_600_000
@@ -74,6 +76,35 @@ describe('groundState', () => {
     expect(groundState([pt(GROUND_STALE_MS)], NOW).kind).toBe('reading')
     expect(groundState([], NOW)).toEqual({ kind: 'unavailable' })
     expect(groundTabWord({ kind: 'unavailable' })).toBe('No reading')
+  })
+})
+
+describe('a reading ranked against the last 30 days (Wisconet)', () => {
+  const RECENT = { kind: 'recent', days: 30, lo_5: 0.185, hi_5: 0.272 } as const
+
+  it('says "lately", never "usual" or "Soaked", and never claims wet below', () => {
+    const s = groundState([pt(HOUR, { pct_5: 0.95, pct_20: 0.95 })], NOW, RECENT)
+    expect(s).toMatchObject({ kind: 'reading', wetBelow: false, basis: RECENT })
+    expect(groundTabWord(s)).toBe('Wetter lately')
+    expect([0.1, 0.249, 0.25, 0.749, 0.75].map(recentWord)).toEqual([
+      'Drier lately',
+      'Drier lately',
+      'Mid-range lately',
+      'Mid-range lately',
+      'Wetter lately',
+    ])
+    expect(recentPill(0.8, 30)).toBe('Wetter than most of the last 30 days')
+    expect(recentPill(0.5, 30)).toBe('Middle of the last 30 days')
+    expect(recentPill(0.1, 30)).toBe('Drier than most of the last 30 days')
+  })
+
+  it('still withholds frozen ground, whatever it ranks against', () => {
+    expect(groundTabWord(groundState([pt(HOUR, { temp_5_c: -0.5 })], NOW, RECENT))).toBe('Frozen')
+  })
+
+  it('reads an older API with no basis as the date', () => {
+    const s = groundState([pt(HOUR, { pct_5: 0.95 })], NOW)
+    expect(groundTabWord(s)).toBe('Soaked')
   })
 })
 

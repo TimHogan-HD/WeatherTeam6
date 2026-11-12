@@ -8,6 +8,7 @@ import {
   OBSERVED_CONDITIONS_LABEL,
   riverHeightNear,
   riverState,
+  SOIL_NETWORK_NAME,
   type RainGaugeReadings,
   type RiverGaugeReading,
   type SoilReading,
@@ -45,6 +46,8 @@ import {
   groundTabWord,
   groundTrend,
   ordinalPct,
+  recentPill,
+  recentWord,
   type GroundState,
 } from '../lib/groundGauge.js'
 import { weekdayOf } from '../lib/precipHistory.js'
@@ -77,7 +80,7 @@ export type GaugesCardProps = {
   rain?: GaugeQuery<RainGaugeReadings>
   /** Absent: the crag has no river gauge, so no River tab. */
   river?: { data: RiverGaugeReading[] | undefined; isError: boolean }
-  /** Absent: the crag has no NOAA station, so no Ground tab. */
+  /** Absent: the crag has no soil station, so no Ground tab. */
   soil?: GaugeQuery<SoilReading | null>
   /** The reader's own visits here. Absent or failed draws no marks and says so once. */
   visits?: { data: Visit[] | undefined; isError: boolean }
@@ -120,7 +123,7 @@ export function GaugesCard({ rain, river, soil, visits, models, today, utcOffset
   const riverStates = (river?.data ?? []).map((r) => riverState(r, nowMs))
   const worst = worstRiverState(riverStates)
   const soilData = soil?.data ?? null
-  const ground: GroundState | null = soilData === null ? null : groundState(soilData.points, nowMs)
+  const ground: GroundState | null = soilData === null ? null : groundState(soilData.points, nowMs, soilData.basis)
 
   const status: Record<Kind, { word: string; color: string }> = {
     rain: {
@@ -617,6 +620,7 @@ function Key({ swatch, children }: { swatch: ReactNode; children: ReactNode }) {
 /** The tab word's colour: wetter in `fairInk`, soaked in `poorInk`, as the mockup draws it; anything else neutral. */
 function groundColor(state: GroundState | null): string {
   if (state?.kind !== 'reading') return colorsV2.txt2
+  if (state.basis.kind === 'recent') return recentWord(state.top.pct) === 'Wetter lately' ? colorsV2.fairInk : colorsV2.txt2
   return state.top.word === 'Soaked' ? colorsV2.poorInk : state.top.word === 'Wetter than usual' ? colorsV2.fairInk : colorsV2.txt2
 }
 
@@ -636,13 +640,18 @@ function GroundPanel({
     return <InlineError message="Couldn't load the ground reading." onRetry={soil.refetch} />
   }
   const data = soil.data
-  const state = groundState(data.points, nowMs)
-  const where = `NOAA ${data.station.name}, ${miles(data.station.distance_km)} mi ${data.station.direction}`
+  const state = groundState(data.points, nowMs, data.basis)
+  const network = SOIL_NETWORK_NAME[data.station.network ?? 'uscrn']
+  const where = `${network} ${data.station.name}, ${miles(data.station.distance_km)} mi ${data.station.direction}`
+  const recent = data.basis?.kind === 'recent' ? data.basis : null
+  const against = recent === null ? 'for the date' : `of the last ${recent.days} days`
   const clock = (iso: string) => readingWhen(iso, utcOffsetSeconds) ?? 'at an unknown time'
   const figure = state.kind === 'reading' ? formatVwc(state.top.vwc).replace(/%$/, '') : EM_DASH
   const pill =
     state.kind === 'reading'
-      ? groundPill(state.top.word)
+      ? recent === null
+        ? groundPill(state.top.word)
+        : recentPill(state.top.pct, recent.days)
       : state.kind === 'frozen'
         ? 'Frozen ground'
         : state.kind === 'stale'
@@ -658,7 +667,7 @@ function GroundPanel({
           ? `Last reading ${clock(state.at)}, too old to show.`
           : data.answered
             ? 'The station has no recent soil reading.'
-            : 'The NOAA station did not answer.'
+            : `The ${network} station did not answer.`
   const trend = state.kind === 'reading' ? groundTrend(data.points, utcOffsetSeconds) : null
 
   return (
@@ -688,7 +697,11 @@ function GroundPanel({
       <p style={state.kind === 'reading' ? typeV2.note : { ...typeV2.rowSmall, fontSize: 14 }}>{sub}</p>
       {state.kind === 'reading' ? (
         <>
-          <PercentileRail top={state.top.pct} below={state.below?.pct ?? null} />
+          {recent === null ? (
+            <PercentileRail top={state.top.pct} below={state.below?.pct ?? null} />
+          ) : (
+            <RangeRail value={state.top.vwc} lo={recent.lo_5} hi={recent.hi_5} days={recent.days} />
+          )}
           <div
             style={{
               display: 'grid',
@@ -701,7 +714,7 @@ function GroundPanel({
             <DepthRow
               dot={colorsV2.txt1}
               depth="5 cm"
-              words={`${ordinalPct(state.top.pct)} percentile for the date`}
+              words={`${ordinalPct(state.top.pct)} percentile ${against}`}
               value={formatVwc(state.top.vwc)}
             />
             <DepthRow
@@ -710,7 +723,7 @@ function GroundPanel({
               words={
                 state.below === null
                   ? 'No reading'
-                  : `${ordinalPct(state.below.pct)} percentile${state.wetBelow ? ' · still wet below' : ''}`
+                  : `${ordinalPct(state.below.pct)} percentile${recent === null ? '' : ` ${against}`}${state.wetBelow ? ' · still wet below' : ''}`
               }
               value={state.below === null ? EM_DASH : formatVwc(state.below.vwc)}
             />
@@ -720,7 +733,8 @@ function GroundPanel({
       ) : null}
       <GroundChart data={data} visits={visits} utcOffsetSeconds={utcOffsetSeconds} nowMs={nowMs} />
       <p style={typeV2.note}>
-        {where}, {data.station.setting}. Shaded ground at the crag stays wetter. Not a reading of the rock.
+        {where}, {data.station.setting}.{recent === null ? '' : " Too little history to say what's typical."} Shaded ground at
+        the crag stays wetter. Not a reading of the rock.
       </p>
     </div>
   )
@@ -789,6 +803,48 @@ function PercentileRail({ top, below }: { top: number; below: number | null }) {
         <span>Driest</span>
         <span>Middle half</span>
         <span>Wettest</span>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Where the 5 cm reading sits between the station's own low and high over the
+ * last `days` (a Wisconet station, too young for a percentile for the date).
+ * Nothing when the span has no range to place it in.
+ */
+function RangeRail({ value, lo, hi, days }: { value: number; lo: number | null; hi: number | null; days: number }) {
+  if (lo === null || hi === null || hi <= lo) return null
+  const at = Math.min(1, Math.max(0, (value - lo) / (hi - lo)))
+  return (
+    <div style={stack(6)} aria-hidden="true">
+      <div
+        style={{
+          position: 'relative',
+          height: 10,
+          borderRadius: 999,
+          border: `1px solid ${colorsV2.line}`,
+          background: `linear-gradient(90deg, ${withOpacity(colorsV2.soil, 0.12)}, ${withOpacity(colorsV2.rainAmount, 0.3)})`,
+        }}
+      >
+        <span
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: `${at * 100}%`,
+            width: 16,
+            height: 16,
+            borderRadius: '50%',
+            background: colorsV2.txt1,
+            border: `3px solid ${colorsV2.surface}`,
+            boxShadow: `0 0 0 1px ${colorsV2.txt1}`,
+            transform: 'translate(-50%, -50%)',
+          }}
+        />
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', ...typeV2.axisTick, fontSize: 10, color: colorsV2.txtTab }}>
+        <span>{`${days}-day low ${formatVwc(lo)}`}</span>
+        <span>{`${days}-day high ${formatVwc(hi)}`}</span>
       </div>
     </div>
   )
@@ -915,6 +971,8 @@ function GroundChart({
             }
           >
             Daily rain at the station{model.rainGaps.length > 0 ? ', dashed where not all reported' : ''}
+            {/* Wisconet's gauge may be unheated: a snowy day can read as none, so the key says so rather than let a bare floor read as dry. */}
+            {data.station.network === 'wisconet' ? '. It may not count snow.' : ''}
           </Key>
         ) : null}
       </div>

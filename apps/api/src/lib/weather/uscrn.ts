@@ -1,7 +1,7 @@
 import { logger } from '../logger.js'
 import { fetchWithRetry } from './openMeteo.js'
 import { localDateAt } from '../trips/tripSummary.js'
-import type { NoaaGaugeDay, SoilPoint, SoilRainDay, SoilStation } from '@weatherteam6/types'
+import type { NoaaGaugeDay, SoilPoint, SoilRainDay, UscrnStation } from '@weatherteam6/types'
 
 /**
  * NOAA's U.S. Climate Reference Network (USCRN) from NCEI, keyless (#589 part
@@ -32,11 +32,11 @@ const SOIL_ROW_BYTES = 160
 /** Rows the files may lag behind now, or carry past what is asked: about a day. */
 const SLACK_ROWS = 24
 
-export function hourlyUrl(station: Pick<SoilStation, 'file'>, year: number): string {
+export function hourlyUrl(station: Pick<UscrnStation, 'file'>, year: number): string {
   return `${BASE}/hourly02/${year}/CRNH0203-${year}-${station.file}.txt`
 }
 
-export function soilUrl(station: Pick<SoilStation, 'file'>): string {
+export function soilUrl(station: Pick<UscrnStation, 'file'>): string {
   return `${BASE}/soil/soilanom01/CRNSSM0101-${station.file}.csv`
 }
 
@@ -168,7 +168,7 @@ export function noaaDays(
  * answer rather than show a dry week.
  */
 export async function fetchHourlyRain(
-  station: Pick<SoilStation, 'file' | 'wban'>,
+  station: Pick<UscrnStation, 'file' | 'wban'>,
   fromMs: number,
   nowMs: number,
   deadline: number,
@@ -183,7 +183,7 @@ export async function fetchHourlyRain(
 
 /** The station's soil from `fromMs` to now. Throws when the read fails. */
 export async function fetchSoilPoints(
-  station: Pick<SoilStation, 'file' | 'wban'>,
+  station: Pick<UscrnStation, 'file' | 'wban'>,
   fromMs: number,
   nowMs: number,
   deadline: number,
