@@ -112,7 +112,7 @@ export const GROUND_TURN_PTS = 1
  * Walks back from the newest hour; once the series has moved
  * `GROUND_STEADY_PTS` one way, a move of `GROUND_TURN_PTS` back the other
  * marks the turn, so a storm two weeks ago never stands in for last week's.
- * `Steady` when it never moved that far. Null with fewer than two usable
+ * `Steady since` the first usable hour when it never moved that far. Null with fewer than two usable
  * hours: a trend from one point is not a trend.
  */
 export function groundTrend(points: readonly SoilPoint[], utcOffsetSeconds: number): string | null {
@@ -135,7 +135,9 @@ export function groundTrend(points: readonly SoilPoint[], utcOffsetSeconds: numb
     new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(ms + utcOffsetSeconds * 1000)
   if (dir === 'down') return `Down ${(hi.pts - latest.pts).toFixed(1)} points since ${day(hi.ms)}`
   if (dir === 'up') return `Up ${(latest.pts - lo.pts).toFixed(1)} points since ${day(lo.ms)}`
-  return `Steady over ${SOIL_HISTORY_DAYS} days`
+  // The span is the one the series covers, never the one asked for: a thaw or a short read leaves less.
+  const first = s[0] ?? latest
+  return `Steady since ${day(first.ms)}`
 }
 
 export type GroundChartModel = {

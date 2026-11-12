@@ -122,7 +122,7 @@ describe('groundTrend', () => {
 
   it('leaves frozen hours out of the trend, and is steady under half a point', () => {
     const pts = [pt(3 * 24 * HOUR, { vwc_5: 0.1, temp_5_c: -2 }), pt(2 * 24 * HOUR, { vwc_5: 0.232 }), pt(HOUR, { vwc_5: 0.234 })]
-    expect(groundTrend(pts, CHICAGO)).toBe('Steady over 15 days')
+    expect(groundTrend(pts, CHICAGO)).toBe('Steady since Nov 10')
     expect(groundTrend([pt(HOUR)], CHICAGO)).toBeNull()
   })
 })
