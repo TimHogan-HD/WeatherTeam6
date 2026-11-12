@@ -196,11 +196,16 @@ the rain gauges; the next 48 hours; each day's wettest hour.
   or arrowing fills the readout with that hour's labelled values.
 - The figures are model estimates, and the footnote says so; no uncertainty or storm
   track is drawn.
-- **Rain gauges** (#479, `GaugeCard`, `GET /rain-gauges/:locationId`): each of the last six
-  complete days, newest first, with the models' day total from the grid and the airport and
-  volunteer gauge lines an ended trip prints (`lib/gaugeLines.ts`, one wording for both). A
-  failed read is said once at the top and an empty day then reads "No gauge reading", never
-  "No gauge reported this day". No card where no gauge is in reach (every crag outside the
+- **Rain gauges** (#479, `GaugeCard`, `GET /rain-gauges/:locationId`; owner picked variant B
+  of `rain-gauges-variants`, 2026-11-12): the answer first, whether the models ran wetter
+  or drier than each gauge or matched it (`compareGauges`, `verdictHeadline` in
+  `lib/gaugeLines.ts`), with each gauge's sum beside the models' over that gauge's own whole
+  days only: an airport day with every hour, a volunteer report, a model day with all 24
+  hours (`modelDays`). Then each of the last six complete days, newest first, as one bar per
+  source on one scale, printed in the aside, with its figure beside it. Stations are named
+  once, in the legend and the footnote. A missing figure is a word and no bar: `partial`,
+  `no report`, or `no reading` when that gauge's read failed (said once at the top). Zero
+  is a hairline, a measurement. No card where no gauge is in reach (every crag outside the
   US). Asked only while the tab is open.
 
 **Rock** (`RockTab.tsx`; crags only): the crag's live readings — the drying clock and the

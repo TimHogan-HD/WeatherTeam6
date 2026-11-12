@@ -43,7 +43,7 @@ export function volunteerGaugeLine(gauge: TripDayVolunteerGauge | null | undefin
 }
 
 /** Whole miles, never `0 mi`: a gauge under half a mile away is `1 mi`. */
-function miles(km: number): number {
+export function miles(km: number): number {
   return Math.max(1, Math.round(kmToMi(km)))
 }
 
@@ -74,10 +74,108 @@ export function gaugeGaps(r: RainGaugeReadings): string[] {
 }
 
 /**
- * What a day with no gauge line says. "No report" only when every gauge in
- * reach answered; otherwise a failed read could be the day's, so the line
- * says it is missing rather than that nothing was reported.
+ * What an empty day says for one gauge. "No report" only when that gauge's
+ * reads all answered; otherwise a failed read could be the day's, so it says
+ * the reading is missing rather than that nothing was reported (defect class 2).
  */
-export function noReadingLine(r: RainGaugeReadings): string {
-  return gaugeGaps(r).length === 0 ? 'No gauge reported this day' : 'No gauge reading'
+export function missingLabel(r: RainGaugeReadings, kind: GaugeKind): string {
+  const failed = kind === 'airport' ? r.airport !== null && !r.airport.answered : r.volunteer.failed > 0
+  return failed ? 'no reading' : 'no report'
+}
+
+export type GaugeKind = 'airport' | 'volunteer'
+
+/** Below this on both sides of a comparison there is too little rain to say anything: 0.10 in. */
+export const COMPARE_MIN_MM = 2.54
+/** Totals this close read as matched: 0.05 in, or a quarter of the larger, whichever is more. */
+export const MATCH_MM = 1.27
+export const MATCH_SHARE = 0.25
+
+/** What one gauge says of the models: they ran wetter or drier, matched, or there was too little rain to tell. */
+export type SideRead = 'wetter' | 'drier' | 'matched' | 'little'
+
+/** One gauge against the models, summed over the days both have a whole figure for. */
+export type GaugeSide = { kind: GaugeKind; gaugeMm: number; modelsMm: number; days: number; read: SideRead }
+
+/**
+ * The models' rain set beside each gauge's, over that gauge's own days only:
+ * a day counts when the gauge has a whole figure (an airport day with every
+ * hour, a volunteer's report) and the models have the whole day
+ * (`modelsMm` returns null otherwise). Two gauges never share a models total,
+ * since they report on different days. A day either side is missing is left
+ * out, never read as dry (defect class 1). Empty when no gauge has such a day.
+ */
+export function compareGauges(r: RainGaugeReadings, modelsMm: (localDate: string) => number | null): GaugeSide[] {
+  const side = (kind: GaugeKind, gaugeOf: (d: RainGaugeReadings['days'][number]) => number | null): GaugeSide | null => {
+    let gaugeMm = 0
+    let models = 0
+    let days = 0
+    for (const d of r.days) {
+      const g = gaugeOf(d)
+      const m = modelsMm(d.local_date)
+      if (g === null || m === null) continue
+      gaugeMm += g
+      models += m
+      days += 1
+    }
+    return days === 0 ? null : { kind, gaugeMm, modelsMm: models, days, read: readSide(gaugeMm, models) }
+  }
+  return [
+    side('airport', (d) => d.gauge?.rain_mm ?? null),
+    side('volunteer', (d) => d.volunteer_gauge?.rain_mm ?? null),
+  ].filter((s): s is GaugeSide => s !== null)
+}
+
+function readSide(gaugeMm: number, modelsMm: number): SideRead {
+  const larger = Math.max(gaugeMm, modelsMm)
+  if (larger < COMPARE_MIN_MM) return 'little'
+  const diff = gaugeMm - modelsMm
+  if (Math.abs(diff) <= Math.max(MATCH_MM, MATCH_SHARE * larger)) return 'matched'
+  return diff < 0 ? 'wetter' : 'drier'
+}
+
+/**
+ * The card's answer, one line: what to take from the gauges. A gauge with
+ * too little rain to tell says nothing beside one that can; two that read
+ * the models opposite ways say so rather than averaging into a match.
+ */
+export function verdictHeadline(sides: readonly GaugeSide[]): string | null {
+  if (sides.length === 0) return null
+  const told = sides.filter((s) => s.read !== 'little')
+  const first = told[0]
+  if (first === undefined) return 'Too little rain to compare'
+  const gauge = (s: GaugeSide) => `the ${s.kind} gauge`
+  const ran = (read: SideRead) => (read === 'matched' ? 'matched' : `ran ${read} than`)
+  if (told.every((s) => s.read === first.read)) {
+    return `The models ${ran(first.read)} ${told.length === 1 ? gauge(first) : 'the gauges'}`
+  }
+  const matched = told.find((s) => s.read === 'matched')
+  const off = told.find((s) => s.read !== 'matched')
+  if (matched === undefined || off === undefined) return 'The gauges disagree with each other'
+  return `The models ${ran(off.read)} ${gauge(off)} and matched ${gauge(matched)}`
+}
+
+/** Each gauge's sum beside the models' over its days: `Airport caught 0.31 in where the models had 0.42 in, over the 4 days it reported in full.` */
+export function sideLine(s: GaugeSide): string {
+  const days = `${s.days} ${s.days === 1 ? 'day' : 'days'}`
+  const over = s.kind === 'airport' ? `over the ${days} it reported in full` : `over the ${days} it reported`
+  return `${s.kind === 'airport' ? 'Airport' : 'Volunteer'} caught ${formatPrecipIn(s.gaugeMm)} where the models had ${formatPrecipIn(s.modelsMm)}, ${over}.`
+}
+
+/**
+ * The models' rain per local date, from the hours the grid above draws: a
+ * day's total only when all 24 of its hours are there. A part day (the
+ * window's first, or one with a missing hour) is `partial`, never a total
+ * that could be set beside a gauge's whole day. A spring-forward day has 23
+ * hours and so reads partial: withheld, never inflated.
+ */
+export type ModelDay = { kind: 'value'; mm: number } | { kind: 'partial' }
+export function modelDays(hours: readonly { valid_at_local: string; precip_mm: number }[]): Map<string, ModelDay> {
+  const sums = new Map<string, { mm: number; hours: number }>()
+  for (const h of hours) {
+    const date = h.valid_at_local.slice(0, 10)
+    const s = sums.get(date) ?? { mm: 0, hours: 0 }
+    sums.set(date, { mm: s.mm + h.precip_mm, hours: s.hours + 1 })
+  }
+  return new Map([...sums].map(([date, s]) => [date, s.hours >= 24 ? { kind: 'value', mm: s.mm } : { kind: 'partial' }]))
 }
