@@ -462,6 +462,10 @@ async function run(): Promise<void> {
       await guidebookLevels()
       await gaugeTabs()
       await wisconetGround()
+      // gaugeTabs and wisconetGround leave the page on a crag they have since
+      // deleted. The steps after everyTab read this crag's screen, so return to it.
+      await page.goto(`${WEB}/location/${locationId}`)
+      await page.getByRole('tab').first().waitFor({ timeout: 60_000 })
     }
 
     // Devil's Lake (#589 part 3): Rain and Ground, the Ground tab read from
