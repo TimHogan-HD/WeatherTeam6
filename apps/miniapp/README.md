@@ -96,6 +96,14 @@ and `http://localhost:5173` are in the default list.
 There are no preview deployments: Vercel builds `main` only (`git.deploymentEnabled`).
 Drive the UI locally instead (`npm run check:ui`).
 
+**Speed Insights** (Vercel, added 2026-11-14 while the team is on Pro) reports load and tap
+timings from real phones, per screen. It must also be switched on in the project's Speed
+Insights tab; until it is, production's `/_vercel/speed-insights/script.js` fails and nothing
+is collected. A production build only (`App.tsx`'s `Insights`), so `check:ui` never loads it.
+Every report is named by the route pattern, with no query, hash or id
+(`src/lib/speedInsights.ts`), because `/join#<code>` carries a live invite code. Same origin,
+so the CSP needs nothing. Removing it is that component and the package.
+
 ## Installing it
 
 `manifest.webmanifest` is generated at build time from the design tokens by the

@@ -30,6 +30,8 @@ import { Welcome } from './routes/Welcome.js'
 import { shouldShowWelcome } from './lib/welcome.js'
 import { TabBar } from './components/TabBar.js'
 import { arrivalScrollY, barGivesWay, sectionFor } from './lib/bottomNav.js'
+import { SpeedInsights } from '@vercel/speed-insights/react'
+import { insightsRoute, redactInsightsEvent } from './lib/speedInsights.js'
 
 const queryClient = createQueryClient()
 
@@ -82,6 +84,7 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <ScrollMemory />
+        {import.meta.env.PROD && <Insights />}
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/join" element={<Join />} />
@@ -169,6 +172,18 @@ function SignedIn() {
       {section === null ? null : <TabBar active={section} away={barGivesWay(pathname)} />}
     </>
   )
+}
+
+/**
+ * Vercel Speed Insights: load and tap timings from real phones, by screen.
+ * Production builds only: in development the package loads its script from
+ * Vercel's CDN, which `check:ui` would count as traffic the app never makes.
+ * Every report is named by the route pattern, with no query, hash or id
+ * (`lib/speedInsights.ts`): `/join#<code>` carries a live invite code.
+ */
+function Insights() {
+  const { pathname } = useRouterLocation()
+  return <SpeedInsights route={insightsRoute(pathname)} beforeSend={redactInsightsEvent} />
 }
 
 /**
