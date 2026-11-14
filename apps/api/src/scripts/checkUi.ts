@@ -764,8 +764,7 @@ async function run(): Promise<void> {
     // 2a. Opening a crag from its card. Pressing starts the crag screen's
     // fetches before the finger lifts, and the screen draws from the list's
     // copy of the location instead of asking for it again. Read on the recent
-    // rain: the card already holds the hourly series for its own line, so a
-    // fresh copy of that is rightly not asked for again.
+    // rain, which only the crag screen asks for.
     const requested: string[] = []
     const onRequest = (req: { url(): string }) => {
       if (req.url().startsWith(API)) requested.push(new URL(req.url()).pathname)
@@ -787,8 +786,7 @@ async function run(): Promise<void> {
     check('the crag screen reuses the list’s copy of the location', refetched.length === 0, `fetched ${refetched.length}×`)
 
     // 2b. A tapped card opens its crag at once, even when the crag screen's
-    // own fetches are slow (its recent rain held back 3 s here; the card
-    // already holds the hourly series). A brief wait for data was tried and
+    // own fetches are slow (its recent rain held back 3 s here). A brief wait for data was tried and
     // removed: the owner found the tap laggy (2026-10-01). Tapped once the
     // list has its weather: a tap while every card was still fetching
     // measured the list's own load (368–1048 ms under software rendering).

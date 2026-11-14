@@ -1,5 +1,5 @@
 import { useState, type CSSProperties, type ReactNode } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { colors, colorsV2 } from '@weatherteam6/design/tokens'
 import {
   DRYNESS_LABEL,
@@ -11,7 +11,7 @@ import {
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { useAlerts, useConditions, useForecast, useRainNow } from '../hooks/useWeather.js'
-import { useHourly } from '../hooks/useHourly.js'
+import { hourlyQuery } from '../hooks/useHourly.js'
 import { useNow } from '../hooks/useNow.js'
 import { shortSpan } from '../lib/overview.js'
 import { SkyIcon } from './Icons.js'
@@ -39,10 +39,15 @@ import { CRAG_FLY_ATTR, CRAG_FLY_ID_ATTR, flyingCragId } from '../lib/cragFly.js
  * `is_climbing_location` — it would return a rock-drying score for Chicago if
  * asked, so the client does not ask. A city's row carries today's low and high.
  *
- * The glyph on the left is **today's** sky from the crag's hourly run — the
- * same query opening the crag reads, so the list warms it. Not the hour's:
- * the run's sky has daylight hours only, and a moon would claim a night sky
- * nothing measured. No glyph while it loads or where the day has a gap.
+ * The glyph on the left is **today's** sky from the crag's hourly run. Not the
+ * hour's: the run's sky has daylight hours only, and a moon would claim a night
+ * sky nothing measured. No glyph while it loads or where the day has a gap.
+ *
+ * **A crag reads it from `/conditions`** (`sky_today`), which slices the same
+ * series server-side: the full `/hourly` series per card was the costliest call
+ * on the list, and the most cold starts, for one word (#598). Pressing a card
+ * still prefetches `/hourly` for the crag screen. **A city has no conditions
+ * call**, so its row alone still fetches `/hourly`.
  */
 
 /**
@@ -78,7 +83,7 @@ export function LocationCard({
   const forecast = useForecast(location.id)
   const alerts = useAlerts(location.id)
   const conditions = useConditions(location.id, location.is_climbing_location)
-  const hourly = useHourly(location.id)
+  const hourly = useQuery({ ...hourlyQuery(location.id), enabled: !location.is_climbing_location })
   const rainNow = useRainNow()
   const now = useNow()
 
@@ -114,8 +119,15 @@ export function LocationCard({
   const rock = location.rock_type == null || location.rock_type === 'unknown' ? null : rockTypeLabel(location.rock_type)
   const alert = alertsData === undefined ? undefined : sortBySeverity(alertsData)[0]
   const today = findToday(forecastData)
+  // Joined on the date, never assumed: the forecast and conditions answers can straddle local midnight.
   const todaySky =
-    today === null ? null : (hourly.data?.sky?.days.find((d) => d.local_date === today.forecast_date)?.summary ?? null)
+    today === null
+      ? null
+      : location.is_climbing_location
+        ? conditionsData?.forecast_date === today.forecast_date
+          ? (conditionsData.sky_today ?? null)
+          : null
+        : (hourly.data?.sky?.days.find((d) => d.local_date === today.forecast_date)?.summary ?? null)
 
   let second: ReactNode = null
   let third: ReactNode = null

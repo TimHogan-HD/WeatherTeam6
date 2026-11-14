@@ -118,6 +118,7 @@ async function run(): Promise<void> {
   const {
     NOT_A_CRAG_READINGS,
     READINGS_UNAVAILABLE,
+    skyToday,
     toConditionsReadings,
   } = await import('../lib/runs/conditionsReadings.js')
   const { getHourlySeries } = await import('../lib/runs/fetchHourlySeries.js')
@@ -230,6 +231,7 @@ async function run(): Promise<void> {
   info('unavailable_reason', readings.unavailable_reason ?? '(none)')
   info('utc_offset_seconds', String(readings.utc_offset_seconds))
   info('checked_at', readings.checked_at ?? '(none)')
+  info('sky_today', series === null ? '(no series)' : (skyToday(series, localDateString(new Date(), series.utc_offset_seconds)) ?? '(none)'))
 
   check(
     'the gather produced readings rather than a named absence',
