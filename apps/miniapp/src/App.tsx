@@ -9,6 +9,7 @@ import {
   useLocation as useRouterLocation,
   useNavigationType,
 } from 'react-router-dom'
+import { SpeedInsights } from '@vercel/speed-insights/react'
 import { createQueryClient } from './lib/queryClient.js'
 import { pageCommitted } from './hooks/useNavigate.js'
 import { getToken, subscribeToToken } from './lib/authToken.js'
@@ -118,6 +119,7 @@ export function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
+      <SpeedInsights />
     </QueryClientProvider>
   )
 }

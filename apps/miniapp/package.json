@@ -15,6 +15,7 @@
   "dependencies": {
     "@tabler/icons-react": "^3.50.0",
     "@tanstack/react-query": "^5.105.3",
+    "@vercel/speed-insights": "^2.1.0",
     "@weatherteam6/design": "*",
     "@weatherteam6/types": "*",
     "maplibre-contour": "^0.1.1",
