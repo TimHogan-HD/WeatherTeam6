@@ -175,16 +175,6 @@ function SignedIn() {
 }
 
 /**
- * The app is one document, so every screen shares `window`'s scroll, and
- * `arrivalScrollY` decides where each one opens. Keyed on the path only: a tab
- * change inside `/location/:id` keeps its place.
- *
- * Positions are recorded as the reader scrolls, not when they leave: by the
- * time a path change is seen the next screen is already in the DOM and the old
- * position has been clamped to its height. A layout effect, so the path being
- * recorded under changes before the browser can report the clamp as a scroll.
- */
-/**
  * Vercel Speed Insights: load and tap timings from real phones, by screen.
  * Production builds only: in development the package loads its script from
  * Vercel's CDN, which `check:ui` would count as traffic the app never makes.
@@ -196,6 +186,16 @@ function Insights() {
   return <SpeedInsights route={insightsRoute(pathname)} beforeSend={redactInsightsEvent} />
 }
 
+/**
+ * The app is one document, so every screen shares `window`'s scroll, and
+ * `arrivalScrollY` decides where each one opens. Keyed on the path only: a tab
+ * change inside `/location/:id` keeps its place.
+ *
+ * Positions are recorded as the reader scrolls, not when they leave: by the
+ * time a path change is seen the next screen is already in the DOM and the old
+ * position has been clamped to its height. A layout effect, so the path being
+ * recorded under changes before the browser can report the clamp as a scroll.
+ */
 function ScrollMemory() {
   const { pathname } = useRouterLocation()
   const navigation = useNavigationType()
