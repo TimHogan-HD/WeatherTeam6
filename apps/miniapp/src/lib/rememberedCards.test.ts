@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { QueryClient } from '@tanstack/react-query'
 import type { Conditions } from '@weatherteam6/types'
 import type { RememberedCards } from './rememberedCards.js'
 
@@ -145,5 +146,49 @@ describe('rememberedCards', () => {
     expect(() => store.rememberCards(snapshot(at(9)))).not.toThrow()
     expect(store.rememberedCards(at(10))).toBeUndefined()
     expect(() => store.forgetCards()).not.toThrow()
+  })
+})
+
+describe('seedFreshCards', () => {
+  const conditions = { location_id: 'a', forecast_date: '2026-10-15' } as unknown as Conditions
+  const fresh = (savedAt: number): RememberedCards => ({
+    savedAt,
+    cards: {
+      a: { forecast: [], conditions, alerts: [] },
+      city: { forecast: [], conditions: null, alerts: [] },
+    },
+  })
+
+  it('seeds a fresh snapshot stamped with its real age', async () => {
+    const { seedFreshCards } = await load(memoryStorage())
+    const qc = new QueryClient()
+    expect(seedFreshCards(qc, fresh(at(10, 5)), at(10, 12))).toBe(true)
+    expect(qc.getQueryData(['conditions', 'a'])).toBe(conditions)
+    expect(qc.getQueryState(['forecast', 'a'])?.dataUpdatedAt).toBe(at(10, 5))
+    expect(qc.getQueryData(['alerts', 'city'])).toEqual([])
+  })
+
+  it('never seeds a null conditions answer', async () => {
+    const { seedFreshCards } = await load(memoryStorage())
+    const qc = new QueryClient()
+    seedFreshCards(qc, fresh(at(10, 5)), at(10, 12))
+    expect(qc.getQueryState(['conditions', 'city'])).toBeUndefined()
+  })
+
+  it('leaves a stale snapshot out of the cache', async () => {
+    const { seedFreshCards } = await load(memoryStorage())
+    const qc = new QueryClient()
+    expect(seedFreshCards(qc, fresh(at(10, 5)), at(10, 20))).toBe(false)
+    expect(seedFreshCards(qc, fresh(at(10, 58)), at(11, 1))).toBe(false)
+    expect(qc.getQueryCache().getAll()).toHaveLength(0)
+  })
+
+  it('never overwrites an answer already in the cache', async () => {
+    const { seedFreshCards } = await load(memoryStorage())
+    const qc = new QueryClient()
+    const live = [{ id: 'live' }]
+    qc.setQueryData(['alerts', 'a'], live)
+    seedFreshCards(qc, fresh(at(10, 5)), at(10, 12))
+    expect(qc.getQueryData(['alerts', 'a'])).toBe(live)
   })
 })

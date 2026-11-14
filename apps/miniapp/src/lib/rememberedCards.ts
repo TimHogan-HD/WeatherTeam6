@@ -1,4 +1,7 @@
+import type { QueryClient } from '@tanstack/react-query'
 import type { Conditions, ForecastSnapshot, WeatherAlert } from '@weatherteam6/types'
+import { alertsQuery, conditionsQuery, forecastQuery } from '../hooks/useWeather.js'
+import { isFreshAt } from './queryClient.js'
 
 /**
  * The weather the list's cards last showed on this device, so a reopen draws
@@ -10,9 +13,13 @@ import type { Conditions, ForecastSnapshot, WeatherAlert } from '@weatherteam6/t
  * are swapped for the live ones together, so a card never prints one moment's
  * alert beside another moment's score. The score it shows is the one the card printed at `savedAt`.
  *
- * **It is a placeholder, never cache data**, like `rememberedLocations`: the
- * crag screen never sees it. Stored on the phone, not in the database.
- * Forgotten whenever the token goes (`App.tsx`).
+ * **It is a placeholder, not cache data, unless it is still fresh** (owner,
+ * 2026-11-14, #598): a snapshot inside `isFreshAt` (under 15 minutes old and
+ * from this clock hour) is a live answer by the query client's own rule, so
+ * `seedFreshCards` puts it in the cache stamped with its real fetch time and
+ * the reopen sends no weather requests. Anything older stays a placeholder,
+ * drawn with "· refreshing" while the live copies load. Stored on the phone,
+ * not in the database. Forgotten whenever the token goes (`App.tsx`).
  */
 export type RememberedCard = {
   forecast: ForecastSnapshot[]
@@ -108,4 +115,38 @@ export function forgetCards(): void {
   } catch {
     // As above.
   }
+}
+
+/**
+ * Seeds the cache with a snapshot that is still fresh, so the cards' queries
+ * start settled and are not sent (`queryClient.ts` § staleTime). Each entry is
+ * stamped with `savedAt`, the oldest fetch in the snapshot, so it goes stale
+ * no later than its oldest part and the list's age line never flatters it.
+ *
+ * Never overwrites an answer already in the cache, which is newer. A crag
+ * whose conditions answer was null is left to fetch: its card waits on the
+ * remembered copy as before. Returns whether anything was seeded.
+ */
+export function seedFreshCards(queryClient: QueryClient, snapshot: RememberedCards, now: number): boolean {
+  if (!isFreshAt(snapshot.savedAt, now)) return false
+  const opts = { updatedAt: snapshot.savedAt }
+  let seeded = false
+  for (const [id, card] of Object.entries(snapshot.cards)) {
+    const forecastKey = forecastQuery(id).queryKey
+    const alertsKey = alertsQuery(id).queryKey
+    const conditionsKey = conditionsQuery(id, true).queryKey
+    if (queryClient.getQueryData(forecastKey) === undefined) {
+      queryClient.setQueryData(forecastKey, card.forecast, opts)
+      seeded = true
+    }
+    if (queryClient.getQueryData(alertsKey) === undefined) {
+      queryClient.setQueryData(alertsKey, card.alerts, opts)
+      seeded = true
+    }
+    if (card.conditions !== null && queryClient.getQueryData(conditionsKey) === undefined) {
+      queryClient.setQueryData(conditionsKey, card.conditions, opts)
+      seeded = true
+    }
+  }
+  return seeded
 }

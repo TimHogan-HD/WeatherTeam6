@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from '../hooks/useNavigate.js'
-import { useQueries } from '@tanstack/react-query'
+import { useQueries, useQueryClient } from '@tanstack/react-query'
 import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import type { Conditions, Location } from '@weatherteam6/types'
 import {
   rememberCards,
   rememberedCards,
+  seedFreshCards,
   snapshotCards,
   type RememberedCards,
 } from '../lib/rememberedCards.js'
@@ -57,8 +58,17 @@ export function LocationList() {
   const openAdd = useCallback(() => void navigate('/add'), [navigate])
 
   const [sort, setSort] = useSortPreference()
+  const queryClient = useQueryClient()
   // Read once per page load: after that the query cache holds the live copies.
-  const [remembered] = useState(() => rememberedCards(Date.now()))
+  // A snapshot still fresh by the query client's rule goes into the cache as
+  // the live answer, before any card asks, so the reopen sends no weather
+  // requests (#598); an older one stays a placeholder.
+  const [remembered] = useState(() => {
+    const now = Date.now()
+    const snapshot = rememberedCards(now)
+    if (snapshot !== undefined) seedFreshCards(queryClient, snapshot, now)
+    return snapshot
+  })
   const list = locations.data ?? []
 
   // The same cache entries the cards fill, so these add no request.
@@ -115,7 +125,9 @@ export function LocationList() {
   const updated =
     fromMemory
       ? [formatUpdatedAt(remembered.savedAt, now), 'refreshing'].filter((p) => p !== null).join(' · ')
-      : formatUpdatedAt(locations.dataUpdatedAt, now)
+      : // The oldest answer on screen, so a card seeded from this device's memory
+        // is never dated by the list's own newer fetch.
+        formatUpdatedAt(oldestFetch([locations, ...forecasts, ...conditions, ...alerts]), now)
   const meta =
     locations.data === undefined
       ? null
@@ -232,6 +244,16 @@ function rememberedScoresOf(
     scores.set(location.id, cardSummary(card.conditions)?.score ?? null)
   }
   return scores
+}
+
+/**
+ * The earliest fetch among the answers in hand. A query with no answer (0: a
+ * non-crag's disabled conditions, one still loading) is skipped; with none at
+ * all, 0, which `formatUpdatedAt` prints as nothing.
+ */
+function oldestFetch(queries: readonly { dataUpdatedAt: number }[]): number {
+  const stamps = queries.map((q) => q.dataUpdatedAt).filter((t) => t > 0)
+  return stamps.length === 0 ? 0 : Math.min(...stamps)
 }
 
 /** A disabled query (a non-crag's conditions) has no fetch time; 0 is its stamp. */

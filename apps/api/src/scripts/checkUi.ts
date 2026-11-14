@@ -867,6 +867,17 @@ async function run(): Promise<void> {
       weatherReleased = true
       await route.continue().catch(() => undefined)
     })
+    // Aged past the query client's freshness (15 min, never across the hour),
+    // so it is drawn as a placeholder; a fresh one is trusted outright (below).
+    // Between 00:00 and 00:16 no stamp is both stale and from today, and this
+    // check fails: rerun it then.
+    await page.evaluate(() => {
+      const raw = localStorage.getItem('wt6.cards')
+      if (raw === null) return
+      const snapshot = JSON.parse(raw) as { savedAt: number }
+      snapshot.savedAt = Date.now() - 16 * 60_000
+      localStorage.setItem('wt6.cards', JSON.stringify(snapshot))
+    })
     const reopened = Date.now()
     await page.goto(`${WEB}/`, { waitUntil: 'domcontentloaded' })
     const drawn = await firstCard
@@ -888,6 +899,24 @@ async function run(): Promise<void> {
     await page.unroute(slowWeather)
     const refreshedHeader = await page.locator('header').innerText()
     check('then the live copies replace them', !/refreshing/.test(refreshedHeader), refreshedHeader.replace(/\s+/g, ' '))
+
+    // A reopen inside the freshness window trusts what this device holds and
+    // asks for no weather at all (#598): each request saved is a cold start.
+    const weatherAsked: string[] = []
+    const onWeather = (req: { url(): string }) => {
+      if (slowWeather.test(req.url())) weatherAsked.push(new URL(req.url()).pathname)
+    }
+    page.on('request', onWeather)
+    await page.goto(`${WEB}/`, { waitUntil: 'domcontentloaded' })
+    await firstCard.getByText(/^Dryness:/).waitFor({ timeout: 30_000 }).catch(() => undefined)
+    await page.waitForLoadState('networkidle', { timeout: 60_000 }).catch(() => undefined)
+    page.off('request', onWeather)
+    const freshHeader = await page.locator('header').innerText()
+    check(
+      'a reopen inside 15 minutes asks for no forecast, conditions or alerts',
+      weatherAsked.length === 0 && !/refreshing/.test(freshHeader),
+      `asked: ${weatherAsked.join(', ') || 'none'}; header: ${freshHeader.replace(/\s+/g, ' ')}`,
+    )
 
     // By 4d the full run's list has three rows: this crag, a crag a trip
     // added, and a town found by GPS. The same three, straight through the API.
