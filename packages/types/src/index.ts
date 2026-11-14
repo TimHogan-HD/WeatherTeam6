@@ -4,6 +4,7 @@
 // `@weatherteam6/types/units` does not resolve.
 import type { ConditionsReadings, RockLevel } from './hourly.js'
 import type { ClimbHours } from './preferences.js'
+import type { SkyDaySummary } from './sky.js'
 
 export * from './scoreComponents.js'
 export * from './units.js'
@@ -215,6 +216,14 @@ export type Conditions = {
    * `undefined` passes every `=== null` guard.
    */
   readings: ConditionsReadings
+  /**
+   * Today's sky word, from the same series the readings were sliced from
+   * (`HourlySeries.sky.days`, `THERMAL_MODEL`'s sunshine), for `forecast_date`.
+   * The list card draws its glyph from this rather than fetching the whole
+   * `/hourly` series. Null when a daylight hour is a gap, no run answered, or
+   * the location is not a crag. Optional: absent is an older API, read as null.
+   */
+  sky_today?: SkyDaySummary | null
 }
 
 export type WeatherAlert = {

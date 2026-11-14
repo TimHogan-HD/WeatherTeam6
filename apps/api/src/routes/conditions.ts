@@ -8,6 +8,7 @@ import { localDateString } from '../lib/weather/openMeteo.js'
 import {
   NOT_A_CRAG_READINGS,
   READINGS_UNAVAILABLE,
+  skyToday,
   toConditionsReadings,
 } from '../lib/runs/conditionsReadings.js'
 import { getHourlySeries } from '../lib/runs/fetchHourlySeries.js'
@@ -122,6 +123,7 @@ conditionsRouter.get('/conditions/:locationId', async (req: Request, res: Respon
           : series === null || todayStr === null
             ? READINGS_UNAVAILABLE
             : toConditionsReadings(series, todayStr, now),
+      sky_today: series === null || todayStr === null ? null : skyToday(series, todayStr),
     }
     const response: ApiResponse<Conditions> = { data: conditions, error: null, status: 200 }
     res.status(200).json(response)

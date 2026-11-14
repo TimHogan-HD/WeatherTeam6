@@ -1,4 +1,4 @@
-import type { ConditionsReadings, HourlySeries } from '@weatherteam6/types'
+import type { ConditionsReadings, HourlySeries, SkyDaySummary } from '@weatherteam6/types'
 import { readingNow } from '@weatherteam6/types'
 
 /**
@@ -79,4 +79,16 @@ export function toConditionsReadings(
     today: readings.days.find((d) => d.local_date === todayStr) ?? null,
     checked_at: series.checked_at ?? null,
   }
+}
+
+/**
+ * **Today's sky word for `Conditions.sky_today`**, from the same series the
+ * readings were sliced from, so the list card's glyph and the crag screen's
+ * Today chart read one run (#598: the card used to fetch all of `/hourly` for
+ * it). Joined on the date, never on array position. Null when the series has
+ * no sky block, does not reach today, or any of today's daylight hours is a
+ * gap — the missing hour could be the only sunny one.
+ */
+export function skyToday(series: Pick<HourlySeries, 'sky'>, todayStr: string): SkyDaySummary | null {
+  return series.sky?.days.find((d) => d.local_date === todayStr)?.summary ?? null
 }

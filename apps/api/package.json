@@ -6,6 +6,8 @@
   "main": "./dist/index.js",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "bundle": "node scripts/bundle.mjs",
+    "vercel-build": "node scripts/bundle.mjs",
     "prebuild": "node --eval \"require('fs').rmSync('dist', {recursive: true, force: true})\"",
     "dev": "tsx watch --env-file=.env src/server.ts",
     "start": "node dist/server.js",

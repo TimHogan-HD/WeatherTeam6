@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { HourlyReading, HourlyReadings, HourlySeries, ReadingsDay } from '@weatherteam6/types'
-import { toConditionsReadings } from './conditionsReadings.js'
+import type { HourlyReading, HourlyReadings, HourlySeries, ReadingsDay, SkyDay, SkySeries } from '@weatherteam6/types'
+import { skyToday, toConditionsReadings } from './conditionsReadings.js'
 
 const hour = (validAt: string, score: number): HourlyReading => ({
   valid_at: validAt,
@@ -116,5 +116,33 @@ describe('toConditionsReadings', () => {
     expect(out.unavailable_reason).toBe('insufficient_history')
     expect(out.now).toBeNull()
     expect(out.today).toBeNull()
+  })
+})
+
+describe('skyToday', () => {
+  const skyDay = (local_date: string, summary: SkyDay['summary']): SkyDay => ({
+    local_date,
+    summary,
+    sun_min: null,
+    sun_windows: null,
+    sun_by_model: [],
+  })
+  const sky = (days: SkyDay[]): SkySeries => ({ model: 'gfs_seamless', hours: [], sun: [], days })
+
+  it("reads the day with today's date, not the first day", () => {
+    const s = { sky: sky([skyDay('2026-09-20', 'cloudy'), skyDay('2026-09-21', 'sunny_morning')]) }
+    expect(skyToday(s, '2026-09-21')).toBe('sunny_morning')
+  })
+
+  it('is null when the series does not reach today', () => {
+    expect(skyToday({ sky: sky([skyDay('2026-09-22', 'sunny')]) }, '2026-09-21')).toBeNull()
+  })
+
+  it('passes a gap day through as null, never a word', () => {
+    expect(skyToday({ sky: sky([skyDay('2026-09-21', null)]) }, '2026-09-21')).toBeNull()
+  })
+
+  it('is null with no sky block at all', () => {
+    expect(skyToday({}, '2026-09-21')).toBeNull()
   })
 })

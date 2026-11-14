@@ -13,7 +13,7 @@ import { guidebookQuery } from '../hooks/useGuidebook.js'
  * **The same query definitions `LocationDetail` reads**, so a prefetched answer
  * is the one the screen finds, and an answer still inside `staleTime` is not
  * asked for again — a finger dragged across the list to scroll fetches each
- * crag at most once per five minutes. Prefetching every card on load was the
+ * crag at most once per freshness span (`queryClient.ts`: 15 min, never across the hour). Prefetching every card on load was the
  * bigger win and was not taken: it multiplies upstream weather calls, which
  * `queryClient.ts` already avoids for suspected rate limiting.
  *

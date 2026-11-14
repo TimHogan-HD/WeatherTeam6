@@ -764,8 +764,7 @@ async function run(): Promise<void> {
     // 2a. Opening a crag from its card. Pressing starts the crag screen's
     // fetches before the finger lifts, and the screen draws from the list's
     // copy of the location instead of asking for it again. Read on the recent
-    // rain: the card already holds the hourly series for its own line, so a
-    // fresh copy of that is rightly not asked for again.
+    // rain, which only the crag screen asks for.
     const requested: string[] = []
     const onRequest = (req: { url(): string }) => {
       if (req.url().startsWith(API)) requested.push(new URL(req.url()).pathname)
@@ -787,8 +786,7 @@ async function run(): Promise<void> {
     check('the crag screen reuses the list’s copy of the location', refetched.length === 0, `fetched ${refetched.length}×`)
 
     // 2b. A tapped card opens its crag at once, even when the crag screen's
-    // own fetches are slow (its recent rain held back 3 s here; the card
-    // already holds the hourly series). A brief wait for data was tried and
+    // own fetches are slow (its recent rain held back 3 s here). A brief wait for data was tried and
     // removed: the owner found the tap laggy (2026-10-01). Tapped once the
     // list has its weather: a tap while every card was still fetching
     // measured the list's own load (368–1048 ms under software rendering).
@@ -869,6 +867,17 @@ async function run(): Promise<void> {
       weatherReleased = true
       await route.continue().catch(() => undefined)
     })
+    // Aged past the query client's freshness (15 min, never across the hour),
+    // so it is drawn as a placeholder; a fresh one is trusted outright (below).
+    // Between 00:00 and 00:16 no stamp is both stale and from today, and this
+    // check fails: rerun it then.
+    await page.evaluate(() => {
+      const raw = localStorage.getItem('wt6.cards')
+      if (raw === null) return
+      const snapshot = JSON.parse(raw) as { savedAt: number }
+      snapshot.savedAt = Date.now() - 16 * 60_000
+      localStorage.setItem('wt6.cards', JSON.stringify(snapshot))
+    })
     const reopened = Date.now()
     await page.goto(`${WEB}/`, { waitUntil: 'domcontentloaded' })
     const drawn = await firstCard
@@ -890,6 +899,24 @@ async function run(): Promise<void> {
     await page.unroute(slowWeather)
     const refreshedHeader = await page.locator('header').innerText()
     check('then the live copies replace them', !/refreshing/.test(refreshedHeader), refreshedHeader.replace(/\s+/g, ' '))
+
+    // A reopen inside the freshness window trusts what this device holds and
+    // asks for no weather at all (#598): each request saved is a cold start.
+    const weatherAsked: string[] = []
+    const onWeather = (req: { url(): string }) => {
+      if (slowWeather.test(req.url())) weatherAsked.push(new URL(req.url()).pathname)
+    }
+    page.on('request', onWeather)
+    await page.goto(`${WEB}/`, { waitUntil: 'domcontentloaded' })
+    await firstCard.getByText(/^Dryness:/).waitFor({ timeout: 30_000 }).catch(() => undefined)
+    await page.waitForLoadState('networkidle', { timeout: 60_000 }).catch(() => undefined)
+    page.off('request', onWeather)
+    const freshHeader = await page.locator('header').innerText()
+    check(
+      'a reopen inside 15 minutes asks for no forecast, conditions or alerts',
+      weatherAsked.length === 0 && !/refreshing/.test(freshHeader),
+      `asked: ${weatherAsked.join(', ') || 'none'}; header: ${freshHeader.replace(/\s+/g, ' ')}`,
+    )
 
     // By 4d the full run's list has three rows: this crag, a crag a trip
     // added, and a town found by GPS. The same three, straight through the API.

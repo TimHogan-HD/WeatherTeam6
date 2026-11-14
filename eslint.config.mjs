@@ -9,6 +9,7 @@ export default tseslint.config(
     ignores: [
       '**/dist/**',
       'apps/api/drizzle/**',
+      'apps/api/bundle/app.mjs',
     ],
   },
   eslint.configs.recommended,
