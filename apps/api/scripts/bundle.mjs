@@ -12,23 +12,36 @@
 //
 // Also the project's `buildCommand`, since which of the two Vercel runs before
 // it traces the function is not documented; it takes under a second. esbuild
-// comes from `tsx`'s own dependency. If the bundle is missing at runtime,
-// `api/index.ts` serves the unbundled source and logs it.
-import { build } from 'esbuild'
+// comes from `tsx`'s own dependency, not a declared one.
+//
+// **A failure here never fails the deploy.** It removes any stale bundle and
+// exits 0, and `api/index.ts` then serves the unbundled source and logs that it
+// did: slower cold starts, never a blocked deploy or a bundle from older code.
+import { rmSync } from 'node:fs'
+import process from 'node:process'
 
-await build({
-  entryPoints: ['src/index.ts'],
-  outfile: 'bundle/app.mjs',
-  bundle: true,
-  platform: 'node',
-  format: 'esm',
-  target: 'node22',
-  // Not minified and no source map, so a stack trace in the logs still names
-  // our functions. A source map would be parsed on every cold start.
-  minify: false,
-  external: ['ws'],
-  banner: {
-    js: "import { createRequire as __wt6CreateRequire } from 'node:module'; const require = __wt6CreateRequire(import.meta.url);",
-  },
-  logLevel: 'warning',
-})
+const OUT = 'bundle/app.mjs'
+
+try {
+  const { build } = await import('esbuild')
+  await build({
+    entryPoints: ['src/index.ts'],
+    outfile: OUT,
+    bundle: true,
+    platform: 'node',
+    format: 'esm',
+    target: 'node22',
+    // Not minified and no source map, so a stack trace in the logs still names
+    // our functions. A source map would be parsed on every cold start.
+    minify: false,
+    external: ['ws'],
+    banner: {
+      js: "import { createRequire as __wt6CreateRequire } from 'node:module'; const require = __wt6CreateRequire(import.meta.url);",
+    },
+    logLevel: 'warning',
+  })
+} catch (err) {
+  rmSync(OUT, { force: true })
+  const reason = err instanceof Error ? err.message.split('\n')[0] : String(err)
+  process.stderr.write(`bundle: not built, the function will serve the unbundled source (${reason})\n`)
+}
