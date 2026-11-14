@@ -2,6 +2,7 @@ import express, { type Express, type NextFunction, type Request, type Response }
 import { logger } from './lib/logger.js';
 import { describeError } from './lib/http.js';
 import { requireApiAuth } from './middleware/apiAuth.js';
+import { cpuLogMiddleware } from './middleware/cpuLog.js';
 import { healthRouter } from './routes/health.js';
 import { locationsRouter } from './routes/locations.js';
 import { conditionsRouter } from './routes/conditions.js';
@@ -50,6 +51,10 @@ function bodyParserStatus(err: unknown): number | null {
 
 export function createApp(): Express {
   const app = express();
+
+  // First, so its window covers every other middleware: one line per request
+  // with the CPU it cost, the measurement behind the Fluid Active CPU bill.
+  app.use(cpuLogMiddleware((sample) => logger.info(sample, '[cpu] request')))
 
   // Do not advertise the framework and version to every caller.
   app.disable('x-powered-by');

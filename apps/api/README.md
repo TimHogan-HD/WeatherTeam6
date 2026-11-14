@@ -66,6 +66,14 @@ it is how env vars get set, because the Vercel MCP's `projectEnvVars` 403s.
 `collect-radar` exist too; confirm in cron-job.org that they are registered before relying on
 their rows.
 
+**Function CPU is the limit this project hits first.** On 2026-11-14 the Hobby team was paused
+after using its 4 h a month of Fluid Active CPU, about 8 min a day, all of it this function; the
+logs then showed `check-alerts` every 15 minutes and `collect-runs` hourly storing ~45 runs a
+call. Vercel's per-route observability API answers 404 on our plan, so every request logs a
+`[cpu] request` line (`middleware/cpuLog.ts`): `cpuMs`, `wallMs`, and on an instance's first
+request `cold` with `initCpuMs`, the start-up cost. Sum per `path` over the non-`overlapped`
+lines to see what each cron job costs.
+
 ## GitHub Actions
 
 **A check stuck "in progress" after its steps finished is GitHub's**; see githubstatus.com. A
