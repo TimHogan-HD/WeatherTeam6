@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query'
 import type { Conditions, ForecastSnapshot, WeatherAlert } from '@weatherteam6/types'
-import { alertsQuery, conditionsQuery, forecastQuery } from '../hooks/useWeather.js'
+import { LIST_KEY, alertsQuery, conditionsQuery, forecastQuery, type ListOutcome } from '../hooks/useWeather.js'
 import { isFreshAt } from './queryClient.js'
 
 /**
@@ -126,6 +126,10 @@ export function forgetCards(): void {
  * Never overwrites an answer already in the cache, which is newer. A crag
  * whose conditions answer was null is left to fetch: its card waits on the
  * remembered copy as before. Returns whether anything was seeded.
+ *
+ * **It stands in for the list's one request too** (#606), with the same stamp,
+ * so a fresh reopen sends no `/list`. A place added since on another device is
+ * not in the snapshot, and its card asks its own routes.
  */
 export function seedFreshCards(queryClient: QueryClient, snapshot: RememberedCards, now: number): boolean {
   if (!isFreshAt(snapshot.savedAt, now)) return false
@@ -147,6 +151,10 @@ export function seedFreshCards(queryClient: QueryClient, snapshot: RememberedCar
       queryClient.setQueryData(conditionsKey, card.conditions, opts)
       seeded = true
     }
+  }
+  if (seeded && queryClient.getQueryData(LIST_KEY) === undefined) {
+    const outcome: ListOutcome = 'remembered'
+    queryClient.setQueryData(LIST_KEY, outcome, opts)
   }
   return seeded
 }

@@ -2,19 +2,9 @@ import { Router, type Request, type Response } from 'express'
 import { and, eq } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { locations } from '../db/schema.js'
-import { describeError, isUuid, sendServerError } from '../lib/http.js'
-import { logger } from '../lib/logger.js'
-import { localDateString } from '../lib/weather/openMeteo.js'
-import {
-  NOT_A_CRAG_READINGS,
-  READINGS_UNAVAILABLE,
-  skyToday,
-  toConditionsReadings,
-} from '../lib/runs/conditionsReadings.js'
-import { getHourlySeries } from '../lib/runs/fetchHourlySeries.js'
-import { scoringLocationFor } from '../lib/runs/scoringLocation.js'
+import { isUuid, sendServerError } from '../lib/http.js'
+import { conditionsFor } from '../lib/runs/conditionsFor.js'
 import { readerScoringFor } from '../lib/preferences/preferences.js'
-import { parseNumeric, parseNumericRequired } from '@weatherteam6/types'
 import type { ApiResponse, Conditions } from '@weatherteam6/types'
 
 export const conditionsRouter = Router()
@@ -63,68 +53,7 @@ conditionsRouter.get('/conditions/:locationId', async (req: Request, res: Respon
       return
     }
 
-    const now = new Date()
-
-    /**
-     * **The readings reach the response only because this argument was passed**
-     * — the same shape as `GET /hourly/:id`, and there is no
-     * `is_climbing_location` check further down to forget. A crag's readings are
-     * judged against the reader's own temperature range and climbing hours.
-     *
-     * The two placeholders are the ones `/hourly` documents and neither is
-     * marked in the response: `rock_type` null takes `unknown`'s slower drying
-     * window, and an unrecorded `cliff_angle` is never treated as a recorded
-     * wall. The one implementation is `scoringLocationFor`, shared with `/hourly`.
-     */
-    const scoring = location.is_climbing_location
-      ? // No walls: this response carries the crag's readings only, and scoring them costs a Wall A per wall.
-        scoringLocationFor({ ...location, known_crag: null }, await readerScoringFor(req.userId))
-      : null
-
-    /**
-     * **The hourly run is not fetched at all for a non-crag** — `scoring` being
-     * null already means no reading comes back.
-     *
-     * The run is caught rather than allowed to reject: a failed hourly fetch is
-     * `READINGS_UNAVAILABLE`, a gap the client names, not a 500 that costs the
-     * list card its weather.
-     */
-    const series =
-      scoring === null
-        ? null
-        : await getHourlySeries(
-            {
-              id: location.id,
-              lat: parseNumericRequired(location.lat),
-              lon: parseNumericRequired(location.lon),
-              // Nullable, and it must stay null rather than becoming 0 — sea
-              // level is a real elevation, and passing it would silently skip
-              // the lapse-rate correction on a mountain.
-              elevation_m: parseNumeric(location.elevation_m),
-            },
-            { allModels: false, now, scoring },
-          ).catch((err: unknown) => {
-            logger.warn(
-              { locationId: location.id, err: describeError(err) },
-              'conditions: hourly readings unavailable',
-            )
-            return null
-          })
-
-    // The location's local day, from the clock the series itself carries (#33).
-    const todayStr = series === null ? null : localDateString(now, series.utc_offset_seconds)
-
-    const conditions: Conditions = {
-      location_id: location.id,
-      forecast_date: todayStr,
-      readings:
-        scoring === null
-          ? NOT_A_CRAG_READINGS
-          : series === null || todayStr === null
-            ? READINGS_UNAVAILABLE
-            : toConditionsReadings(series, todayStr, now),
-      sky_today: series === null || todayStr === null ? null : skyToday(series, todayStr),
-    }
+    const conditions = await conditionsFor(location, () => readerScoringFor(req.userId))
     const response: ApiResponse<Conditions> = { data: conditions, error: null, status: 200 }
     res.status(200).json(response)
   } catch (err) {

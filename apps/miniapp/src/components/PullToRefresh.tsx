@@ -17,14 +17,17 @@ import { pullDisplacement, pullMessage, type PullPhase } from '../lib/pullToRefr
 export function PullToRefresh({
   enabled = true,
   freshness,
+  skip,
   children,
 }: {
   enabled?: boolean
   freshness: string | null
+  /** Query keys not to refetch, because another query on screen brings them (the list's `/list`, #606). */
+  skip?: (queryKey: readonly unknown[]) => boolean
   children: ReactNode
 }) {
   const queryClient = useQueryClient()
-  const refresh = useCallback(() => refreshQueries(queryClient), [queryClient])
+  const refresh = useCallback(() => refreshQueries(queryClient, skip), [queryClient, skip])
   const pull = usePullToRefresh(refresh, enabled)
   const shift = pullDisplacement(pull)
   const settle = pull.kind === 'pulling' ? 'none' : `${motion.pullReturnMs}ms ${motion.drawer}`
@@ -92,8 +95,11 @@ function PullPanel({
  * Refetches every query on screen and says whether all of them answered. A
  * failed refetch keeps its last data, so the screen stays drawn either way.
  */
-async function refreshQueries(queryClient: QueryClient): Promise<boolean> {
-  await queryClient.refetchQueries({ type: 'active' })
+async function refreshQueries(
+  queryClient: QueryClient,
+  skip: ((queryKey: readonly unknown[]) => boolean) | undefined,
+): Promise<boolean> {
+  await queryClient.refetchQueries({ type: 'active', predicate: (q) => skip?.(q.queryKey) !== true })
   return !queryClient
     .getQueryCache()
     .findAll({ type: 'active' })

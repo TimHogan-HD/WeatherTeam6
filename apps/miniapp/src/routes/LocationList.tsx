@@ -24,7 +24,7 @@ import { useLocations } from '../hooks/useLocations.js'
 import { useNow } from '../hooks/useNow.js'
 import { scoresFreshness } from '../lib/pullToRefresh.js'
 import { PullToRefresh } from '../components/PullToRefresh.js'
-import { alertsQuery, conditionsQuery, forecastQuery } from '../hooks/useWeather.js'
+import { alertsQuery, conditionsQuery, coveredByList, forecastQuery, held, useListSettled } from '../hooks/useWeather.js'
 import { LocationCard } from '../components/LocationCard.js'
 import { Splash, useOpeningSplash } from '../components/Splash.js'
 import { EmptyState, InlineError, SkeletonCards } from '../components/States.js'
@@ -71,12 +71,18 @@ export function LocationList() {
   })
   const list = locations.data ?? []
 
+  // Every card's weather in one request (#606), which fills the cache entries
+  // below. After the snapshot above, so a fresh one stands in for it. Until it
+  // settles no per-place query is sent; after, only a part it did not bring.
+  const listSettled = useListSettled()
+  const skipOnRefresh = useCallback((key: readonly unknown[]) => coveredByList(queryClient, key), [queryClient])
+
   // The same cache entries the cards fill, so these add no request.
-  const forecasts = useQueries({ queries: list.map((l) => forecastQuery(l.id)) })
+  const forecasts = useQueries({ queries: list.map((l) => held(forecastQuery(l.id), listSettled)) })
   const conditions = useQueries({
-    queries: list.map((l) => conditionsQuery(l.id, l.is_climbing_location)),
+    queries: list.map((l) => held(conditionsQuery(l.id, l.is_climbing_location), listSettled)),
   })
-  const alerts = useQueries({ queries: list.map((l) => alertsQuery(l.id)) })
+  const alerts = useQueries({ queries: list.map((l) => held(alertsQuery(l.id), listSettled)) })
 
   const settledScores = settledScoresOf(list, conditions)
   const scores = settledScores ?? rememberedScoresOf(list, remembered)
@@ -138,7 +144,7 @@ export function LocationList() {
   return (
     <main style={{ display: 'flex', flexDirection: 'column', flex: 1, position: 'relative' }}>
       {splash ? <Splash /> : null}
-      <PullToRefresh freshness={scoresFreshness(conditions.map((c) => c.data?.readings), now)}>
+      <PullToRefresh freshness={scoresFreshness(conditions.map((c) => c.data?.readings), now)} skip={skipOnRefresh}>
       <header style={{ padding: `${spacing.sectionGap}px ${spacing.sectionGap}px 0` }}>
         <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div style={stack(spacing.tight)}>
@@ -189,6 +195,7 @@ export function LocationList() {
                 key={location.id}
                 location={location}
                 remembered={remembered?.cards[location.id]}
+                listSettled={listSettled}
                 onOpen={openLocation}
                 index={i}
               />

@@ -26,7 +26,7 @@ import { glassDock, glassLegend } from '../theme/glass.js'
 import { Sect } from '../components/charts/liquid.js'
 import { withOpacity } from '../theme/tokens.css.js'
 import { useLocations } from '../hooks/useLocations.js'
-import { conditionsQuery, useRadarLayers } from '../hooks/useWeather.js'
+import { conditionsQuery, held, useListSettled, useRadarLayers } from '../hooks/useWeather.js'
 import { useCurrentPosition, type Fix } from '../hooks/useCurrentPosition.js'
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion.js'
 import { prefetchDetail } from '../lib/prefetchDetail.js'
@@ -176,7 +176,11 @@ export function MapScreen() {
 
   const locations = useLocations()
   const list = useMemo(() => locations.data ?? [], [locations.data])
-  const conditions = useQueries({ queries: list.map((l) => conditionsQuery(l.id, l.is_climbing_location)) })
+  // The list's one request fills these (#606), so a fresh list costs the map nothing and a cold open one request.
+  const listSettled = useListSettled()
+  const conditions = useQueries({
+    queries: list.map((l) => held(conditionsQuery(l.id, l.is_climbing_location), listSettled)),
+  })
   const pins = mapPins(list.map((location, i) => ({ location, conditions: conditions[i] ?? PENDING })))
   const byId = useMemo(() => new Map(list.map((l) => [l.id, l])), [list])
 

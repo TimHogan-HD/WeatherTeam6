@@ -405,8 +405,23 @@ async function run(): Promise<void> {
     check('POST /locations creates the crag', created.status === 201 && locationId !== null, `got ${created.status}`)
     if (locationId === null) throw new Error('no location — stopping')
 
+    // A first open with nothing remembered asks for the whole list in one
+    // request and for no card's weather on its own (#606): each request it
+    // saves is a serverless cold start.
+    const firstOpenAsked: string[] = []
+    const onFirstOpen = (req: { url(): string }) => {
+      const path = new URL(req.url()).pathname
+      if (/^\/api\/v1\/(list|rain-now|(forecast|conditions|alerts)\/)/.test(path)) firstOpenAsked.push(path.split('/')[3] ?? path)
+    }
+    page.on('request', onFirstOpen)
     await page.goto(`${WEB}/`)
     await screen('list')
+    page.off('request', onFirstOpen)
+    check(
+      'a first open asks for one list and no card’s forecast, conditions, alerts or rain on their own',
+      firstOpenAsked.length === 1 && firstOpenAsked[0] === 'list',
+      `asked: ${firstOpenAsked.join(', ') || 'none'}`,
+    )
 
     // 2'. Radar rain now (#313), asked live from MRMS in every mode. No recent
     // frame is `data: null`, never an error. When radar has rain at the crag,
@@ -814,8 +829,9 @@ async function run(): Promise<void> {
 
     // 2c. The opening splash: up on a cold load until the cards have their
     // weather, lifted at the cap when they are slow, and never shown on a
-    // return to the list. Forecasts are held back 3 s here.
-    const slowForecast = `${API}/api/v1/forecast/**`
+    // return to the list. Forecasts are held back 3 s here, and the list
+    // request that carries them (#606).
+    const slowForecast = /\/api\/v1\/(forecast\/|list$)/
     await page.route(slowForecast, async (route) => {
       await new Promise((r) => setTimeout(r, 3_000))
       await route.continue().catch(() => undefined)
@@ -860,7 +876,7 @@ async function run(): Promise<void> {
     await page.waitForLoadState('networkidle', { timeout: 60_000 }).catch(() => undefined)
     const rememberedSaved = await page.evaluate(() => localStorage.getItem('wt6.cards') !== null)
     check('the list remembers its cards’ weather on this device', rememberedSaved)
-    const slowWeather = /\/api\/v1\/(forecast|conditions|alerts)\//
+    const slowWeather = /\/api\/v1\/((forecast|conditions|alerts)\/|list$)/
     let weatherReleased = false
     await page.route(slowWeather, async (route) => {
       await new Promise((r) => setTimeout(r, 8_000))
@@ -913,7 +929,7 @@ async function run(): Promise<void> {
     page.off('request', onWeather)
     const freshHeader = await page.locator('header').innerText()
     check(
-      'a reopen inside 15 minutes asks for no forecast, conditions or alerts',
+      'a reopen inside 15 minutes asks for no list, forecast, conditions or alerts',
       weatherAsked.length === 0 && !/refreshing/.test(freshHeader),
       `asked: ${weatherAsked.join(', ') || 'none'}; header: ${freshHeader.replace(/\s+/g, ' ')}`,
     )
@@ -1885,12 +1901,13 @@ async function run(): Promise<void> {
 
       // 4g. Pulling the list down refreshes it, and a score a new run changes
       // rolls to its new value. A touch context, with every /conditions answer
-      // after the first rewritten to score 42.
+      // after the first rewritten to score 42, and /list's, which carries the
+      // list's conditions (#606).
       const touch = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 2, hasTouch: true })
       await touch.addInitScript((t) => localStorage.setItem('wt6.session.token', t), session)
       const tp = await touch.newPage()
       let rescore = false
-      await tp.route('**/api/v1/conditions/**', async (route) => {
+      await tp.route(/\/api\/v1\/(conditions\/|list$)/, async (route) => {
         const response = await route.fetch()
         const body = await response.text()
         await route.fulfill({ response, body: rescore ? body.replace(/"score":\d+/g, '"score":42') : body })
