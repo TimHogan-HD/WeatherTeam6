@@ -1,7 +1,7 @@
 import { logger } from '../logger.js'
 import { fetchWithRetry } from './openMeteo.js'
 import { readMrmsPoints, type LatLon } from './mrmsGrib.js'
-import { RAIN_NOW_MAX_AGE_MS } from '@weatherteam6/types'
+import { RAIN_NOW_MAX_AGE_MS, parseNumericRequired, type RainNow } from '@weatherteam6/types'
 
 /**
  * NOAA MRMS radar rain rate (PrecipRate, mm/hr), a CONUS frame every 2 minutes
@@ -115,4 +115,25 @@ export async function fetchRainRates(points: readonly LatLon[], now: Date = new 
 /** Tests only. */
 export function clearRainRateCache(): void {
   cached = null
+}
+
+/**
+ * `GET /rain-now`'s body for the reader's places (#313), shared with
+ * `GET /list`. `null` when there is no recent frame: an answer, not a fault,
+ * since MRMS runs late often enough that an error would read as the app broken.
+ */
+export async function rainNowFor(
+  places: readonly { id: string; lat: string; lon: string }[],
+  now: Date = new Date(),
+): Promise<RainNow | null> {
+  // `lat`/`lon` are numeric columns and arrive from the driver as strings.
+  const rates = await fetchRainRates(
+    places.map((p) => ({ lat: parseNumericRequired(p.lat), lon: parseNumericRequired(p.lon) })),
+    now,
+  )
+  if (rates === null) return null
+  return {
+    valid_at: rates.validAt.toISOString(),
+    places: places.map((p, i) => ({ location_id: p.id, rate_mm_h: rates.ratesMmH[i] ?? null })),
+  }
 }

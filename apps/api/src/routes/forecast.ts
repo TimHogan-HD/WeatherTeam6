@@ -3,8 +3,7 @@ import { and, eq } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { locations } from '../db/schema.js'
 import { isUuid, sendServerError } from '../lib/http.js'
-import { computeLiveForecast } from '../lib/scoring/liveForecast.js'
-import { toWindowedForecast } from '../lib/scoring/forecastWindow.js'
+import { windowedForecastFor } from '../lib/scoring/windowedForecast.js'
 import type { ApiResponse, ForecastSnapshot } from '@weatherteam6/types'
 
 export const forecastRouter = Router()
@@ -43,12 +42,8 @@ forecastRouter.get('/forecast/:locationId', async (req: Request, res: Response) 
       return
     }
 
-    // `todayStr` comes back from the compute rather than being derived here: it
-    // is the *location's* local day, which this route has no way to know (#33).
-    const { snapshots, todayStr } = await computeLiveForecast(location)
-
     const response: ApiResponse<ForecastSnapshot[]> = {
-      data: toWindowedForecast(snapshots, todayStr),
+      data: await windowedForecastFor(location),
       error: null,
       status: 200,
     }

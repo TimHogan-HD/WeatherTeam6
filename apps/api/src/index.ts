@@ -6,6 +6,7 @@ import { cpuLogMiddleware } from './middleware/cpuLog.js';
 import { healthRouter } from './routes/health.js';
 import { locationsRouter } from './routes/locations.js';
 import { conditionsRouter } from './routes/conditions.js';
+import { listRouter } from './routes/list.js';
 import { forecastRouter } from './routes/forecast.js';
 import { hourlyRouter } from './routes/hourly.js';
 import { alertsRouter } from './routes/alerts.js';
@@ -114,6 +115,7 @@ export function createApp(): Express {
     '/api/v1',
     requireApiAuth,
     locationsRouter,
+    listRouter,
     conditionsRouter,
     forecastRouter,
     hourlyRouter,

@@ -699,6 +699,32 @@ export type RainNow = {
   }[]
 }
 
+/**
+ * One saved place's parts of `GET /list` (#606). **Each part is its own
+ * envelope**, with the status the per-crag route would have answered: a part
+ * that failed or ran past the time limit (504) is an error for that card alone,
+ * and the client asks the per-crag route for it. `alerts.data` of `[]` means
+ * "no active alerts"; a failed read is never `[]`.
+ *
+ * `conditions` is `null` for a place that is not a crag: no score is asked for.
+ */
+export type ListPlace = {
+  location_id: string
+  forecast: ApiResponse<ForecastSnapshot[]>
+  alerts: ApiResponse<WeatherAlert[]>
+  conditions: ApiResponse<Conditions> | null
+}
+
+/**
+ * `GET /list`: what `/forecast/:id`, `/alerts/:id` and `/conditions/:id` answer
+ * for every one of the caller's places, and `/rain-now`, in one request, so
+ * the Conditions list and the Map cost one serverless start instead of ~20.
+ */
+export type ListResponse = {
+  places: ListPlace[]
+  rain_now: ApiResponse<RainNow | null>
+}
+
 export * from './areaRock.js'
 export * from './riverGauges.js'
 export * from './soilStations.js'

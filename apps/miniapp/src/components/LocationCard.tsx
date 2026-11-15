@@ -64,12 +64,15 @@ const small: CSSProperties = { ...typeV2.rowSmall, display: 'block' }
 export function LocationCard({
   location,
   remembered,
+  listSettled,
   onOpen,
   index,
 }: {
   location: Location
   /** What this row showed last time on this device, drawn until all three live answers are in. */
   remembered: RememberedCard | undefined
+  /** False while the list's one request is in flight: this card's own weather queries wait for it (#606). */
+  listSettled: boolean
   onOpen: (id: string) => void
   /** The row's place in the list: the first has no rule above it, and each rises a step after the one above. */
   index: number
@@ -80,11 +83,11 @@ export function LocationCard({
   const [riseAt] = useState(() => (flyingCragId() === location.id ? null : index))
   const rise = riseAt === null ? undefined : ({ '--wt6-i': riseAt } as CSSProperties)
   const queryClient = useQueryClient()
-  const forecast = useForecast(location.id)
-  const alerts = useAlerts(location.id)
-  const conditions = useConditions(location.id, location.is_climbing_location)
+  const forecast = useForecast(location.id, listSettled)
+  const alerts = useAlerts(location.id, listSettled)
+  const conditions = useConditions(location.id, location.is_climbing_location, listSettled)
   const hourly = useQuery({ ...hourlyQuery(location.id), enabled: !location.is_climbing_location })
-  const rainNow = useRainNow()
+  const rainNow = useRainNow(listSettled)
   const now = useNow()
 
   // A non-crag's conditions query is disabled and stays pending forever.
