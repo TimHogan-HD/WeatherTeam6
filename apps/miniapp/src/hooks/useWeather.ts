@@ -190,29 +190,35 @@ export function coveredByList(queryClient: QueryClient, queryKey: readonly unkno
 
 /**
  * Writes every part of a `/list` answer that came back 200 into its per-place
- * key, stamped `updatedAt`. A failed or timed-out part is left alone, so that
- * card's own query fetches it; nothing is written as a stand-in for it. A
- * place that is not a crag carries no conditions part and gets no entry.
+ * key, stamped `updatedAt`. Nothing is written as a stand-in for a failed or
+ * timed-out part: an answer already held for it is **marked stale** instead,
+ * so that card's own query fetches it once the list settles. Left fresh, a
+ * card would keep an answer from before a pull while the pull read as done.
+ * A place that is not a crag carries no conditions part and gets no entry.
  */
 export function seedList(queryClient: QueryClient, body: ListResponse, updatedAt: number): void {
   const opts = { updatedAt }
+  const missed = (queryKey: readonly unknown[]) => queryClient.getQueryCache().find({ queryKey, exact: true })?.invalidate()
   for (const place of body.places) {
     const id = place.location_id
+    const forecastKey = forecastQuery(id).queryKey
+    const alertsKey = alertsQuery(id).queryKey
+    const conditionsKey = conditionsQuery(id, true).queryKey
     if (place.forecast.status === 200 && place.forecast.data !== null) {
-      queryClient.setQueryData(forecastQuery(id).queryKey, place.forecast.data, opts)
-    }
+      queryClient.setQueryData(forecastKey, place.forecast.data, opts)
+    } else missed(forecastKey)
     if (place.alerts.status === 200 && place.alerts.data !== null) {
-      queryClient.setQueryData(alertsQuery(id).queryKey, place.alerts.data, opts)
-    }
+      queryClient.setQueryData(alertsKey, place.alerts.data, opts)
+    } else missed(alertsKey)
     // `data: null` on a 200 is `/conditions`' own documented answer, kept as is.
     if (place.conditions !== null && place.conditions.status === 200) {
-      queryClient.setQueryData(conditionsQuery(id, true).queryKey, place.conditions.data, opts)
-    }
+      queryClient.setQueryData(conditionsKey, place.conditions.data, opts)
+    } else if (place.conditions !== null) missed(conditionsKey)
   }
   // `null` is "no recent radar frame", an answer `/rain-now` gives too.
   if (body.rain_now.status === 200) {
     queryClient.setQueryData(rainNowQuery().queryKey, body.rain_now.data, opts)
-  }
+  } else missed(rainNowQuery().queryKey)
 }
 
 /**

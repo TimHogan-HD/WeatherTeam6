@@ -69,6 +69,23 @@ describe('seedList', () => {
     expect(qc.getQueryState(alertsQuery('crag').queryKey)?.dataUpdatedAt).toBe(500)
   })
 
+  it('marks that older answer stale, so its card asks for it once the list settles', () => {
+    const qc = new QueryClient()
+    // Fetched a minute before the list: still fresh by the clock.
+    qc.setQueryData(forecastQuery('crag').queryKey, FORECAST, { updatedAt: 999_000 })
+    qc.setQueryData(alertsQuery('crag').queryKey, ALERTS, { updatedAt: 999_000 })
+    qc.setQueryData(rainNowQuery().queryKey, RAIN, { updatedAt: 999_000 })
+    seedList(
+      qc,
+      body({ places: [{ location_id: 'crag', forecast: failed(504), alerts: ok(ALERTS), conditions: null }], rain_now: failed(500) }),
+      1_000_000,
+    )
+    expect(qc.getQueryState(forecastQuery('crag').queryKey)?.isInvalidated).toBe(true)
+    expect(qc.getQueryState(rainNowQuery().queryKey)?.isInvalidated).toBe(true)
+    // An answered part is fresh, not invalidated.
+    expect(qc.getQueryState(alertsQuery('crag').queryKey)?.isInvalidated).toBe(false)
+  })
+
   it('gives a city no conditions entry', () => {
     const qc = new QueryClient()
     seedList(qc, body(), 1_000)
