@@ -198,7 +198,7 @@
       "water_features": null,
       "shelter": null,
       "aspect": {
-        "value": "Owner's watch compass, facing each wall, 2026-11-15: Drill Wall 184°, Sax Wall ~270°, Diagonals Wall 175°, Sigma Wall 135°. Lidar (sun:walls, 2026-11-16) gives 198°, 259°, 185° and 157°. Diagonals, Sax and Drill form a Z: Sax is a 50-60 ft west-facing corner between the two south faces, and the owner finds it barely colder than its sunny neighbours. Leafless trees cast only thin striped shade in November; summer shade is unrecorded. Drill Wall's OpenBeta point was ~165 m off and was moved by the owner to the face (46.13651, -92.85918).",
+        "value": "Owner's watch compass, facing each wall, 2026-11-15: Drill Wall 184°, Sax Wall ~270°, Diagonals Wall 175°, Sigma Wall 135°. Lidar (sun:walls, 2026-11-16) gives 198°, 259°, 185° and 157°. Diagonals, Sax and Drill form a Z: Sax is a 50-60 ft west-facing corner between the two south faces, and the owner finds it barely colder than its sunny neighbours. Leafless trees cast only thin striped shade in November; summer shade is unrecorded. Sun walls are the six rock walls only (owner, 2026-11-16): the ice park walls and boulders are not timed. Drill Wall's OpenBeta point was ~165 m off and was moved by the owner to the face (46.13651, -92.85918).",
         "source": "owner field report 2026-11-15/16 (photos and compass, PR for Robinson Park sun_confirmed)",
         "confidence": "C"
       },
