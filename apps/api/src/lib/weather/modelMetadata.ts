@@ -19,7 +19,12 @@ import { DETERMINISTIC_MODELS, fetchWithRetry, type DeterministicModel } from '.
  *
  * `cmc_gem_gdps` and `cmc_gem_rdps` both stopped updating in May 2026 while the
  * models carried on as `cmc_gem_gdps_15km` and `cmc_gem_rdps_10km` (measured
- * 2026-09-28). A retired name reads as "no new run, ever". Two things stop that
+ * 2026-09-28). The three ICON ensemble datasets did the same on 2026-10-06:
+ * `dwd_icon_eps`, `dwd_icon_eu_eps` and `dwd_icon_d2_eps` froze while the
+ * models carried on as `dwd_icon_global_eps_native`, `dwd_icon_eu_eps_native`
+ * and `dwd_icon_d2_eps_native` (measured 2026-11-16, #601; the bucket listing
+ * at `openmeteo.s3.amazonaws.com/?list-type=2&delimiter=/&prefix=data/` names
+ * every dataset). A retired name reads as "no new run, ever". Two things stop that
  * from freezing a forecast: `REFETCH_BACKSTOP_MS` refetches regardless, and
  * `staleSources` names the entry on every collection so the rename shows up in
  * the cron's own response rather than in a forecast someone notices is old.
@@ -51,9 +56,9 @@ export const MODEL_SOURCES: Readonly<Record<CollectedModel, readonly MetadataSou
     e('ncep_gefs025'),
     e('ncep_gefs05'),
     e('ecmwf_ifs025_ensemble'),
-    e('dwd_icon_eps'),
-    e('dwd_icon_eu_eps'),
-    e('dwd_icon_d2_eps'),
+    e('dwd_icon_global_eps_native'),
+    e('dwd_icon_eu_eps_native'),
+    e('dwd_icon_d2_eps_native'),
     e('cmc_gem_geps'),
   ],
 }
