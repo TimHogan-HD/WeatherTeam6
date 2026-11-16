@@ -8,12 +8,12 @@
  * Why a script: the rules are unit-tested in `updatePreferences.test.ts`, but
  * what matters here only appears against Postgres — the upsert's first insert
  * and later update, a null that clears a stored end, a 409 that must not have
- * written, one account's settings never reaching another, and `/hourly` still
- * answering once it reads the settings table.
+ * written, one account's settings never reaching another, and the readings
+ * scoring a crag on the settings the reader saved.
  *
  * Creates two throwaway users (never the owner's account, whose settings are
- * real) and one location, and removes all of it in `finally`. The `/hourly`
- * step makes upstream weather calls.
+ * real) and removes them in `finally`. It makes no upstream weather call, so CI
+ * runs it with the database checks.
  *
  * console rather than the logger is deliberate — the output is the result.
  */
@@ -23,7 +23,6 @@ import {
   fToC,
   needsSetup,
   type ApiResponse,
-  type HourlySeries,
   type Preferences,
   type SetupPreview,
 } from '@weatherteam6/types'
@@ -37,9 +36,6 @@ const TOKEN_SECRET = 'local-acceptance-token-secret'
 
 const PREFIX = 'zz-check-preferences'
 const STAMP = Date.now()
-
-/** Taylors Falls — a known crag, so its rock type is settled. */
-const CRAG = { lat: '45.3955', lon: '-92.6616' }
 
 let passed = 0
 let failed = 0
@@ -93,7 +89,8 @@ async function run(): Promise<void> {
 
   const { createApp } = await import('../index.js')
   const { db, pool } = await import('../db/index.js')
-  const { users, locations, userPreferences } = await import('../db/schema.js')
+  const { users, userPreferences } = await import('../db/schema.js')
+  const { readerScoringFor } = await import('../lib/preferences/preferences.js')
   const { hashPassword } = await import('../lib/auth/password.js')
   const { signToken, expiryFrom } = await import('../lib/auth/token.js')
   const { inArray } = await import('drizzle-orm')
@@ -103,7 +100,6 @@ async function run(): Promise<void> {
   await new Promise<void>((resolve) => server.once('listening', resolve))
 
   const createdUserIds: string[] = []
-  const createdLocationIds: string[] = []
 
   try {
     for (const who of ['a', 'b']) {
@@ -224,19 +220,27 @@ async function run(): Promise<void> {
       JSON.stringify(other.payload.data),
     )
 
-    console.log('\nThe readings read the settings')
-    const loc = await db
-      .insert(locations)
-      .values({ user_id: idA, name: `ZZ preferences check ${STAMP}`, ...CRAG, is_climbing_location: true })
-      .returning({ id: locations.id })
-    const locationId = loc[0]?.id
-    if (locationId === undefined) throw new Error('could not create the location')
-    createdLocationIds.push(locationId)
-    const hourly = await call<HourlySeries>('GET', `/hourly/${locationId}`, tokenA)
+    // What `/hourly`, `/conditions` and `/list` score a crag with. Read here rather than
+    // through `/hourly`, which on a new crag fetches Open-Meteo: CI runs this script with no
+    // upstream (#600 timeouts turned it red), and the fetch is not what this checks.
+    // A has saved a low end and cleared its high end; B has saved nothing. Compared with
+    // each other so the check does not restate the defaults. This covers the stored settings
+    // resolving, not a route passing `req.userId`: a crag route cannot be reached here
+    // without the fetch, and a non-crag never reads the settings.
+    console.log("\nThe reader's scoring settings")
+    const scoringA = await readerScoringFor(idA)
+    const scoringB = await readerScoringFor(idB)
     check(
-      '/hourly answers for a crag whose owner has saved a range',
-      hourly.status === 200 && hourly.payload.data?.readings !== undefined,
-      `${hourly.status} ${String(hourly.payload.error)}`,
+      "the stored settings resolve to the reader's saved low end",
+      close(scoringA.range.lowC, fToC(15)) && !close(scoringB.range.lowC, fToC(15)),
+      JSON.stringify({ a: scoringA.range, b: scoringB.range }),
+    )
+    check(
+      'and to the defaults for the end they cleared and the hours they never set',
+      scoringA.range.highC === scoringB.range.highC &&
+        scoringA.climbHours.first === scoringB.climbHours.first &&
+        scoringA.climbHours.last === scoringB.climbHours.last,
+      JSON.stringify({ a: scoringA, b: scoringB }),
     )
   } catch (err) {
     failed++
@@ -244,9 +248,6 @@ async function run(): Promise<void> {
   } finally {
     let cleaned = true
     try {
-      if (createdLocationIds.length > 0) {
-        await db.delete(locations).where(inArray(locations.id, createdLocationIds))
-      }
       if (createdUserIds.length > 0) {
         await db.delete(userPreferences).where(inArray(userPreferences.user_id, createdUserIds))
         await db.delete(users).where(inArray(users.id, createdUserIds))
@@ -257,8 +258,8 @@ async function run(): Promise<void> {
     }
     console.log(
       cleaned
-        ? '\n  cleaned up the test users, their settings and their location'
-        : `\n  COULD NOT CLEAN UP — remove the users named "${PREFIX}-*", their user_preferences rows and location by hand`,
+        ? '\n  cleaned up the test users and their settings'
+        : `\n  COULD NOT CLEAN UP — remove the users named "${PREFIX}-*" and their user_preferences rows by hand`,
     )
     server.close()
     await pool.end()
