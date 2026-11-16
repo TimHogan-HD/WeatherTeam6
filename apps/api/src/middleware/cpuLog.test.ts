@@ -11,11 +11,16 @@ afterEach(() => {
   server = null
 })
 
-/** Burn CPU on the event loop, so a request has a known minimum cost. */
+/**
+ * Burn `ms` of process CPU on the event loop, so a request has a known minimum cost.
+ * Counted in CPU time, not wall time: a loaded runner can deschedule the process mid-spin,
+ * and a wall-clock spin then costs less CPU than the assertion expects (#602).
+ */
 function spin(ms: number): void {
-  const until = performance.now() + ms
-  while (performance.now() < until) {
-    // busy
+  const start = process.cpuUsage()
+  for (;;) {
+    const { user, system } = process.cpuUsage(start)
+    if ((user + system) / 1000 >= ms) return
   }
 }
 
