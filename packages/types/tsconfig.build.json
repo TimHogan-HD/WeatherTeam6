@@ -2,5 +2,7 @@
   // Tests stay inside src so `tsc --noEmit` typechecks them, but they must not
   // be emitted into dist and shipped to consumers. Mirrors apps/api's split.
   "extends": "./tsconfig.json",
+  // The shipped code runs in the browser too, so it gets no Node globals.
+  "compilerOptions": { "types": [] },
   "exclude": ["src/**/*.test.ts"]
 }

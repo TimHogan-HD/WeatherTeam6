@@ -43,6 +43,11 @@ updates:
       # ci.yml) does not have. Raise it by hand with the runtime.
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      # typescript-eslint 8.73 (2026-11) supports TypeScript below 6.1 and refuses
+      # 7.0 outright, so a 7.x bump fails lint in every workspace (#570). 6.0.x
+      # is still proposed. Lift this when typescript-eslint's peer range takes 7.
+      - dependency-name: "typescript"
+        versions: [">=7.0.0"]
 
   - package-ecosystem: github-actions
     directory: /

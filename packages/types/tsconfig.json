@@ -2,7 +2,9 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src"
+    "rootDir": "./src",
+    // The tests read files with node:fs. Named, because TypeScript 6+ loads no @types by default.
+    "types": ["node"]
   },
   "include": ["src/**/*.ts"]
 }
