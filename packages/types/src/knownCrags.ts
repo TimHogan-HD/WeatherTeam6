@@ -112,7 +112,7 @@ export const KNOWN_CRAGS: readonly KnownCrag[] = [
   // boulders. OpenBeta pins the parent area 11 km west of the park; `/add`
   // re-pins it here (#417, `climbingAreaRepins.ts`). Banning State Park (3 km
   // north, same rock, a separate OpenBeta area) stays outside the reach.
-  { slug: 'robinson-park', name: 'Sandstone (Robinson Park)', facts: 'Robinson Park', rock_type: 'sandstone_quartz_arenite', osm: 'way/749199562', bbox: box(46.1289399, 46.1343524, -92.8609844, -92.8568354) },
+  { slug: 'robinson-park', name: 'Sandstone (Robinson Park)', facts: 'Robinson Park', rock_type: 'sandstone_quartz_arenite', osm: 'way/749199562', bbox: box(46.1289399, 46.1343524, -92.8609844, -92.8568354), sun_confirmed: true },
   { slug: 'blue-mounds', name: 'Blue Mounds State Park', facts: 'Blue Mounds State Park', rock_type: 'quartzite', osm: 'way/188688376', bbox: box(43.6888822, 43.7249006, -96.2125406, -96.1720558) },
   // Two Blue Mounds areas OpenBeta pins outside the park: "North Quarry Area"
   // 2.5 km west of the box, and its "Kanaranzi Buttress (East Face)" 55 km

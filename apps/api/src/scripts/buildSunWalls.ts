@@ -383,11 +383,23 @@ async function skyline(g: Grid, foot: LatLon, half: number): Promise<number[]> {
 
 // ── per crag ──────────────────────────────────────────────────────────────────
 
-/** OpenBeta's walls near the crag: areas with a point and no sub-area. */
+/** Roped rock: a route that is not a boulder problem or ice. */
+const ROPED_ROCK: ReadonlySet<string> = new Set(['tr', 'trad', 'sport', 'aid'])
+
+/**
+ * OpenBeta's walls near the crag: areas with a point, no sub-area, and at least
+ * one roped rock route. Sandstone's ice park lists walls with no routes beside
+ * the rock walls, and a boulder has no one face to time (owner, 2026-11-16:
+ * only the rock walls).
+ */
 function guidebookWalls(centre: LatLon, half: number): { name: string; at: LatLon }[] {
   const parents = new Set(MN_GUIDEBOOK.map((a) => a.parent))
   return MN_GUIDEBOOK.flatMap((a) =>
-    a.lat === null || a.lon === null || parents.has(a.id) || metresBetween(centre, { lat: a.lat, lon: a.lon }) > half * 1.5
+    a.lat === null ||
+    a.lon === null ||
+    parents.has(a.id) ||
+    !a.routes.some((r) => r.kinds.some((k) => ROPED_ROCK.has(k))) ||
+    metresBetween(centre, { lat: a.lat, lon: a.lon }) > half * 1.5
       ? []
       : [{ name: a.name, at: { lat: a.lat, lon: a.lon } }],
   )
