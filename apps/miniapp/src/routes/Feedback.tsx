@@ -51,7 +51,8 @@ import {
   pickedArea,
   routeChoices,
   routeOptionLabel,
-  shownReading,
+  localHourLabel,
+  spanReading,
   stopProblem,
   stopsPayload,
   stopsSpan,
@@ -64,7 +65,7 @@ import {
 import { useGuidebook } from '../hooks/useGuidebook.js'
 import { useLocations } from '../hooks/useLocations.js'
 import { useNow } from '../hooks/useNow.js'
-import { useConditions } from '../hooks/useWeather.js'
+import { useHourly } from '../hooks/useHourly.js'
 import { useCreateFeedback, useFeedbackList, useResolveFeedback } from '../hooks/useFeedback.js'
 import { Screen } from '../components/Screen.js'
 import { Sect } from '../components/charts/liquid.js'
@@ -75,8 +76,9 @@ import { InlineError, SkeletonCards } from '../components/States.js'
  *
  * - **Forecast check**: at a crag, say what the rock was actually like and
  *   whether the app agreed. The app's own reading for that hour is attached
- *   automatically — *what the screen said* beside *what the climber saw* — and
- *   only when it describes the hour being reported (`feedbackSnapshotFor`).
+ *   automatically — *what the screen said* beside *what the climber saw* — as
+ *   the worst hour of the span climbed (`spanReading`), checked against the
+ *   observation by `feedbackSnapshotFor`.
  * - **App feedback**: free text about the app.
  *
  * `?location=<id>` preselects the crag, opens on the check, and sends back to
@@ -162,7 +164,9 @@ function ForecastCheckForm({
   // The crag's rock is its walls': their word when they agree, Mixed when not.
   const observed = cragRockOf(stops.map((s) => s.rock))
 
-  const conditions = useConditions(locationId ?? undefined, locationId === null ? undefined : true)
+  // `/hourly`, not `/conditions`: its readings hold every hour of the crag's
+  // today, so a check entered after the session still finds the hours climbed.
+  const hourly = useHourly(locationId ?? undefined)
   const guidebook = useGuidebook(locationId ?? undefined, locationId === null ? undefined : true)
   const create = useCreateFeedback()
 
@@ -173,11 +177,12 @@ function ForecastCheckForm({
   // Refused under the row, rather than sent to a 400 the screen can only
   // call a failed save.
   const problems = stops.map((s) => stopProblem(day, s, span?.fromMs ?? null, now))
-  const readingSettled = !conditions.isPending
+  const readingSettled = locationId === null || !hourly.isPending
   const snapshot =
     span === null || !readingSettled
       ? null
-      : feedbackSnapshotFor(shownReading(conditions.data), span.fromMs, span.untilMs)
+      : feedbackSnapshotFor(spanReading(hourly.data, span.fromMs, span.untilMs), span.fromMs, span.untilMs)
+  const snapshotHour = snapshot === null ? null : localHourLabel(snapshot.valid_at, hourly.data?.utc_offset_seconds)
 
   const missing = missingAnswer(stops, verdict)
   const ready =
@@ -294,14 +299,14 @@ function ForecastCheckForm({
         <Field label="The app said">
           {!readingSettled ? (
             <span style={typeV2.body}>Loading the app’s reading…</span>
-          ) : conditions.isError ? (
+          ) : hourly.isError ? (
             // A failed fetch is not "the app had no reading" — say which it was.
             <span style={typeV2.body}>Couldn’t load the app’s reading. You can still save.</span>
           ) : snapshot === null ? (
             <span style={typeV2.body}>No app reading for that time. You can still save.</span>
           ) : (
             <span style={{ ...typeV2.body, fontSize: '15px', color: colorsV2.txt1 }}>
-              {snapshot.fields.map(fieldLine).join(' · ')}
+              {[...snapshot.fields.map(fieldLine), ...(snapshotHour === null ? [] : [`at ${snapshotHour}`])].join(' · ')}
             </span>
           )}
         </Field>

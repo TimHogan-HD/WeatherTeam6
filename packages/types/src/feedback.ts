@@ -293,8 +293,9 @@ export const FORECAST_VERDICT_LABEL: Record<ForecastVerdict, string> = {
 
 /**
  * How far the observation may sit from the reading's hour and still be
- * attached to it. An hour: `readings.now` is the hour covering now, so a check
- * entered at the crag lands inside it and one entered that evening does not.
+ * attached to it. An hour: the client picks the reading from the hours of the
+ * span itself (the web app's `spanReading`), so this only guards against a
+ * reading of some other time reaching storage.
  */
 export const FEEDBACK_SNAPSHOT_TOLERANCE_MS = 60 * 60 * 1000;
 
