@@ -177,7 +177,7 @@ export const MN_CLIMBING_AREAS: readonly ClimbingArea[] = [
   {"uuid":"006e3042-33b7-526f-aa80-14ef7c677ba6","name":"Rasmussen West","parent":"Rasmussen Woods Boulders","parent_id":"9718330f-101b-5e40-aede-6ed7ac5e8ef3","climbs":5,"lat":44.14538,"lon":-94.01806},
   {"uuid":"1379c869-dff5-5418-a6d6-6a3d0bd18669","name":"South Face","parent":"Carlton Peak","parent_id":"79c1f59c-c577-5334-9134-32a268569357","climbs":5,"lat":47.58307,"lon":-90.86044},
   {"uuid":"2c102451-1c02-5e2b-aee2-437485f74848","name":"Lower Huber","parent":"Hubers, The","parent_id":"73484a7f-14ee-5e5b-b473-f2c2808f443e","climbs":5,"lat":46.75853,"lon":-92.15878},
-  {"uuid":"532e5716-0692-56e6-add6-51c9daa3f624","name":"Main Flow Area","parent":"Robinson Park","parent_id":"4bd2d531-0b0b-5683-ada5-5e92d3bf3494","climbs":5,"lat":46.13475,"lon":-92.85946},
+  {"uuid":"532e5716-0692-56e6-add6-51c9daa3f624","name":"Main Flow Area","parent":"Robinson Park","parent_id":"4bd2d531-0b0b-5683-ada5-5e92d3bf3494","climbs":5,"lat":46.13472,"lon":-92.85985},
   {"uuid":"65a76d17-2690-5e77-a7b9-95ab30ab5210","name":"Upper Wall","parent":"Postpartum Wall","parent_id":"9c99b447-8482-5623-9a2a-53c2a0e31301","climbs":5,"lat":46.7669,"lon":-92.1525},
   {"uuid":"6d10bf94-f41f-5155-b6a5-e75b3e8ca2fe","name":"Bruce Lee Wall","parent":"Kung Fu Boulders","parent_id":"c04a6e26-79bb-50d5-837a-bda7cda9b29e","climbs":5,"lat":44.6634,"lon":-95.3196},
   {"uuid":"736ebc28-b2b6-5552-a4ab-dcee758a73a3","name":"Judson Bottom Road","parent":"Mankato Area Bouldering (Mankato)","parent_id":"267e17a2-21f0-57ec-a5c2-c2ff4c3649cc","climbs":5,"lat":44.16296,"lon":-94.04513},
