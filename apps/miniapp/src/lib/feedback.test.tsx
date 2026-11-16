@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import type { ConditionsReadings, Conditions, Feedback, ForecastStop, GuidebookRoute, GuidebookWall, HourlyReading } from '@weatherteam6/types'
+import type { Feedback, ForecastStop, GuidebookRoute, GuidebookWall, HourlyReading, HourlyReadings, HourlySeries } from '@weatherteam6/types'
 import {
   OTHER_AREA,
   draftLine,
@@ -9,13 +9,14 @@ import {
   firstStopTime,
   fromLocalInputValue,
   initialCheckDay,
+  localHourLabel,
   missingAnswer,
   pickRoute,
   pickSun,
   pickWall,
   routeChoices,
   routeOptionLabel,
-  shownReading,
+  spanReading,
   stopProblem,
   stopsPayload,
   stopsSpan,
@@ -27,6 +28,9 @@ import {
 import { HistoryItem } from '../routes/Feedback.js'
 
 const NOW = '2026-09-29T18:00:00.000Z'
+const H = 3600_000
+const NOW_MS = Date.parse(NOW)
+const at = (ms: number): string => new Date(ms).toISOString()
 
 const reading: HourlyReading = {
   valid_at: NOW,
@@ -37,27 +41,35 @@ const reading: HourlyReading = {
   condensation_margin_c: 20,
 }
 
-function scored(readings: Partial<ConditionsReadings> | null = {}): Conditions {
-  const base = { location_id: 'loc', forecast_date: '2026-09-29' }
+/** Hours from `NOW - 6h` to `NOW + 3h`, every one scored 90 unless `scores` says otherwise. */
+function series(
+  scores: Record<number, number | null> = {},
+  readings: Partial<HourlyReadings> | null = {},
+): Pick<HourlySeries, 'readings' | 'utc_offset_seconds'> {
   // `null` is an older API that sent no readings at all, which the type no
   // longer admits — hence the cast.
-  if (readings === null) return base as unknown as Conditions
+  if (readings === null) return { utc_offset_seconds: -5 * 3600 } as unknown as Pick<HourlySeries, 'readings' | 'utc_offset_seconds'>
+  const hours: HourlyReading[] = []
+  for (let k = -6; k <= 3; k++) {
+    const score = k in scores ? (scores[k] ?? null) : 90
+    hours.push({ ...reading, valid_at: at(NOW_MS + k * H), score })
+  }
   return {
-    ...base,
+    utc_offset_seconds: -5 * 3600,
     readings: {
       model: 'gfs_seamless',
+      rain_models: null,
       unavailable_reason: null,
-      utc_offset_seconds: 0,
-      now: reading,
-      today: null,
+      hours,
+      days: [],
       ...readings,
     },
   }
 }
 
-describe('shownReading', () => {
-  it('captures the words and the score the card prints, with the reading’s own hour and model', () => {
-    const r = shownReading(scored())
+describe('spanReading', () => {
+  it('captures the words and the score a screen prints, with the hour’s own instant and model', () => {
+    const r = spanReading(series({ 0: 58 }), NOW_MS, NOW_MS)
     expect(r?.valid_at).toBe(NOW)
     expect(r?.model).toBe('gfs_seamless')
     expect(r?.fields.map((f) => f.label)).toEqual(['Dryness', 'Score'])
@@ -65,17 +77,61 @@ describe('shownReading', () => {
   })
 
   it('never carries a 0-1 factor — values are words or the score', () => {
-    const r = shownReading(scored())
+    const r = spanReading(series(), NOW_MS - 2 * H, NOW_MS)
     for (const f of r?.fields ?? []) expect(f.value).not.toMatch(/^0\.\d+$/)
   })
 
-  it('attaches nothing when there is nothing on screen', () => {
-    expect(shownReading(null)).toBeNull()
-    expect(shownReading(undefined)).toBeNull()
-    // An older API with no `readings` field at all.
-    expect(shownReading(scored(null))).toBeNull()
-    expect(shownReading(scored({ now: null }))).toBeNull()
-    expect(shownReading(scored({ unavailable_reason: 'model_unavailable' }))).toBeNull()
+  it('reads hours that were over before the check was entered (2026-11-15: entered at 20:32, attached nothing)', () => {
+    // Climbed 10:30 to 16:30 local, entered that evening: every hour is in the past.
+    const r = spanReading(series({ [-5]: 70 }), NOW_MS - 5.5 * H, NOW_MS - 2.5 * H)
+    expect(r?.valid_at).toBe(at(NOW_MS - 5 * H))
+    expect(r?.fields.find((f) => f.label === 'Score')?.value).toBe('70')
+  })
+
+  it('is the span’s worst hour, not the first, the last or the best', () => {
+    const r = spanReading(series({ [-4]: 95, [-3]: 61, [-2]: 88 }), NOW_MS - 4 * H, NOW_MS - 2 * H)
+    expect(r?.valid_at).toBe(at(NOW_MS - 3 * H))
+    expect(r?.fields.find((f) => f.label === 'Score')?.value).toBe('61')
+  })
+
+  it('takes the hour in progress at the start and none after the finish', () => {
+    // 8:30 to 10:00 local: the 8, 9 and 10 o'clock hours. 7:00 and 11:00 are outside it.
+    const from = NOW_MS - 4.5 * H
+    const until = NOW_MS - 3 * H
+    expect(spanReading(series({ [-6]: 10 }), from, until)?.fields.find((f) => f.label === 'Score')?.value).toBe('90')
+    expect(spanReading(series({ [-2]: 10 }), from, until)?.fields.find((f) => f.label === 'Score')?.value).toBe('90')
+    expect(spanReading(series({ [-5]: 10 }), from, until)?.valid_at).toBe(at(NOW_MS - 5 * H))
+    expect(spanReading(series({ [-3]: 10 }), from, until)?.valid_at).toBe(at(NOW_MS - 3 * H))
+  })
+
+  it('withholds the span when any hour in it is unread, rather than the worst of the rest', () => {
+    expect(spanReading(series({ [-3]: null }), NOW_MS - 4 * H, NOW_MS - 2 * H)).toBeNull()
+    // An unread hour outside the span does not.
+    expect(spanReading(series({ [-6]: null }), NOW_MS - 4 * H, NOW_MS - 2 * H)).not.toBeNull()
+  })
+
+  it('attaches nothing for a span the readings do not reach, such as an earlier day', () => {
+    expect(spanReading(series(), NOW_MS - 30 * H, NOW_MS - 26 * H)).toBeNull()
+  })
+
+  it('attaches nothing when there is nothing to read', () => {
+    expect(spanReading(null, NOW_MS, NOW_MS)).toBeNull()
+    expect(spanReading(undefined, NOW_MS, NOW_MS)).toBeNull()
+    expect(spanReading(series({}, null), NOW_MS, NOW_MS)).toBeNull()
+    expect(spanReading(series({}, { unavailable_reason: 'model_unavailable' }), NOW_MS, NOW_MS)).toBeNull()
+    expect(spanReading(series(), Number.NaN, NOW_MS)).toBeNull()
+  })
+})
+
+describe('localHourLabel', () => {
+  it('reads the hour on the location’s clock, not UTC', () => {
+    expect(localHourLabel(NOW, -5 * 3600)).toBe('1 pm')
+  })
+
+  it('is null rather than a guessed clock when the offset or instant is unknown', () => {
+    expect(localHourLabel(NOW, undefined)).toBeNull()
+    expect(localHourLabel(NOW, null)).toBeNull()
+    expect(localHourLabel('not a time', 0)).toBeNull()
   })
 })
 

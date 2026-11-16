@@ -9,9 +9,11 @@ import {
   SUN_EXPOSURE_LABEL,
   WALL_ANGLE_LABEL,
   fieldLine,
+  hourLabel,
   summarizeReadings,
-  type Conditions,
   type Feedback,
+  type HourlyReading,
+  type HourlySeries,
   type ForecastStop,
   type ForecastVerdict,
   type GuidebookRoute,
@@ -25,33 +27,67 @@ import {
   type WallAngle,
 } from '@weatherteam6/types'
 
+const HOUR_MS = 3_600_000
+
 /**
- * What the Conditions card shows for a crag right now, as the fields a forecast
- * check stores beside the climber's observation.
+ * The crag's reading for the hours a check covers, as the fields it stores
+ * beside the climber's observation.
+ *
+ * **The span's worst hour**, the house rule for any block of hours
+ * (`readings.md`): the hours whose stamp falls after the hour before `fromMs`
+ * and no later than `untilMs`. Any of them unread withholds the snapshot,
+ * because the worst of the rest could be better than the missing one. It
+ * reads `/hourly`, whose readings hold every hour of the location's today, so
+ * a check entered that evening still carries the reading of the hours climbed
+ * (2026-11-15's Sandstone check, entered at 20:32, attached nothing when this
+ * read only the hour covering now). A day before today is not in the readings
+ * and gets nothing. `valid_at` names the hour, and the row's `created_at`
+ * says whether that hour had already passed when it was read.
  *
  * **The same `summarizeReadings` call the card makes**, so the snapshot is the
- * words on screen and nothing else: `Dryness`, `Friction`, and `Score` only
- * when the card would print it — a Severe+ alert drops the number there and
- * drops it here. The day's `Good hours` window is not a reading of now and is
- * left out.
+ * words a screen prints and nothing else: `Dryness`, and `Score` when there is
+ * one. The day's `Good hours` window is not an hour's reading and is left out.
  *
- * `null` when there is nothing to attach: no row, readings absent from an older
- * API, a named unavailable reason, or a run that does not reach this hour.
- * `feedbackSnapshotFor` then decides whether the hour matches the observation.
+ * `null` when there is nothing to attach: no series, readings absent from an
+ * older API, a named unavailable reason, no hour in the span, or an unread
+ * hour. `feedbackSnapshotFor` then checks the hour against the observation.
  */
-export function shownReading(
-  conditions: Conditions | null | undefined,
+export function spanReading(
+  series: Pick<HourlySeries, 'readings' | 'utc_offset_seconds'> | null | undefined,
+  fromMs: number,
+  untilMs: number,
 ): { valid_at: string; model: string | null; fields: ReadingField[] } | null {
-  const r = conditions?.readings
-  if (r === undefined || r === null || r.now === null || r.unavailable_reason !== null) return null
+  const r = series?.readings
+  if (r === undefined || r === null || r.unavailable_reason !== null) return null
+  if (!Number.isFinite(fromMs) || !Number.isFinite(untilMs)) return null
+  let worst: HourlyReading | null = null
+  for (const h of r.hours) {
+    const t = Date.parse(h.valid_at)
+    if (!Number.isFinite(t) || t <= fromMs - HOUR_MS || t > untilMs) continue
+    if (h.score === null) return null
+    if (worst === null || worst.score === null || h.score < worst.score) worst = h
+  }
+  if (worst === null) return null
   const summary = summarizeReadings({
-    reading: r.now,
+    reading: worst,
     window: null,
-    utcOffsetSeconds: r.utc_offset_seconds,
+    // Feeds only the window field, which is null here; no clock time is printed from it.
+    utcOffsetSeconds: series?.utc_offset_seconds ?? 0,
     unavailableReason: null,
   })
   const fields = summary.scoreField === null ? summary.readings : [...summary.readings, summary.scoreField]
-  return { valid_at: r.now.valid_at, model: r.model, fields }
+  return { valid_at: worst.valid_at, model: r.model, fields }
+}
+
+/**
+ * `2 pm` for an instant on the location's own clock, or `null` when the
+ * instant or the offset is unknown — never the device's clock or UTC in its
+ * place (#33).
+ */
+export function localHourLabel(validAt: string, utcOffsetSeconds: number | null | undefined): string | null {
+  const t = Date.parse(validAt)
+  if (!Number.isFinite(t) || utcOffsetSeconds === null || utcOffsetSeconds === undefined) return null
+  return hourLabel(new Date(t + utcOffsetSeconds * 1000).getUTCHours())
 }
 
 const pad = (n: number): string => String(n).padStart(2, '0')
