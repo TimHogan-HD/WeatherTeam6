@@ -136,6 +136,7 @@ const none = (reason: ReadingsUnavailableReason): HourlyReadings => ({
   hours: [],
   days: [],
   rock_history: [],
+  yesterday_hours: [],
   past_days: [],
   walls: [],
 })
@@ -229,6 +230,19 @@ function pastHours<H extends HourlyConditions>(
 
 function historyRock(past: ReturnType<typeof pastHours>): RockHistoryHour[] {
   return past.map((p) => ({ valid_at: p.hour.valid_at, rock: p.rockKnown ? p.hour.rock : null }))
+}
+
+/**
+ * The local day before the window, as full readings, for the forecast check
+ * entered the next day (`HourlyReadings.yesterday_hours`). An hour whose rock
+ * rests on the walk's starting guess is left out, never published as read.
+ */
+function yesterdayHours(past: ReturnType<typeof pastHours<CragAHour>>, firstDate: string | undefined): HourlyReading[] {
+  if (firstDate === undefined) return []
+  const dayMs = Date.parse(`${firstDate}T00:00:00Z`)
+  if (!Number.isFinite(dayMs)) return []
+  const yesterday = new Date(dayMs - 86_400_000).toISOString().slice(0, 10)
+  return past.filter((p) => p.date === yesterday && p.rockKnown).map((p) => toReading(p.hour))
 }
 
 /**
@@ -416,6 +430,7 @@ export function buildHourlyReadings(input: BuildReadingsInput): HourlyReadings {
     hours: windowed.map(toReading),
     days,
     rock_history,
+    yesterday_hours: yesterdayHours(past, input.dates[0]),
     past_days: pastDays(past, weather, input.utcOffsetSeconds, climbHours),
     walls: buildWallReadings({
       weather,

@@ -185,6 +185,34 @@ describe('the trailing history', () => {
     expect(history.some((h) => inWindow.has(h.valid_at))).toBe(false)
   })
 
+  it('publishes the day before the window as full readings, for a check entered the next day', () => {
+    const out = buildHourlyReadings(input())
+    const yesterday = out.yesterday_hours ?? []
+    // The 20th, the day before the window's first date, and nothing else.
+    expect(yesterday.length).toBeGreaterThan(0)
+    expect(yesterday.every((h) => h.valid_at.startsWith('2026-09-20'))).toBe(true)
+    // A full reading, score included, unlike the rock-only history.
+    expect(yesterday.every((h) => 'score' in h && 'friction' in h)).toBe(true)
+    expect(yesterday.some((h) => h.score !== null)).toBe(true)
+    // Every published hour has a known rock state; the history agrees hour by hour.
+    const history = new Map((out.rock_history ?? []).map((h) => [h.valid_at, h.rock]))
+    for (const h of yesterday) expect(history.get(h.valid_at)).toEqual(h.rock)
+  })
+
+  it('leaves out of the day before the window any hour whose rock rests on the walk’s starting guess', () => {
+    // History starts at 12:00 on the 19th on slow-drying rock, so the walk's
+    // "it just rained" start is still drying through yesterday: those hours are
+    // the guess talking, and the history publishes them as unread.
+    const out = buildHourlyReadings(
+      input({ deterministic: deterministic([model(THERMAL_MODEL, runHours(48, 48))]), rockType: 'sandstone' }),
+    )
+    const history = (out.rock_history ?? []).filter((h) => h.valid_at.startsWith('2026-09-20'))
+    const unread = history.filter((h) => h.rock === null).map((h) => h.valid_at)
+    expect(unread.length).toBeGreaterThan(0)
+    const published = new Set((out.yesterday_hours ?? []).map((h) => h.valid_at))
+    for (const at of unread) expect(published.has(at)).toBe(false)
+  })
+
   it('keeps an hour the model could not read as null, never as dry', () => {
     const history = buildHourlyReadings(input()).rock_history ?? []
     // The first hours of the walk precede T_mass's span: there is no reading yet.
