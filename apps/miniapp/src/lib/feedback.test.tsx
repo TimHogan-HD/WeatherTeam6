@@ -114,6 +114,32 @@ describe('spanReading', () => {
     expect(spanReading(series(), NOW_MS - 30 * H, NOW_MS - 26 * H)).toBeNull()
   })
 
+  /** Yesterday's hours, `NOW - 30h` to `NOW - 7h`, every one scored 80 unless `scores` says otherwise. */
+  const yesterday = (scores: Record<number, number | null> = {}): HourlyReading[] => {
+    const out: HourlyReading[] = []
+    for (let k = -30; k <= -7; k++) out.push({ ...reading, valid_at: at(NOW_MS + k * H), score: k in scores ? (scores[k] ?? null) : 80 })
+    return out
+  }
+
+  it('reads a span from the day before, entered the next day', () => {
+    const r = spanReading(series({}, { yesterday_hours: yesterday({ [-27]: 64 }) }), NOW_MS - 29.5 * H, NOW_MS - 26 * H)
+    expect(r?.valid_at).toBe(at(NOW_MS - 27 * H))
+    expect(r?.fields.find((f) => f.label === 'Score')?.value).toBe('64')
+  })
+
+  it('reads a span that runs across the crag’s midnight from both days', () => {
+    const r = spanReading(series({ [-5]: 55 }, { yesterday_hours: yesterday() }), NOW_MS - 8.5 * H, NOW_MS - 5 * H)
+    expect(r?.valid_at).toBe(at(NOW_MS - 5 * H))
+    // Yesterday's worse hour wins just the same.
+    const s = spanReading(series({}, { yesterday_hours: yesterday({ [-8]: 40 }) }), NOW_MS - 8.5 * H, NOW_MS - 5 * H)
+    expect(s?.valid_at).toBe(at(NOW_MS - 8 * H))
+  })
+
+  it('withholds a span from the day before when an hour of it was left out as unread', () => {
+    const gappy = yesterday().filter((h) => h.valid_at !== at(NOW_MS - 27 * H))
+    expect(spanReading(series({}, { yesterday_hours: gappy }), NOW_MS - 29.5 * H, NOW_MS - 26 * H)).toBeNull()
+  })
+
   it('withholds a span the readings reach only part of, rather than the worst of the hours they hold', () => {
     // Starts two hours before the readings' first hour (NOW - 6h), as a span before the crag's midnight does.
     expect(spanReading(series(), NOW_MS - 8 * H, NOW_MS - 4 * H)).toBeNull()

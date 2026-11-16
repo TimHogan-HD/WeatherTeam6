@@ -26,7 +26,10 @@ What a reading may say, where it comes from, and what the client may assume of t
   only. A history hour is published only once it no longer rests on the walk's "it just
   rained" start: wet or drying before real rain resets the clock goes out `null`; `dry`
   stands. `rockByStamp` (`apps/miniapp/src/lib/precipHistory.ts`) joins it by local stamp; an
-  absent field draws no rock.
+  absent field draws no rock. **`readings.yesterday_hours`** is the one exception to "rock
+  only": the day before the window as full readings, only the hours whose rock is known, for
+  the forecast check entered the next day (owner, 2026-11-16; `spanReading`). One day, not
+  more, and no screen draws a past score from it.
 - **Readings reach a response only because the route passed `scoring`.** There is no
   `is_climbing_location` check downstream; the model would score a city if asked. With
   `scoring: null`, `GET /conditions/:id` skips the hourly fetch.

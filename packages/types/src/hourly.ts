@@ -441,6 +441,20 @@ export type HourlyReadings = {
    */
   rock_history?: RockHistoryHour[];
   /**
+   * **The day before the window, as full readings** (owner, 2026-11-16: "I
+   * climb and forget to log but then I log the next day"). Read only by the
+   * forecast check, so a check entered the next morning still attaches the
+   * reading of the hours climbed; no screen draws a past score from it.
+   *
+   * Only hours whose rock is known (the `rock_history` rule) are published;
+   * an hour the walk's starting guess decides is left out, and the check
+   * withholds rather than skip it. Ordered by `valid_at`. The model's
+   * analysis of an hour already over, not the forecast the climber saw.
+   *
+   * Optional because the API and the client deploy separately.
+   */
+  yesterday_hours?: HourlyReading[];
+  /**
    * Each whole local day before the window, as the model's analysis has it:
    * what a day **turned out** to be, read by the same rules as a forecast day.
    * The trip recorder keeps it once a trip day is over (`trip_day_outcomes`).

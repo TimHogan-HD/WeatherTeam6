@@ -37,11 +37,11 @@ const HOUR_MS = 3_600_000
  * (`readings.md`): the hours whose stamp falls after the hour before `fromMs`
  * and no later than `untilMs`. Any of them unread withholds the snapshot,
  * because the worst of the rest could be better than the missing one. It
- * reads `/hourly`, whose readings hold every hour of the location's today, so
- * a check entered that evening still carries the reading of the hours climbed
- * (2026-11-15's Sandstone check, entered at 20:32, attached nothing when this
- * read only the hour covering now). A day before today is not in the readings
- * and gets nothing. `valid_at` names the hour, and the row's `created_at`
+ * reads `/hourly`, whose readings hold every hour of the location's today and,
+ * in `yesterday_hours`, the day before, so a check entered that evening or the
+ * next day still carries the reading of the hours climbed (2026-11-15's
+ * Sandstone check, entered at 20:32, attached nothing when this read only the
+ * hour covering now). Two days back is not in the readings and gets nothing. `valid_at` names the hour, and the row's `created_at`
  * says whether that hour had already passed when it was read.
  *
  * **The same `summarizeReadings` call the card makes**, so the snapshot is the
@@ -64,7 +64,8 @@ export function spanReading(
   let first = Number.POSITIVE_INFINITY
   let last = Number.NEGATIVE_INFINITY
   let count = 0
-  for (const h of r.hours) {
+  // Yesterday's hours first, then the window's: one run, one ordering by instant.
+  for (const h of [...(r.yesterday_hours ?? []), ...r.hours]) {
     const t = Date.parse(h.valid_at)
     if (!Number.isFinite(t) || t <= fromMs - HOUR_MS || t > untilMs) continue
     if (h.score === null) return null
