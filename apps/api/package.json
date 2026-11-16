@@ -67,7 +67,7 @@
     "drizzle-orm": "^0.45.4",
     "express": "^4.21.2",
     "pino": "^10.4.0",
-    "ws": "^8.22.1"
+    "ws": "^8.22.2"
   },
   "devDependencies": {
     "@stryker-mutator/core": "^10.1.1",
