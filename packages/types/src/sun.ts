@@ -98,7 +98,7 @@ export const SUN_WALLS_SOURCE_LABEL = 'USGS 3DEP lidar and AWS Terrarium terrain
 /**
  * The crag's walls, **only where the owner has confirmed sun and shade on the
  * ground** — the `KNOWN_CRAGS` entry's `sun_confirmed` (owner, 2026-10-05:
- * today only Red Wing). Data sitting in `SUN_WALLS` is not enough to show it.
+ * Red Wing; Robinson Park since 2026-11-16). Data sitting in `SUN_WALLS` is not enough to show it.
  */
 export function sunWallsFor(knownCrag: string | null | undefined): SunWalls | null {
   const crag = knownCragBySlug(knownCrag)

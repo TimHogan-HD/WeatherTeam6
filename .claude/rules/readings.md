@@ -82,7 +82,7 @@ What a reading may say, where it comes from, and what the client may assume of t
   a shaded one good, under one score). Display only — the score still reads air
   temperature. Null if any wall's is missing. **It renders nowhere** (owner, 2026-10-05):
   sun and shade belong only on crags the owner has confirmed on the ground — today only
-  Red Wing. When a surface brings it back, gate it
+  Red Wing and Robinson Park (2026-11-16). When a surface brings it back, gate it
   on a flag on the `KNOWN_CRAGS` entry, not on the data being present. It names no
   direction: Crag A does not know which way a crag's walls face (#293).
 - **Sun and shade walls reach the Overview and the Crag tab** (owner, 2026-11-02, #445,

@@ -275,7 +275,7 @@ export const MN_CLIMBING_AREAS: readonly ClimbingArea[] = [
   {"uuid":"8717a687-51a3-52ec-8267-c25a3fbfce2f","name":"Upper Boat Dock Area","parent":"Interstate SP (Taylors Falls)","parent_id":"4984f66c-a9cf-577b-8b74-52608b2bfff7","climbs":2,"lat":45.40116,"lon":-92.65054},
   {"uuid":"8c646cfb-9f30-59e9-9132-28e625382758","name":"Junebug Alley","parent":"Bur Oak Trail","parent_id":"1d633cc9-47a3-50de-92de-4ddc98d38c72","climbs":2,"lat":43.69161,"lon":-96.19162},
   {"uuid":"8cbe7047-6439-5013-b62c-faeca0fc7713","name":"Bacon Boulder","parent":"Kung Fu Boulders","parent_id":"c04a6e26-79bb-50d5-837a-bda7cda9b29e","climbs":2,"lat":44.6634,"lon":-95.3196},
-  {"uuid":"8d5adc34-cb2e-456a-8f7e-8229d1aff4b0","name":"Drill Wall","parent":"Robinson Park","parent_id":"4bd2d531-0b0b-5683-ada5-5e92d3bf3494","climbs":2,"lat":46.13502,"lon":-92.85925},
+  {"uuid":"8d5adc34-cb2e-456a-8f7e-8229d1aff4b0","name":"Drill Wall","parent":"Robinson Park","parent_id":"4bd2d531-0b0b-5683-ada5-5e92d3bf3494","climbs":2,"lat":46.13651,"lon":-92.85918},
   {"uuid":"95f3888b-095c-53ef-b24f-5f362b2ad2ce","name":"Raspberry Rock","parent":"North Quarry Area","parent_id":"b3d63c4d-618a-5826-a1a5-9deecdcb2770","climbs":2,"lat":43.69698,"lon":-96.18544},
   {"uuid":"9aecc337-1885-5e71-bb33-5a24c60180da","name":"Lutsen Resort Bouldering","parent":null,"parent_id":null,"climbs":2,"lat":47.63479,"lon":-90.70953},
   {"uuid":"c91146c4-ddd5-55ba-87b0-abbf7399e30a","name":"Minneopa State Park Bouldering","parent":"Mankato Area Bouldering (Mankato)","parent_id":"267e17a2-21f0-57ec-a5c2-c2ff4c3649cc","climbs":2,"lat":44.1484,"lon":-94.0875},
