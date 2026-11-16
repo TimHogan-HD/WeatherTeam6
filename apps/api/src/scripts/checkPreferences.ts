@@ -224,17 +224,19 @@ async function run(): Promise<void> {
     // through `/hourly`, which on a new crag fetches Open-Meteo: CI runs this script with no
     // upstream (#600 timeouts turned it red), and the fetch is not what this checks.
     // A has saved a low end and cleared its high end; B has saved nothing. Compared with
-    // each other so the check does not restate the defaults.
-    console.log('\nThe readings read the settings')
+    // each other so the check does not restate the defaults. This covers the stored settings
+    // resolving, not a route passing `req.userId`: a crag route cannot be reached here
+    // without the fetch, and a non-crag never reads the settings.
+    console.log("\nThe reader's scoring settings")
     const scoringA = await readerScoringFor(idA)
     const scoringB = await readerScoringFor(idB)
     check(
-      "a crag's readings use the low end the reader saved",
+      "the stored settings resolve to the reader's saved low end",
       close(scoringA.range.lowC, fToC(15)) && !close(scoringB.range.lowC, fToC(15)),
       JSON.stringify({ a: scoringA.range, b: scoringB.range }),
     )
     check(
-      'and the default for the end they cleared, and the hours they never set',
+      'and to the defaults for the end they cleared and the hours they never set',
       scoringA.range.highC === scoringB.range.highC &&
         scoringA.climbHours.first === scoringB.climbHours.first &&
         scoringA.climbHours.last === scoringB.climbHours.last,
