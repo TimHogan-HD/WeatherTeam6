@@ -61,13 +61,23 @@ export function spanReading(
   if (r === undefined || r === null || r.unavailable_reason !== null) return null
   if (!Number.isFinite(fromMs) || !Number.isFinite(untilMs)) return null
   let worst: HourlyReading | null = null
+  let first = Number.POSITIVE_INFINITY
+  let last = Number.NEGATIVE_INFINITY
+  let count = 0
   for (const h of r.hours) {
     const t = Date.parse(h.valid_at)
     if (!Number.isFinite(t) || t <= fromMs - HOUR_MS || t > untilMs) continue
     if (h.score === null) return null
+    first = Math.min(first, t)
+    last = Math.max(last, t)
+    count += 1
     if (worst === null || worst.score === null || h.score < worst.score) worst = h
   }
   if (worst === null) return null
+  // An hour absent from the readings is as unread as one with no score: the
+  // span must be covered from its first hour to its last with no gap. The
+  // readings start at the crag's midnight, and the span is on the device's clock.
+  if (first > fromMs || last <= untilMs - HOUR_MS || (last - first) / HOUR_MS + 1 !== count) return null
   const summary = summarizeReadings({
     reading: worst,
     window: null,

@@ -114,6 +114,19 @@ describe('spanReading', () => {
     expect(spanReading(series(), NOW_MS - 30 * H, NOW_MS - 26 * H)).toBeNull()
   })
 
+  it('withholds a span the readings reach only part of, rather than the worst of the hours they hold', () => {
+    // Starts two hours before the readings' first hour (NOW - 6h), as a span before the crag's midnight does.
+    expect(spanReading(series(), NOW_MS - 8 * H, NOW_MS - 4 * H)).toBeNull()
+    // Runs past the readings' last hour (NOW + 3h).
+    expect(spanReading(series(), NOW_MS + 2 * H, NOW_MS + 5 * H)).toBeNull()
+    // An hour missing from the middle.
+    const gappy = series()
+    if (gappy.readings) gappy.readings.hours = gappy.readings.hours.filter((h) => h.valid_at !== at(NOW_MS - 3 * H))
+    expect(spanReading(gappy, NOW_MS - 4 * H, NOW_MS - 2 * H)).toBeNull()
+    // The same span with every hour present attaches.
+    expect(spanReading(series(), NOW_MS - 4 * H, NOW_MS - 2 * H)).not.toBeNull()
+  })
+
   it('attaches nothing when there is nothing to read', () => {
     expect(spanReading(null, NOW_MS, NOW_MS)).toBeNull()
     expect(spanReading(undefined, NOW_MS, NOW_MS)).toBeNull()
