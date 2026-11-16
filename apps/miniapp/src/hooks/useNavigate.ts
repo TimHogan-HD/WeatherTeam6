@@ -21,6 +21,18 @@ export function pageCommitted(): void {
   committed = null
 }
 
+/**
+ * Runs `cleanup` once a view transition ends, however it ends. `finished` rejects
+ * when the browser abandons the motion (Chrome's "Transition was aborted because of
+ * timeout in DOM update", on a main thread too busy to paint the next screen in
+ * time; nightly check:ui, 2026-11-15). The navigation has already happened by
+ * then and only the motion is lost, so the rejection is consumed here: a
+ * `.finally` would pass it on as an unhandled rejection.
+ */
+export function afterTransition(finished: Promise<unknown>, cleanup: () => void): void {
+  finished.then(cleanup, cleanup)
+}
+
 /** The longest a transition holds the old screen waiting for the new one. */
 const COMMIT_WAIT_MS = 1_500
 
@@ -68,7 +80,7 @@ export function useNavigate(): AppNavigate {
             void navigate(to, options)
           }),
       )
-      void transition.finished.finally(() => {
+      afterTransition(transition.finished, () => {
         if (root.dataset.page === motion) delete root.dataset.page
         if (fly !== null) endCragFly()
       })
