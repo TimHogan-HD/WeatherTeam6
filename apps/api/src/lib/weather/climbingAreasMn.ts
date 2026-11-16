@@ -1,5 +1,5 @@
 /**
- * Minnesota climbing areas from OpenBeta, pulled 2026-11-12 by
+ * Minnesota climbing areas from OpenBeta, pulled 2026-11-16 by
  * `npm run climbing:pull -- Minnesota MN` — generated, do not edit by hand.
  * CC0 (github.com/OpenBeta/climbing-data); credited because the app names every source.
  * Every area under USA > Minnesota with at least one climb and a coordinate, most climbs first.
@@ -16,14 +16,14 @@ export const MN_CLIMBING_AREAS: readonly ClimbingArea[] = [
   {"uuid":"0e733a12-f01e-573a-8643-30f0d6c6b432","name":"Jeff's World (MN/CA border)","parent":null,"parent_id":null,"climbs":134,"lat":48.33553,"lon":-92.46228},
   {"uuid":"30a45958-e575-57da-a3a8-5dd6cc749cab","name":"Bouldering @ Blue Mounds","parent":"Blue Mounds State Park (Luverne)","parent_id":"50692134-d3ae-5e3b-a314-0bdba4e826c9","climbs":127,"lat":43.69786,"lon":-96.18295},
   {"uuid":"94f21cb4-21bf-59f0-96f7-c319bfe5a61b","name":"Tettegouche SP (North Shore)","parent":null,"parent_id":null,"climbs":102,"lat":46.84985,"lon":-92.32298},
-  {"uuid":"8bbb8f66-ec75-5d5f-90c7-2811b8d4f27b","name":"Sandstone","parent":null,"parent_id":null,"climbs":97,"lat":46.13502,"lon":-92.85925},
+  {"uuid":"8bbb8f66-ec75-5d5f-90c7-2811b8d4f27b","name":"Sandstone","parent":null,"parent_id":null,"climbs":99,"lat":46.13502,"lon":-92.85925},
   {"uuid":"01da3209-2291-5954-ae63-e34f733e133d","name":"Little Foxx Canyon","parent":"Duluth Bouldering","parent_id":"e7659e06-f7af-5876-b3c2-1d0655546b83","climbs":95,"lat":46.76644,"lon":-92.16599},
   {"uuid":"5308da59-1bb6-5d34-a990-2abdf0cb8467","name":"Interstate State Park Bouldering","parent":"Interstate SP (Taylors Falls)","parent_id":"4984f66c-a9cf-577b-8b74-52608b2bfff7","climbs":86,"lat":45.3987,"lon":-92.65279},
   {"uuid":"d3d9ce52-7c0b-555e-8146-3e834e3921a4","name":"Palisade Head","parent":"Tettegouche SP (North Shore)","parent_id":"94f21cb4-21bf-59f0-96f7-c319bfe5a61b","climbs":80,"lat":47.32016,"lon":-91.21086},
   {"uuid":"f241bc49-9245-55b8-91fc-c59c363a0944","name":"Sawmill Creek Dome","parent":null,"parent_id":null,"climbs":72,"lat":47.40425,"lon":-91.16202},
   {"uuid":"e44ff424-a30f-520e-9159-2a52dd48030f","name":"Prairie Walls Area","parent":"Blue Mounds State Park (Luverne)","parent_id":"50692134-d3ae-5e3b-a314-0bdba4e826c9","climbs":68,"lat":43.69948,"lon":-96.18238},
   {"uuid":"41a8d2d0-05e7-5871-9a74-23d59e503215","name":"Picnic Rock","parent":"Sawmill Creek Dome","parent_id":"f241bc49-9245-55b8-91fc-c59c363a0944","climbs":63,"lat":47.4031,"lon":-91.1637},
-  {"uuid":"4bd2d531-0b0b-5683-ada5-5e92d3bf3494","name":"Robinson Park","parent":"Sandstone","parent_id":"8bbb8f66-ec75-5d5f-90c7-2811b8d4f27b","climbs":60,"lat":46.13502,"lon":-92.85925},
+  {"uuid":"4bd2d531-0b0b-5683-ada5-5e92d3bf3494","name":"Robinson Park","parent":"Sandstone","parent_id":"8bbb8f66-ec75-5d5f-90c7-2811b8d4f27b","climbs":62,"lat":46.13502,"lon":-92.85925},
   {"uuid":"91f35ff3-50fa-587e-b91a-04582afac796","name":"Swede's Forest Boulders","parent":null,"parent_id":null,"climbs":56,"lat":44.67657,"lon":-95.34318},
   {"uuid":"b3d63c4d-618a-5826-a1a5-9deecdcb2770","name":"North Quarry Area","parent":"Blue Mounds State Park (Luverne)","parent_id":"50692134-d3ae-5e3b-a314-0bdba4e826c9","climbs":55,"lat":43.68456,"lon":-96.24418},
   {"uuid":"33b6f5bc-cd64-58d2-a8b8-e66ad7f88556","name":"Ely's Peak Bouldering","parent":"Duluth Bouldering","parent_id":"e7659e06-f7af-5876-b3c2-1d0655546b83","climbs":48,"lat":46.68096,"lon":-92.25468},
@@ -275,6 +275,7 @@ export const MN_CLIMBING_AREAS: readonly ClimbingArea[] = [
   {"uuid":"8717a687-51a3-52ec-8267-c25a3fbfce2f","name":"Upper Boat Dock Area","parent":"Interstate SP (Taylors Falls)","parent_id":"4984f66c-a9cf-577b-8b74-52608b2bfff7","climbs":2,"lat":45.40116,"lon":-92.65054},
   {"uuid":"8c646cfb-9f30-59e9-9132-28e625382758","name":"Junebug Alley","parent":"Bur Oak Trail","parent_id":"1d633cc9-47a3-50de-92de-4ddc98d38c72","climbs":2,"lat":43.69161,"lon":-96.19162},
   {"uuid":"8cbe7047-6439-5013-b62c-faeca0fc7713","name":"Bacon Boulder","parent":"Kung Fu Boulders","parent_id":"c04a6e26-79bb-50d5-837a-bda7cda9b29e","climbs":2,"lat":44.6634,"lon":-95.3196},
+  {"uuid":"8d5adc34-cb2e-456a-8f7e-8229d1aff4b0","name":"Drill Wall","parent":"Robinson Park","parent_id":"4bd2d531-0b0b-5683-ada5-5e92d3bf3494","climbs":2,"lat":46.13502,"lon":-92.85925},
   {"uuid":"95f3888b-095c-53ef-b24f-5f362b2ad2ce","name":"Raspberry Rock","parent":"North Quarry Area","parent_id":"b3d63c4d-618a-5826-a1a5-9deecdcb2770","climbs":2,"lat":43.69698,"lon":-96.18544},
   {"uuid":"9aecc337-1885-5e71-bb33-5a24c60180da","name":"Lutsen Resort Bouldering","parent":null,"parent_id":null,"climbs":2,"lat":47.63479,"lon":-90.70953},
   {"uuid":"c91146c4-ddd5-55ba-87b0-abbf7399e30a","name":"Minneopa State Park Bouldering","parent":"Mankato Area Bouldering (Mankato)","parent_id":"267e17a2-21f0-57ec-a5c2-c2ff4c3649cc","climbs":2,"lat":44.1484,"lon":-94.0875},
