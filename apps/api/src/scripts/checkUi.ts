@@ -118,16 +118,34 @@ let rateLimitedBy: string | null = null
 /** Set in `finally`: the cleanup and the summary still report. Before it, every check throws, so a step's own catch cannot swallow the stop. */
 let finishing = false
 
+/**
+ * Upstream calls that failed since the last check: a timeout, a network error or
+ * a 5xx. The API turns them into a withheld reading or a 500, which fails a step
+ * as if the app were at fault; three of #627's failures were Open-Meteo hanging
+ * for the whole 45 s budget. A FAIL names them, so the cause reads off the line.
+ */
+let upstreamTrouble: string[] = []
+/** Every one of them this run, for the summary. */
+const upstreamTroubleAll: string[] = []
+
+function tally(items: readonly string[]): string {
+  const counts = new Map<string, number>()
+  for (const item of items) counts.set(item, (counts.get(item) ?? 0) + 1)
+  return [...counts].map(([item, n]) => (n > 1 ? `${item} ×${n}` : item)).join(', ')
+}
+
 function check(label: string, ok: boolean, detail = ''): void {
   if (rateLimitedBy !== null && !finishing) {
     throw new Error(`upstream rate limit (429) from ${rateLimitedBy}; this run's results would be noise. Wait for the limit to clear, or run with --replay.`)
   }
+  const upstream = upstreamTrouble.length > 0 ? ` [upstream failed during this step: ${tally(upstreamTrouble)}]` : ''
+  upstreamTrouble = []
   if (ok) {
     passed++
     console.log(`  PASS  ${label}`)
   } else {
     failed++
-    console.log(`  FAIL  ${label}${detail ? ` — ${detail}` : ''}`)
+    console.log(`  FAIL  ${label}${detail ? ` — ${detail}` : ''}${upstream}`)
   }
 }
 
@@ -192,8 +210,21 @@ async function run(): Promise<void> {
   if (REPLAY && tape) console.log(`Replaying ${tape.entries.length} upstream answers recorded ${tape.recordedOn}`)
   const tapedFetch = globalThis.fetch
   globalThis.fetch = async (input, init) => {
-    const res = await tapedFetch(input, init)
     const url = requestUrl(input)
+    const trouble = (what: string) => {
+      if (!isUpstream(url)) return
+      const item = `${new URL(url).host} ${what}`
+      upstreamTrouble.push(item)
+      upstreamTroubleAll.push(item)
+    }
+    let res: Response
+    try {
+      res = await tapedFetch(input, init)
+    } catch (err) {
+      trouble(err instanceof Error && err.name === 'TimeoutError' ? 'timed out' : 'failed to answer')
+      throw err
+    }
+    if (res.status >= 500) trouble(`answered ${res.status}`)
     if (res.status === 429 && rateLimitedBy === null && isUpstream(url)) {
       rateLimitedBy = new URL(url).host
       console.error(`\n!! ${rateLimitedBy} answered 429: stopping at the next check`)
@@ -2095,6 +2126,13 @@ async function run(): Promise<void> {
     }
     if (leftover.length > 0) {
       console.error(`\n!! CLEANUP FAILED — users ${leftover.join(', ')} are left; \`check:ui -- --sweep\` removes them after ${STALE_HOURS} h`)
+    }
+    if (upstreamTroubleAll.length > 0) {
+      const line = `Upstream calls that failed this run (retries counted): ${tally(upstreamTroubleAll)}`
+      console.log(`\n${line}`)
+      // The nightly workflow quotes this in its issue, so the cause is read before the log.
+      mkdirSync(dir, { recursive: true })
+      writeFileSync(join(dir, 'upstream-failures.txt'), `${line}\n`)
     }
     const only = TABS_ONLY ? ' (--tabs-only)' : LIST_ONLY ? ' (--list-only)' : ''
     console.log(`\n${passed} passed, ${failed} failed${only}. Screenshots: ${dir}\n`)

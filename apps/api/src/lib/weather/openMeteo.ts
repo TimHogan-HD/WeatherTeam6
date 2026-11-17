@@ -607,6 +607,13 @@ export async function fetchEnsembleBlock<T extends EnsembleBlockResponse>(
     firstError = `HTTP ${res.status}`
   }
 
+  // A hung four-model request spends the whole shared deadline, so no model is asked
+  // alone. Say so: "0 of 4 models answered alone" read as four refusals (nightly
+  // check:ui, #627), when none was asked.
+  if (deadline - Date.now() < MIN_ATTEMPT_MS) {
+    throw new Error(`Open-Meteo ensemble failed (${firstError}); no time left to ask the models alone`)
+  }
+
   const models = ENSEMBLE_MODELS.split(',')
   const answers = await Promise.all(
     models.map(async (model): Promise<T | null> => {

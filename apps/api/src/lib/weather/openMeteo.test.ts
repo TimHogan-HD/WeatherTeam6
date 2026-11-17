@@ -546,6 +546,7 @@ describe('fetchWithRetry — total time budget', () => {
 
     // The four-model request spends the budget; the fallback finds none left and withholds.
     expect(result).toBeInstanceOf(Error)
+    expect((result as Error).message).toContain('no time left to ask the models alone')
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(Date.now() - start).toBeLessThanOrEqual(FETCH_BUDGET_MS)
   })
