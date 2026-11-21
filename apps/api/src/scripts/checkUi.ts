@@ -52,7 +52,7 @@ import { gunzipSync, gzipSync } from 'node:zlib'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { ApiResponse, Location, RainNow } from '@weatherteam6/types'
+import type { ApiResponse, ListResponse, Location, RainNow } from '@weatherteam6/types'
 import type { Page } from 'playwright'
 import type { Tape } from './upstreamTape.js'
 
@@ -63,6 +63,10 @@ const WEB = `http://localhost:${WEB_PORT}`
 const VIEWPORT = { width: 480, height: 1000 }
 /** A transparent 1×1 PNG, the answer to a radar tile a replayed run cannot fetch. */
 const BLANK_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
+/** How long `screen()` lets a full-page capture run: three times the slowest seen on CI (26 s). */
+const SCREENSHOT_TIMEOUT_MS = 90_000
+/** A `screen()` slower than this logs where its time went. */
+const SLOW_SCREEN_MS = 10_000
 
 /** `--tabs-only`: sign in, add the crag, screenshot its six tabs, stop — for a screen being rebuilt. */
 const TABS_ONLY = process.argv.includes('--tabs-only')
@@ -357,12 +361,27 @@ async function run(): Promise<void> {
     })
 
     async function screen(name: string, minText = 20): Promise<void> {
+      const settling = Date.now()
       await page.waitForLoadState('networkidle', { timeout: 60_000 }).catch(() => {
         problems.push('network did not settle within 60 s')
       })
+      const settledAfter = Date.now() - settling
       await page.waitForTimeout(500)
       const file = join(dir, `${String(passed + failed).padStart(2, '0')}-${name}.png`)
-      await page.screenshot({ path: file, fullPage: true })
+      // A full-page capture is evidence, not the check. On a starved CI runner
+      // one took 26 s and then over 30 s (nightlies of 2026-11-17, -19, -20) on
+      // a screen that takes 2 s alone, and the thrown timeout stopped the whole
+      // run with ~40 checks unread. A capture that does not finish is this
+      // screen's failure; the run goes on.
+      const capturing = Date.now()
+      await page.screenshot({ path: file, fullPage: true, timeout: SCREENSHOT_TIMEOUT_MS }).catch(() => {
+        problems.push(`screenshot did not finish within ${SCREENSHOT_TIMEOUT_MS / 1000} s`)
+      })
+      const capturedAfter = Date.now() - capturing
+      // Which wait a slow step spent its time in, so the next one names it.
+      if (settledAfter + capturedAfter > SLOW_SCREEN_MS) {
+        console.log(`  slow  ${name}: network settled after ${settledAfter} ms, screenshot took ${capturedAfter} ms`)
+      }
       const { overflow, text } = await page.evaluate(() => ({
         overflow: document.documentElement.scrollWidth - window.innerWidth,
         text: (document.querySelector('main') ?? document.body).innerText.trim().length,
@@ -442,16 +461,43 @@ async function run(): Promise<void> {
     const firstOpenAsked: string[] = []
     const onFirstOpen = (req: { url(): string }) => {
       const path = new URL(req.url()).pathname
-      if (/^\/api\/v1\/(list|rain-now|(forecast|conditions|alerts)\/)/.test(path)) firstOpenAsked.push(path.split('/')[3] ?? path)
+      if (/^\/api\/v1\/(list|rain-now|(forecast|conditions|alerts)\/)/.test(path)) firstOpenAsked.push(path.split('/').slice(3).join('/'))
+    }
+    // A part `/list` answered with an error is asked of its own route, by
+    // design (#606): on 2026-11-20 the crag's conditions passed the 8 s part
+    // limit behind a slow Open-Meteo and the card rightly asked again. Only a
+    // part the list did answer may not be asked twice. "Answered" is
+    // `seedList`'s rule, per place: forecast and alerts need data, conditions
+    // and rain-now take a 200 with null.
+    const listFailedParts = new Set<string>()
+    let listAnswered = false
+    const listReads: Promise<void>[] = []
+    const readList = async (res: { json(): Promise<unknown> }) => {
+      const body = (await res.json().catch(() => null)) as ApiResponse<ListResponse> | null
+      if (body?.data == null) return
+      listAnswered = true
+      for (const place of body.data.places) {
+        if (place.forecast.status !== 200 || place.forecast.data === null) listFailedParts.add(`forecast/${place.location_id}`)
+        if (place.alerts.status !== 200 || place.alerts.data === null) listFailedParts.add(`alerts/${place.location_id}`)
+        if (place.conditions !== null && place.conditions.status !== 200) listFailedParts.add(`conditions/${place.location_id}`)
+      }
+      if (body.data.rain_now.status !== 200) listFailedParts.add('rain-now')
+    }
+    const onListResponse = (res: { url(): string; json(): Promise<unknown> }) => {
+      if (new URL(res.url()).pathname === '/api/v1/list') listReads.push(readList(res))
     }
     page.on('request', onFirstOpen)
+    page.on('response', onListResponse)
     await page.goto(`${WEB}/`)
     await screen('list')
     page.off('request', onFirstOpen)
+    page.off('response', onListResponse)
+    await Promise.all(listReads)
+    const askedAgain = firstOpenAsked.filter((p) => p !== 'list' && !listFailedParts.has(p))
     check(
       'a first open asks for one list and no card’s forecast, conditions, alerts or rain on their own',
-      firstOpenAsked.length === 1 && firstOpenAsked[0] === 'list',
-      `asked: ${firstOpenAsked.join(', ') || 'none'}`,
+      listAnswered && firstOpenAsked.filter((p) => p === 'list').length === 1 && askedAgain.length === 0,
+      `asked: ${firstOpenAsked.join(', ') || 'none'}; the list failed: ${[...listFailedParts].join(', ') || 'nothing'}`,
     )
 
     // 2'. Radar rain now (#313), asked live from MRMS in every mode. No recent
@@ -871,21 +917,33 @@ async function run(): Promise<void> {
     // elsewhere: the splash must wait for the real list, not lift on this one.
     // The cards' weather from the steps above is forgotten too, or the list
     // draws from it and the splash rightly never rises.
+    // Edited from a same-origin page with no app on it (the icon), so nothing
+    // the previous screen still runs can write the cards back between this
+    // and the reload. The nightlies of 2026-11-19 and -20 saw no splash; a
+    // fresh snapshot written back is one way (unconfirmed), the `load` below another.
+    await page.goto(`${WEB}/icons/icon-192.png`)
     await page.evaluate(() => {
       localStorage.setItem('wt6.locations', '[]')
       localStorage.removeItem('wt6.cards')
     })
-    await page.goto(`${WEB}/`)
+    // Watched from the navigation's commit, not its `load`: the splash lifts
+    // at `SPLASH_MAX_MS` (1 s) after the list mounts, and a `load` that comes
+    // later on a starved runner would miss it.
+    await page.goto(`${WEB}/`, { waitUntil: 'commit' })
     const splashUp = await splash
       .waitFor({ timeout: 10_000 })
       .then(() => true)
       .catch(() => false)
     const splashSeen = Date.now()
+    // Timed alongside the screenshot, so a slow capture is not read as the splash staying up.
+    const splashLifted = splash
+      .waitFor({ state: 'detached', timeout: 5_000 })
+      .then(() => Date.now())
+      .catch(() => Date.now())
     const splashShot = join(dir, `${String(passed + failed).padStart(2, '0')}-splash.png`)
     await page.screenshot({ path: splashShot })
     check(`a cold load holds the opening splash while the cards load  →  ${splashShot}`, splashUp)
-    await splash.waitFor({ state: 'detached', timeout: 5_000 }).catch(() => undefined)
-    const splashFor = Date.now() - splashSeen
+    const splashFor = (await splashLifted) - splashSeen
     check(
       'and lifts at the cap when the cards are slow, not when they arrive',
       (await splash.count()) === 0 && splashFor < 1_800,
