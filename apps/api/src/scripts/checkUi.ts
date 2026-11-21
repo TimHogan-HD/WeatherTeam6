@@ -461,12 +461,14 @@ async function run(): Promise<void> {
     const firstOpenAsked: string[] = []
     const onFirstOpen = (req: { url(): string }) => {
       const path = new URL(req.url()).pathname
-      if (/^\/api\/v1\/(list|rain-now|(forecast|conditions|alerts)\/)/.test(path)) firstOpenAsked.push(path.split('/')[3] ?? path)
+      if (/^\/api\/v1\/(list|rain-now|(forecast|conditions|alerts)\/)/.test(path)) firstOpenAsked.push(path.split('/').slice(3).join('/'))
     }
     // A part `/list` answered with an error is asked of its own route, by
     // design (#606): on 2026-11-20 the crag's conditions passed the 8 s part
     // limit behind a slow Open-Meteo and the card rightly asked again. Only a
-    // part the list did answer may not be asked twice.
+    // part the list did answer may not be asked twice. "Answered" is
+    // `seedList`'s rule, per place: forecast and alerts need data, conditions
+    // and rain-now take a 200 with null.
     const listFailedParts = new Set<string>()
     let listAnswered = false
     const listReads: Promise<void>[] = []
@@ -475,9 +477,9 @@ async function run(): Promise<void> {
       if (body?.data == null) return
       listAnswered = true
       for (const place of body.data.places) {
-        if (place.forecast.status !== 200) listFailedParts.add('forecast')
-        if (place.alerts.status !== 200) listFailedParts.add('alerts')
-        if (place.conditions !== null && place.conditions.status !== 200) listFailedParts.add('conditions')
+        if (place.forecast.status !== 200 || place.forecast.data === null) listFailedParts.add(`forecast/${place.location_id}`)
+        if (place.alerts.status !== 200 || place.alerts.data === null) listFailedParts.add(`alerts/${place.location_id}`)
+        if (place.conditions !== null && place.conditions.status !== 200) listFailedParts.add(`conditions/${place.location_id}`)
       }
       if (body.data.rain_now.status !== 200) listFailedParts.add('rain-now')
     }
