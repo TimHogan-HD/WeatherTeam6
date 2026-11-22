@@ -1,11 +1,13 @@
 ---
-name: research-standard
-description: The depth and verification standard for research in WeatherTeam6. Use whenever the owner asks to research, investigate, compare options, audit a prompt or CLAUDE.md, evaluate a UI/UX approach, pick a library or tool, or check whether a claim is current, and before writing any recommendation that cites sources. Covers primary-source verification, model and version currency, testing claims against this repo, confidence flags, corrections, time boxes, and where findings are recorded.
+name: dig
+description: Exhaustive, verified research on any topic (prompt auditing, UI/UX, libraries, security, development practice): primary sources read in full, numbers checked, model and version currency, claims tested against this repo, corrections stated, findings recorded in an issue. Invoke only as /dig <question>.
+disable-model-invocation: true
 ---
 
-# Research Standard
+# Dig
 
-Owner, 2026-11-22: research reaches this depth by default, whatever the topic. The worked
+Opt-in (owner, 2026-11-22): this is for when the owner wants a question dug into, not the
+default for research. Ordinary research stays proportionate to the question. The worked
 example is #633 (agent "maintainer" framing): a first pass from search snippets, then three
 rounds of verification that corrected six claims and changed the recommendation.
 
