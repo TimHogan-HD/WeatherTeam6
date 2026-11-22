@@ -132,3 +132,9 @@ The model contains assumptions that have not been validated against climbing out
 - [Web app screen spec](docs/handoffs/miniapp-design-v1.md), [design system](docs/handoffs/design-system-v1.md), and the [mockup](docs/handoffs/design-mockups/weatherteam6-hybrid.html) itself
 
 These references can evolve alongside the code; when they disagree, verify behavior in the current implementation.
+
+## License
+
+WeatherTeam6 is source-available under the [PolyForm Strict License 1.0.0](LICENSE), not open source. You may read the code and run it unchanged for a noncommercial purpose (personal, hobby, research, education, or a noncommercial organization). The license grants no right to sell it, use it commercially, change it, or redistribute it. For anything else, including a modified copy for your own use or a contribution, ask the owner for written permission.
+
+Data the app shows is not covered by this license and stays under its source's terms, including weather from [Open-Meteo](https://open-meteo.com/) (CC BY 4.0; its free API is for noncommercial use only), crag and route data from [OpenBeta](https://openbeta.io/) (CC0), and radar tiles from the [Iowa Environmental Mesonet](https://mesonet.agron.iastate.edu/). The open-source libraries bundled into the web app keep their own licences too; a production build lists them in `third-party-licenses.md`, served at `/third-party-licenses.md`.
