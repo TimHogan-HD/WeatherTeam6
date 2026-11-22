@@ -98,6 +98,9 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    // The minifier strips the notices MIT and BSD require copies to carry, so
+    // every bundled dependency's licence is published beside the app instead.
+    license: { fileName: 'third-party-licenses.md' },
   },
   // MapLibre starts its worker as a module worker (`MapScreen.tsx`).
   worker: {
