@@ -45,6 +45,19 @@ export function TripCragGrid({
   onOpenCrag: (locationId: string) => void
 }) {
   const columns = `${NAME_COL_W}px repeat(${dates.length}, minmax(${CELL_MIN_W}px, 1fr))`
+  const rows = crags.map((crag) => {
+    const state = outlookState(crag.outlook)
+    const tiles = tripDayTiles({
+      dates,
+      outlook: state.kind === 'days' ? state.outlook.days : [],
+      readings: crag.readings,
+      isCrag: crag.isCrag,
+      today,
+    })
+    return { crag, tiles, unavailable: state.kind === 'unavailable' }
+  })
+  // The legend explains a mark; with no dashed cell on screen it explains nothing.
+  const anyDashed = rows.some((r) => r.tiles.some((t) => t.kind !== 'scored'))
   return (
     <>
       <GuideCard title="By day" aside="Tap a crag" label="By day">
@@ -56,12 +69,12 @@ export function TripCragGrid({
                 {shortDayLabel(d)}
               </span>
             ))}
-            {crags.map((crag) => (
-              <CragRow key={crag.locationId} crag={crag} dates={dates} today={today} onOpen={onOpenCrag} />
+            {rows.map((r) => (
+              <CragRow key={r.crag.locationId} {...r} onOpen={onOpenCrag} />
             ))}
           </div>
         </div>
-        <p style={typeV2.note}>Dashed: not scored yet.</p>
+        {anyDashed ? <p style={typeV2.note}>Dashed: not scored yet.</p> : null}
         {crags.map((crag) =>
           crag.scoresFailed === null ? null : (
             <InlineError key={crag.locationId} message={`Couldn't load the scores for ${crag.name}.`} onRetry={crag.scoresFailed} />
@@ -112,23 +125,15 @@ function rainUnknown(outlook: TripOutlook | undefined): string {
 
 function CragRow({
   crag,
-  dates,
-  today,
+  tiles,
+  unavailable,
   onOpen,
 }: {
   crag: GridCrag
-  dates: readonly string[]
-  today: string
+  tiles: readonly TripDayTile[]
+  unavailable: boolean
   onOpen: (locationId: string) => void
 }) {
-  const state = outlookState(crag.outlook)
-  const tiles = tripDayTiles({
-    dates,
-    outlook: state.kind === 'days' ? state.outlook.days : [],
-    readings: crag.readings,
-    isCrag: crag.isCrag,
-    today,
-  })
   return (
     <>
       <button
@@ -139,7 +144,7 @@ function CragRow({
         {crag.name} ›
       </button>
       {tiles.map((tile) => (
-        <Cell key={tile.local_date} tile={tile} unavailable={state.kind === 'unavailable'} />
+        <Cell key={tile.local_date} tile={tile} unavailable={unavailable} />
       ))}
     </>
   )

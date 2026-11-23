@@ -1,4 +1,4 @@
-import { colors, radius, spacing } from '@weatherteam6/design/tokens'
+import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import {
   compassPoint,
   formatElevationFt,
@@ -146,8 +146,8 @@ function WallStrip({ walls }: { walls: readonly Wall[] }) {
       }}
     >
       <div style={{ ...row(spacing.chipGapMd), justifyContent: 'space-between', flexWrap: 'wrap' }}>
-        <span style={{ ...type.labelSm, color: colors.txt5 }}>Walls</span>
-        <span style={{ ...type.labelSm, color: colors.txt5 }}>Score is crag-wide</span>
+        <span style={{ ...type.labelSm, color: colorsV2.txtMuted }}>Walls</span>
+        <span style={{ ...type.labelSm, color: colorsV2.txtMuted }}>Score is crag-wide</span>
       </div>
       <div style={{ ...row(spacing.chipGap), overflowX: 'auto' }}>
         {walls.map((wall) => (
@@ -164,7 +164,7 @@ function WallStrip({ walls }: { walls: readonly Wall[] }) {
             }}
           >
             <span style={{ ...type.calDay, whiteSpace: 'nowrap' }}>{wall.name}</span>
-            <span style={{ ...type.labelSm, color: colors.txt5, whiteSpace: 'nowrap' }}>
+            <span style={{ ...type.labelSm, color: colorsV2.txtMuted, whiteSpace: 'nowrap' }}>
               {wallSummary(wall)}
             </span>
           </div>
@@ -229,7 +229,7 @@ export function LocationIdentity({ location, walls = [], condensed = false }: Lo
               ...(fact.wide === true ? { gridColumn: 'span 2' } : {}),
             }}
           >
-            <span style={{ ...type.labelSm, color: colors.txt5 }}>{fact.key}</span>
+            <span style={{ ...type.labelSm, color: colorsV2.txtMuted }}>{fact.key}</span>
             <span
               style={{
                 ...(fact.mono === true
