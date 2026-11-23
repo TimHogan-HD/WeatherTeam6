@@ -41,7 +41,11 @@ and never restates a literal. See the `miniapp-patterns` skill.
 - Labels (`txt4`): min opacity 0.50
 - Body copy (`txt3`): min opacity 0.62
 - Stat values (`txt2`): min opacity 0.82
-- Lime (`good`) is reserved for numbers, accents, primary actions — never for body copy on a dark background
+- Lime (`good`) is reserved for numbers, accents, primary actions — never for body copy on a dark background.
+  Since 2026-11-23 (#644, owner's pick) the chrome is off lime too: Feedback is muted text and
+  the list's Add is a raised pill, so lime on the Conditions screen means a score
+- **The smallest text is 12 px** (#644): `keyRow`, `note` and `daySmall`. Some older chart tokens
+  are still under it, to be raised as variant C reaches Hourly, Precip and Rock
 - On lime fills: text colour must be `colors.onGood` (`#0d1117`)
 
 The conditions colours are **semantic, not decorative**: `good` lime, `fair` amber and
@@ -85,8 +89,8 @@ Two rules the client added that belong here now:
 
 Every mockup is a standalone `.html` file in `docs/handoffs/design-mockups/` (CLAUDE.md §
 Rules, owner 2026-11-23). `field-guide-direction.html` is a direction proposal for #637, not
-the current look. `look-variants-644.html` holds the #644 variants waiting on the owner's pick
-(colour roles, the card kit and type scale; how sure a day's score is), not the current look.
+the current look. `look-variants-644.html` holds the #644 variants; the owner picked C, "Open list", and
+the model dots (U1) on 2026-11-23. C is built on the Overview only so far (`miniapp-design-v1.md`).
 
 `docs/handoffs/design-mockups/weatherteam6-hybrid.html` — the current look (owner,
 2026-10-19). Open it directly in a browser; `miniapp-hybrid-transition-v1.md` says what it

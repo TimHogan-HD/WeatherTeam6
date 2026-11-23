@@ -879,19 +879,21 @@ export const typeV2 = {
     lineHeight: 22,
     color: colorsV2.txt2,
   },
-  /** A glass card's heading — "TODAY", "RAIN": Barlow Condensed 12/600, uppercase, brand ink. */
+  /**
+   * A section's heading — "Today", "Rain": Barlow Condensed 20/600, sentence case
+   * (owner, 2026-11-23, #644 variant C: the tracked-caps brand-ink eyebrow went).
+   */
   sect: {
     fontFamily: fonts.display,
-    fontSize: 12,
+    fontSize: 20,
     fontWeight: '600' as const,
-    letterSpacing: 1.6,
-    textTransform: 'uppercase' as const,
-    color: colorsV2.brandInk,
+    lineHeight: 24,
+    color: colorsV2.txt1,
   },
-  /** What a card heading's right side says — "mph · GFS": Barlow 11/400. */
+  /** What a section heading's right side says — "mph · GFS": Barlow 13/400. */
   sectAside: {
     fontFamily: fonts.body,
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '400' as const,
     letterSpacing: 0.3,
     color: colorsV2.txtMuted,
@@ -903,10 +905,10 @@ export const typeV2 = {
     fontWeight: '400' as const,
     color: colorsV2.txtMuted,
   },
-  /** A chart's key row: Barlow 11/400. */
+  /** A chart's key row: Barlow 12/400, the readable floor (#644). */
   keyRow: {
     fontFamily: fonts.body,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '400' as const,
     color: colorsV2.txtMuted,
   },
@@ -918,17 +920,15 @@ export const typeV2 = {
     color: colorsV2.txt1,
   },
   /**
-   * A stat tile's label, above its figure — "DEW POINT": Barlow Condensed
-   * 11/600, uppercase. The tile keeps a label and its figure in one column
-   * rather than at the two ends of a card (owner, 2026-10-20).
+   * A reading's label, above its figure — "Dew point": Barlow 13/400, sentence
+   * case (#644 variant C; it was tracked caps at 11). The tile keeps a label and
+   * its figure in one column rather than at the two ends of a card (owner, 2026-10-20).
    */
   statLabel: {
-    fontFamily: fonts.display,
-    fontSize: 11,
-    fontWeight: '600' as const,
-    letterSpacing: 1.1,
-    textTransform: 'uppercase' as const,
-    lineHeight: 14,
+    fontFamily: fonts.body,
+    fontSize: 13,
+    fontWeight: '400' as const,
+    lineHeight: 16,
     color: colorsV2.txtMuted,
   },
   /** A stat tile's figure — "38°F": Barlow Condensed 28/700, the mockup's `.stat3 b`. */
@@ -1088,10 +1088,10 @@ export const typeV2 = {
     lineHeight: 20,
     color: colorsV2.txt2,
   },
-  /** A next day's small lines — "Wed", "68°/47°": Barlow 10/400. */
+  /** The list card's "now" under its score: Barlow 12/400, the readable floor (#644). */
   daySmall: {
     fontFamily: fonts.body,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '400' as const,
     color: colorsV2.txtMuted,
   },

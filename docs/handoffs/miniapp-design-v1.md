@@ -162,7 +162,12 @@ does not carry.
 **Overview** (`OverviewTab.tsx`): Hero, Today, Next days, Right now. Every rule for it is
 in `readings.md`: the hero's one score is the hour covering now; the day's score is only in
 Next days' Today column; Score breakdown never states a penalty's size; the rain-split
-dots; sun and shade walls under the hero (#445).
+dots; sun and shade walls under the hero (#445). **Open sections, not cards** (owner,
+2026-11-23, #644 variant C, `look-variants-644.html`): the hero sits on the ground and each
+section below is set off by space and one hairline; Next days is a list, one day per row
+(day, sky, high/low, chance of rain, score); Right now is label and value rows, each still
+opening its tab. Hourly, Precip and Rock keep their cards until the owner has seen the
+Overview.
 
 **Daily** (`DailyList.tsx`, mockup `dailyTab`): one card, **Seven days**, a row per day —
 sky, day, score, the low and high on a bar shared by the week, the chance of rain — with
@@ -173,6 +178,9 @@ good hours, Dryness, rain amount and peak wind under it.
 - **The chance is the likeliest hour's share of wet members**, said so, never a daily
   probability nothing computes; with no wet count it is left off rather than printed `0%`.
 - A row opens that day on Hourly; a day the hourly response cannot draw is not tappable.
+- **The model dots** (owner, 2026-11-23, #644 "Model dots"): every scored day that carries
+  `rain_split` shows one dot per weather model, filled for each that leaves the rock wet,
+  and `N of M dry`. The footnote defines the dots once.
 
 **Hourly** (`charts/DayCharts.tsx`, mockup `hourlyCharts`): a week strip of days, then
 cards that read one hour together under one scrub — temperature and humidity, sun, rain,
@@ -453,7 +461,7 @@ Open design questions and ideas are GitHub issues (`gh issue list`), not a list 
 | Client patterns (token adapter, session token, React Query, null-safe formatting, chart placement) | the `miniapp-patterns` skill |
 | Placement, motion numbers, platform features | `.claude/docs/ui-craft.md` |
 | Sun and shade walls (#445) | `docs/handoffs/wall-a-sun-shade-v1.md` |
-| The rain-split dots | `docs/handoffs/design-mockups/rain-split.html` |
+| The rain-split dots | `docs/handoffs/design-mockups/rain-split.html`; on Daily, `look-variants-644.html` (U1) |
 | Building, deploying, installing | `apps/miniapp/README.md` |
 
 ---

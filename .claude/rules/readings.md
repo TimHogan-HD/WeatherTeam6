@@ -56,7 +56,10 @@ What a reading may say, where it comes from, and what the client may assume of t
 - **Next days' rain-split dots** (the count is `scoring.md`'s; mockup
   `docs/handoffs/design-mockups/rain-split.html`) show only through `rainSplitShown`: a day
   at `RAIN_SPLIT_MIN_SCORE` or more with at least two models wet. Never a sentence about
-  the rock.
+  the rock. **Daily shows them on every scored day that carries `rain_split`** (owner,
+  2026-11-23, #644 "Model dots"), with `N of M dry`, including a day no model calls wet;
+  a null split or an unscored day shows none. One component (`RainSplitDots.tsx`), so a
+  filled dot means a model that leaves the rock wet on both screens.
 - **Sun is minutes of bright sunshine, from `THERMAL_MODEL`** (#469–#472;
   `lib/runs/skySeries.ts`, `packages/types/src/sky.ts`; layout in `sunDayLine` and Hourly's
   Sun card). "Forecasts differ" compares GFS, ECMWF and ICON (`SUN_DIFFER_MIN`,

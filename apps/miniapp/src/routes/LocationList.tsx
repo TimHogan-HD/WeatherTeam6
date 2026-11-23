@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from '../hooks/useNavigate.js'
 import { useQueries, useQueryClient } from '@tanstack/react-query'
-import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
+import { colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import type { Conditions, Location } from '@weatherteam6/types'
 import {
   rememberCards,
@@ -158,13 +158,15 @@ export function LocationList() {
               ...bareButton,
               ...row(spacing.tight),
               width: 'auto',
-              backgroundColor: colors.good,
+              // Off lime: lime is for scores only (owner, 2026-11-23, #644).
+              backgroundColor: colorsV2.raised,
               borderRadius: `${radius.full}px`,
+              minHeight: '44px',
               padding: `${spacing.tight}px ${spacing.cellPad}px`,
             }}
           >
-            <PlusIcon color={colors.onGood} />
-            <span style={typeV2.button}>Add</span>
+            <PlusIcon color={colorsV2.txt1} />
+            <span style={{ ...typeV2.button, color: colorsV2.txt1 }}>Add</span>
           </button>
         </div>
         {locations.data !== undefined && locations.data.length > 1 ? (
