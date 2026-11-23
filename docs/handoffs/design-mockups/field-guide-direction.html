@@ -6,13 +6,19 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap">
 <style>
-/* Layout: one phone screen (a crag's Overview) on a light topo-map ground, one scroll, with a notes column beside it on wide screens.
+/* Layout: the same crag Overview twice, light and dark, side by side on wide screens and stacked on a phone, with a notes column.
    A direction mockup for #637, not a decision: glass only on the tab dock, no card per section, one face, ink plus two meaning-bearing hues.
-   Deliberately one visual world (light), so no dark blocks; every colour is still a token. */
+   Each phone carries its own palette as tokens, so the page does not follow the viewer's theme: both are always shown. */
 :root{
   color-scheme:light;
-  --ground:#e4e6e1;   /* the page behind the phone */
-  --paper:#f2f3f0;    /* the screen: a cool chalk white, not cream */
+  --ground:#dfe1dc;   /* the page behind the phones */
+  --pageInk:#1d2124;
+  --pageMuted:#4f565c;
+  --body:'Public Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+/* Light: a cool chalk-white map sheet, not cream. */
+.phone{
+  --paper:#f2f3f0;
   --ink:#1d2124;      /* text, the air line, buttons */
   --muted:#4f565c;    /* labels, 7:1 on paper */
   --faint:#5b6166;    /* axis words and sources, 6:1 on paper */
@@ -20,17 +26,40 @@
   --score:#2c6a3b;    /* scores only */
   --rain:#2f6db5;     /* rain and dew point only */
   --contour:#b98d63;  /* decoration: the contour lines at the top */
+  --contourA:.35;
   --dock:rgba(250,251,248,.78);
-  --body:'Public Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --dockLine:rgba(29,33,36,.10);
+  --dockShadow:rgba(29,33,36,.10);
+  --bezel:#2a2e31;
+}
+/* Dark: basalt grey, lighter than the current near-black, and no acid accent:
+   the same two hues at lighter, calmer tones. All text 5:1 or better on paper. */
+.phone.dark{
+  color-scheme:dark;
+  --paper:#23282b;
+  --ink:#e9ebe7;      /* 12.4:1 */
+  --muted:#adb4b9;    /* 7:1 */
+  --faint:#9aa2a7;    /* 5.6:1 */
+  --rule:#3a4145;
+  --score:#86c795;    /* 7.5:1, a sage green, not lime */
+  --rain:#90b9ee;     /* 7.4:1 */
+  --contour:#b98d63;
+  --contourA:.28;
+  --dock:rgba(43,49,53,.80);
+  --dockLine:rgba(233,235,231,.10);
+  --dockShadow:rgba(0,0,0,.35);
+  --bezel:#0f1112;
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--body);font-variant-numeric:tabular-nums;padding-block:24px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-a{color:var(--ink)}
+body{margin:0;background:var(--ground);color:var(--pageInk);font-family:var(--body);font-variant-numeric:tabular-nums;padding-block:24px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 a:focus-visible,button:focus-visible{outline:2px solid var(--rain);outline-offset:2px}
-.wrap{max-width:1000px;margin:0 auto;display:flex;flex-wrap:wrap;gap:32px;justify-content:center;align-items:flex-start}
-.phone{position:relative;width:390px;max-width:100%;border-radius:40px;overflow:hidden;background:var(--paper);box-shadow:0 0 0 8px #2a2e31,0 30px 70px rgba(29,33,36,.28);padding:20px 24px 104px}
+.wrap{max-width:1320px;margin:0 auto;display:flex;flex-wrap:wrap;gap:32px;justify-content:center;align-items:flex-start}
+.col{display:flex;flex-direction:column;gap:12px;align-items:center;max-width:100%}
+.col > p{margin:0;font-size:14px;font-weight:600;color:var(--pageMuted)}
+.phone{position:relative;width:390px;max-width:100%;border-radius:40px;overflow:hidden;background:var(--paper);color:var(--ink);box-shadow:0 0 0 8px var(--bezel),0 30px 70px rgba(29,33,36,.28);padding:20px 24px 104px}
+.phone a{color:var(--ink)}
 .contours{position:absolute;top:0;left:0;width:100%;height:230px;pointer-events:none}
-.contours path{fill:none;stroke:var(--contour);stroke-width:1;opacity:.35}
+.contours path{fill:none;stroke:var(--contour);stroke-width:1;opacity:var(--contourA)}
 .screen{position:relative;display:flex;flex-direction:column}
 .top{display:flex;justify-content:space-between;align-items:center;min-height:44px}
 .top a{display:flex;align-items:center;gap:6px;min-height:44px;text-decoration:none;font-size:15px;font-weight:500}
@@ -51,6 +80,8 @@ figure svg{display:block;width:100%;height:auto;overflow:visible}
 figcaption{margin-top:12px;display:flex;flex-wrap:wrap;gap:18px;font-size:13px;color:var(--muted)}
 figcaption span{display:flex;align-items:center;gap:6px}
 figcaption .k{font-weight:600;color:var(--score)}
+.key-air{stroke:var(--ink);stroke-width:2}
+.key-dew{stroke:var(--rain);stroke-width:1.5;stroke-dasharray:4 3}
 h2{margin:44px 0 0;font-size:17px;font-weight:600}
 dl{margin:10px 0 0;display:grid;grid-template-columns:112px minmax(0,1fr);font-size:15px;line-height:1.35;border-bottom:1px solid var(--rule)}
 dt,dd{margin:0;padding:11px 0;border-top:1px solid var(--rule)}
@@ -66,20 +97,23 @@ td.s{font-weight:600;color:var(--score)}
 td.r{color:var(--muted)}
 td.r.wet{color:var(--rain);font-weight:600}
 .src{margin:18px 0 0;font-size:13px;line-height:1.45;color:var(--faint)}
-.dock{position:absolute;left:12px;right:12px;bottom:16px;display:flex;justify-content:space-between;padding:4px 6px;border-radius:18px;background:var(--dock);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(29,33,36,.10);box-shadow:0 6px 20px rgba(29,33,36,.10)}
+.dock{position:absolute;left:12px;right:12px;bottom:16px;display:flex;justify-content:space-between;padding:4px 6px;border-radius:18px;background:var(--dock);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--dockLine);box-shadow:0 6px 20px var(--dockShadow)}
 .dock button{min-height:44px;padding:0 6px;border:0;background:none;font:inherit;font-size:14px;color:var(--muted);cursor:pointer}
 .dock button[aria-current]{font-weight:600;color:var(--ink);box-shadow:inset 0 -2px 0 var(--ink)}
-.notes{flex:1 1 300px;min-width:0;max-width:440px;display:flex;flex-direction:column;gap:12px}
+.notes{flex:1 1 300px;min-width:0;max-width:400px;display:flex;flex-direction:column;gap:12px}
 .notes h2{margin:0;font-size:24px;font-weight:700;text-wrap:balance}
-.notes p,.notes li{margin:0;color:var(--muted);line-height:1.55;font-size:15px}
+.notes h3{margin:8px 0 0;font-size:16px;font-weight:600}
+.notes p,.notes li{margin:0;color:var(--pageMuted);line-height:1.55;font-size:15px}
 .notes ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
-.notes b{color:var(--ink);font-weight:600}
+.notes b{color:var(--pageInk);font-weight:600}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
 <div class="wrap">
 
+<div class="col">
+<p>Light</p>
 <div class="phone">
   <svg class="contours" aria-hidden="true" viewBox="0 0 390 230" preserveAspectRatio="none">
     <path d="M-10 40 C 60 20, 120 70, 200 48 S 330 10, 400 36"/>
@@ -88,18 +122,14 @@ td.r.wet{color:var(--rain);font-weight:600}
     <path d="M-10 118 C 90 96, 150 148, 230 126 S 330 94, 400 114"/>
     <path d="M-10 144 C 100 124, 160 172, 240 152 S 330 122, 400 140"/>
   </svg>
-
   <div class="screen">
     <div class="top">
       <a href="#"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3 5 8l5 5"/></svg>Crags</a>
       <a href="#">Feedback</a>
     </div>
-
     <h1>Taylors Falls</h1>
     <p class="sub">Basalt (dense), St. Croix River</p>
-
     <div class="score"><b>93</b><span>Score at 8 am</span></div>
-
     <figure>
       <svg role="img" aria-label="Today from 8 am to 11 pm: air 28 to 30 degrees falling to 23, dew point 21 falling to 13, scores 93 to 99 then 75" viewBox="0 0 342 150">
         <g class="grid"><line x1="0" y1="22" x2="342" y2="22"/><line x1="0" y1="66" x2="342" y2="66"/><line x1="0" y1="110" x2="342" y2="110"/></g>
@@ -123,12 +153,11 @@ td.r.wet{color:var(--rain);font-weight:600}
         <text class="sc" x="342" y="148" text-anchor="end">75</text>
       </svg>
       <figcaption>
-        <span><svg aria-hidden="true" width="18" height="2"><line x1="0" y1="1" x2="18" y2="1" stroke="#1d2124" stroke-width="2"/></svg>Air</span>
-        <span><svg aria-hidden="true" width="18" height="2"><line x1="0" y1="1" x2="18" y2="1" stroke="#2f6db5" stroke-width="1.5" stroke-dasharray="4 3"/></svg>Dew point</span>
+        <span><svg aria-hidden="true" width="18" height="2"><line class="key-air" x1="0" y1="1" x2="18" y2="1"/></svg>Air</span>
+        <span><svg aria-hidden="true" width="18" height="2"><line class="key-dew" x1="0" y1="1" x2="18" y2="1"/></svg>Dew point</span>
         <span><span class="k">93</span>Score</span>
       </figcaption>
     </figure>
-
     <h2>Now</h2>
     <dl>
       <dt>Dryness</dt><dd>Dry, 32 h since rain</dd>
@@ -137,7 +166,6 @@ td.r.wet{color:var(--rain);font-weight:600}
       <dt>Last rain</dt><dd>Sunday, 0.12 in</dd>
       <dt>Wind</dt><dd>13 mph, gusts 18</dd>
     </dl>
-
     <h2>Next days</h2>
     <table>
       <thead><tr><th scope="col">Day</th><th scope="col">Score</th><th scope="col">High / low</th><th scope="col">Rain</th></tr></thead>
@@ -150,11 +178,9 @@ td.r.wet{color:var(--rain);font-weight:600}
         <tr><th scope="row">Sat</th><td class="s">100</td><td>39° / 31°</td><td class="r wet">23%</td></tr>
       </tbody>
     </table>
-
     <p class="src">Air from HRRR. Rain from GFS, ECMWF, ICON and GEM.</p>
   </div>
-
-  <nav class="dock" aria-label="Crag sections">
+  <nav class="dock" aria-label="Crag sections, light">
     <button type="button" aria-current="page">Overview</button>
     <button type="button">Daily</button>
     <button type="button">Hourly</button>
@@ -163,18 +189,103 @@ td.r.wet{color:var(--rain);font-weight:600}
     <button type="button">Crag</button>
   </nav>
 </div>
+</div>
+
+<div class="col">
+<p>Dark</p>
+<div class="phone dark">
+  <svg class="contours" aria-hidden="true" viewBox="0 0 390 230" preserveAspectRatio="none">
+    <path d="M-10 40 C 60 20, 120 70, 200 48 S 330 10, 400 36"/>
+    <path d="M-10 66 C 70 44, 130 96, 210 74 S 330 38, 400 62"/>
+    <path d="M-10 92 C 80 70, 140 122, 220 100 S 330 66, 400 88"/>
+    <path d="M-10 118 C 90 96, 150 148, 230 126 S 330 94, 400 114"/>
+    <path d="M-10 144 C 100 124, 160 172, 240 152 S 330 122, 400 140"/>
+  </svg>
+  <div class="screen">
+    <div class="top">
+      <a href="#"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3 5 8l5 5"/></svg>Crags</a>
+      <a href="#">Feedback</a>
+    </div>
+    <h1>Taylors Falls</h1>
+    <p class="sub">Basalt (dense), St. Croix River</p>
+    <div class="score"><b>93</b><span>Score at 8 am</span></div>
+    <figure>
+      <svg role="img" aria-label="Today from 8 am to 11 pm: air 28 to 30 degrees falling to 23, dew point 21 falling to 13, scores 93 to 99 then 75" viewBox="0 0 342 150">
+        <g class="grid"><line x1="0" y1="22" x2="342" y2="22"/><line x1="0" y1="66" x2="342" y2="66"/><line x1="0" y1="110" x2="342" y2="110"/></g>
+        <polyline class="dew" points="0,61.6 22.8,66 45.6,70.4 68.4,79.2 91.2,79.2 114,83.6 136.8,88 159.6,92.4 182.4,92.4 205.2,92.4 228,92.4 250.8,96.8 273.6,92.4 296.4,92.4 319.2,96.8 342,96.8"/>
+        <polyline class="air" points="0,30.8 22.8,30.8 45.6,26.4 68.4,22 91.2,22 114,22 136.8,26.4 159.6,30.8 182.4,39.6 205.2,44 228,44 250.8,48.4 273.6,48.4 296.4,48.4 319.2,48.4 342,52.8"/>
+        <circle class="now" cx="0" cy="30.8" r="4"/>
+        <text class="ax" x="342" y="18" text-anchor="end">30°</text>
+        <text class="ax" x="342" y="62" text-anchor="end">20°</text>
+        <text class="ax" x="342" y="106" text-anchor="end">10°</text>
+        <text class="hr" x="0" y="132">8a</text>
+        <text class="hr" x="68.4" y="132" text-anchor="middle">11a</text>
+        <text class="hr" x="136.8" y="132" text-anchor="middle">2p</text>
+        <text class="hr" x="205.2" y="132" text-anchor="middle">5p</text>
+        <text class="hr" x="273.6" y="132" text-anchor="middle">8p</text>
+        <text class="hr" x="342" y="132" text-anchor="end">11p</text>
+        <text class="sc" x="0" y="148">93</text>
+        <text class="sc" x="68.4" y="148" text-anchor="middle">95</text>
+        <text class="sc" x="136.8" y="148" text-anchor="middle">99</text>
+        <text class="sc" x="205.2" y="148" text-anchor="middle">94</text>
+        <text class="sc" x="273.6" y="148" text-anchor="middle">76</text>
+        <text class="sc" x="342" y="148" text-anchor="end">75</text>
+      </svg>
+      <figcaption>
+        <span><svg aria-hidden="true" width="18" height="2"><line class="key-air" x1="0" y1="1" x2="18" y2="1"/></svg>Air</span>
+        <span><svg aria-hidden="true" width="18" height="2"><line class="key-dew" x1="0" y1="1" x2="18" y2="1"/></svg>Dew point</span>
+        <span><span class="k">93</span>Score</span>
+      </figcaption>
+    </figure>
+    <h2>Now</h2>
+    <dl>
+      <dt>Dryness</dt><dd>Dry, 32 h since rain</dd>
+      <dt>Air</dt><dd>28°F, high 31°, low 23°</dd>
+      <dt>Good hours</dt><dd>8 am to 11 pm</dd>
+      <dt>Last rain</dt><dd>Sunday, 0.12 in</dd>
+      <dt>Wind</dt><dd>13 mph, gusts 18</dd>
+    </dl>
+    <h2>Next days</h2>
+    <table>
+      <thead><tr><th scope="col">Day</th><th scope="col">Score</th><th scope="col">High / low</th><th scope="col">Rain</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Today</th><td class="s">98</td><td>31° / 23°</td><td class="r">0%</td></tr>
+        <tr><th scope="row">Tue</th><td class="s">100</td><td>33° / 21°</td><td class="r">1%</td></tr>
+        <tr><th scope="row">Wed</th><td class="s">100</td><td>37° / 25°</td><td class="r">3%</td></tr>
+        <tr><th scope="row">Thu</th><td class="s">100</td><td>38° / 25°</td><td class="r">3%</td></tr>
+        <tr><th scope="row">Fri</th><td class="s">100</td><td>40° / 26°</td><td class="r wet">24%</td></tr>
+        <tr><th scope="row">Sat</th><td class="s">100</td><td>39° / 31°</td><td class="r wet">23%</td></tr>
+      </tbody>
+    </table>
+    <p class="src">Air from HRRR. Rain from GFS, ECMWF, ICON and GEM.</p>
+  </div>
+  <nav class="dock" aria-label="Crag sections, dark">
+    <button type="button" aria-current="page">Overview</button>
+    <button type="button">Daily</button>
+    <button type="button">Hourly</button>
+    <button type="button">Precip</button>
+    <button type="button">Rock</button>
+    <button type="button">Crag</button>
+  </nav>
+</div>
+</div>
 
 <div class="notes">
   <h2>Field guide direction</h2>
-  <p>One screen, the crag Overview, redrawn against the AI-design tells in #637. Figures are sample data from a <code>check:ui</code> run. A starting point to react to, not a decision.</p>
+  <p>One screen, the crag Overview, redrawn against the AI-design tells in #637, in light and dark. Figures are sample data from a <code>check:ui</code> run. A starting point to react to, not a decision.</p>
   <ul>
     <li><b>Glass only on the dock.</b> Content sits on the page, split by space and hairlines, not a card per section (Apple HIG: no glass in the content layer).</li>
     <li><b>No template chrome.</b> Sentence-case headings, no tracked caps, no <code>A · B</code> strings, no <code>›</code> links, no glow.</li>
     <li><b>Readings as a label and value table</b>, not a stat grid beside a giant number.</li>
     <li><b>The score beside its hour</b>, then the Today chart with scores on its time axis.</li>
-    <li><b>Colour with one meaning each:</b> green ink is a score, blue is rain or dew point, ink is everything else, buttons included.</li>
+    <li><b>Colour with one meaning each:</b> green is a score, blue is rain or dew point, ink is everything else, buttons included.</li>
     <li><b>One face, Public Sans</b>, for its kinship with US government map and NWS lettering.</li>
-    <li><b>Light topo-map ground</b> with faint contour lines. The app has no light theme yet; the same rules carry to a dark one.</li>
+  </ul>
+  <h3>The dark version</h3>
+  <ul>
+    <li><b>Basalt grey, not near-black.</b> <code>#23282b</code> against the app's <code>#07090c</code>: dark enough for night at the crag, light enough that the page reads as a surface rather than a void.</li>
+    <li><b>Sage green, not lime.</b> The score keeps its hue but drops the acid tone that is the strongest single tell (near-black plus one acid accent).</li>
+    <li><b>Same layout, same rules</b>; only the tokens change. Every text colour is 5.6:1 or better on its ground.</li>
   </ul>
 </div>
 
