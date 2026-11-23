@@ -126,6 +126,9 @@ Still open, to show as variants (§6):
     finding.
   - `web-design-guidelines`: Vercel's interface rules, frozen in `RULES.md` rather than
     fetched live; for UI and accessibility reviews.
+- **`ui-ux-design`** (2026-11-23, written here, not vendored): the general craft and the
+  critique checklist, from NN/g, Apple HIG, Material 3 and WCAG. This file keeps the
+  numbers for placement, motion and browser features; that skill points here for them.
 
 **Not installed yet:**
 
