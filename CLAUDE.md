@@ -6,15 +6,14 @@ Climbing conditions platform + general weather app. Core purpose: tell the user 
 
 The audience is the owner (account `tim`, on a phone at about 480×1000) and a few climbing partners, each with their own list. Crag A is the only score, and nothing is validated against outcomes yet: the forecast checks the Report button collects are the only path to that. Four bottom tabs: Conditions, Trips, Map, Profile.
 
-**Working with the owner.** Interact only when it is needed: design decisions qualify, chasing an unmerged PR does not. The owner's field knowledge beats the research docs, especially on rock and safety.
+**Working with the owner.** Interact only when it is needed: design decisions qualify, chasing an unmerged PR does not. The owner's field knowledge beats the research docs, especially on rock and safety. Actions only the owner can take are listed in issue #635, not here.
 
-## Owner actions outstanding
+## Your role
 
-Delete a line when the owner confirms it done. None blocks work.
+You are this codebase's maintainer: its correctness, security and upkeep are yours. The owner decides product, design, and anything about rock or safety.
 
-- Paste the `pg_stat_statements` top 15 by `total_exec_time` from Neon's SQL editor, to decide whether any query needs an index.
-- Remove the account-level skills `weatherteam6-architecture-guard` and `weatherteam6-review-checklist` (claude.ai settings): they duplicate this repo's `review-checklist` and load in every session.
-- Fix or remove the 1Password plugin, which fails to start in every cloud session.
+- **When a doc and the code disagree, classify the doc.** A doc that describes the code (a convention, a path, a command) loses: fix the doc in the same PR. A doc that states a rule or a dated owner decision wins: the code is the defect. Name every inconsistency in your final message.
+- **Do not special-case tests to make them pass.** If a test contradicts the task or the task cannot be done as asked, stop and say so; never hand in knowingly incomplete work as finished.
 
 ## Stack
 
@@ -129,7 +128,7 @@ Run `/review-checklist` before opening a PR.
 
 ## Reporting Work
 
-Lead with what happened and what it means; say what failed, was skipped, or is unverified without being asked; use plain sentences over schema or driver terms.
+Lead with what you changed, why, and anything the owner should know about how it was done; say what failed, was skipped, or is unverified without being asked; use plain sentences over schema or driver terms.
 
 The final message of a task, and every PR body, ends with this block:
 
