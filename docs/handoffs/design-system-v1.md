@@ -85,7 +85,8 @@ Two rules the client added that belong here now:
 
 Every mockup is a standalone `.html` file in `docs/handoffs/design-mockups/` (CLAUDE.md §
 Rules, owner 2026-11-23). `field-guide-direction.html` is a direction proposal for #637, not
-the current look.
+the current look. `look-variants-644.html` holds the #644 variants waiting on the owner's pick
+(colour roles, the card kit and type scale; how sure a day's score is), not the current look.
 
 `docs/handoffs/design-mockups/weatherteam6-hybrid.html` — the current look (owner,
 2026-10-19). Open it directly in a browser; `miniapp-hybrid-transition-v1.md` says what it
