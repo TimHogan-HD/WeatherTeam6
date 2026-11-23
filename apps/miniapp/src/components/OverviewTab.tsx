@@ -28,7 +28,7 @@ import {
   type RecentPrecip,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, cardV2 } from '../theme/styles.js'
+import { bareButton } from '../theme/styles.js'
 import { CardStack } from './CardStack.js'
 import { formatTempDeg } from '../lib/format.js'
 import { FLIP_ATTR } from '../lib/flip.js'
@@ -53,6 +53,7 @@ import { wallDayPair, type WallDayPair } from '../lib/wallLine.js'
 import { useNow } from '../hooks/useNow.js'
 import { useNavigate } from '../hooks/useNavigate.js'
 import { RainNowPill } from './RainNowPill.js'
+import { RainSplitDots } from './RainSplitDots.js'
 import { scoreRampColor } from './charts/chartStyle.js'
 import { Sect } from './charts/liquid.js'
 import { TodayChart } from './charts/TodayChart.js'
@@ -66,6 +67,10 @@ import { WallLineRow } from './WallSunShade.js'
 /**
  * The crag Overview (owner, 2026-10-29, the overview rework's "A · revised"):
  * four sections — the hero, Today, Next days, Right now.
+ *
+ * **Open sections, not cards** (owner, 2026-11-23, #644 variant C): space and a
+ * hairline set each section off; Next days is a list, one day per row; Right
+ * now is label and value rows.
  *
  * **The hero shows one score, the hour covering now**, named beside it ("Score
  * at 2pm"). The day's score is only in Next days' Today column. To the score's
@@ -111,11 +116,21 @@ export type OverviewTabProps = {
   onOpenTab: (tab: 'precip' | 'hourly') => void
 }
 
-const sectCard: CSSProperties = { ...cardV2, padding: `${spacing.sectionGap}px 14px 14px` }
+/**
+ * An open section (owner, 2026-11-23, #644 variant C "Open list"): no card. Space
+ * and one hairline above group a section; the hero sits on the ground with none.
+ */
+const openSect: CSSProperties = { padding: `${spacing.sectionGap}px 2px 0`, borderTop: `1px solid ${colorsV2.line}` }
+const heroSect: CSSProperties = { padding: '4px 2px 0' }
+
+/** A row in an open list: a hairline between rows, none above the first. */
+function listRow(first: boolean): CSSProperties {
+  return { borderTop: first ? 'none' : `1px solid ${colorsV2.line}` }
+}
 
 function Card({ title, aside, children }: { title: string; aside?: string | null; children: ReactNode }) {
   return (
-    <section style={sectCard}>
+    <section style={openSect}>
       <Sect title={title} aside={aside ?? null} />
       {children}
     </section>
@@ -288,8 +303,6 @@ function Hero({ props, now }: { props: OverviewTabProps; now: Now | null }) {
             display: 'grid',
             gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
             gap: '12px',
-            borderLeft: `1px solid ${colorsV2.line}`,
-            paddingLeft: '16px',
           }}
         >
           {cells.map((c) => (
@@ -327,7 +340,7 @@ function ReadingCell({ cell }: { cell: Cell }) {
 
 function HeroFrame({ name, rain, when = null, children }: { name: string | null; rain: ReactNode; when?: string | null; children: ReactNode }) {
   return (
-    <section data-hero="" style={sectCard}>
+    <section data-hero="" style={heroSect}>
       {name === null ? null : (
         <h1 {...{ [CRAG_FLY_ATTR]: 'name' }} style={{ ...typeV2.heroName, margin: 0, width: 'fit-content' }}>
           {name}
@@ -506,14 +519,14 @@ function NextDaysCard({ props }: { props: OverviewTabProps }) {
   const skyDays = hourly.data?.sky?.days ?? []
   // Sun and shade walls (#445): a day whose groups differ by more than ten points shows both in place of the crag's.
   const walls = isClimbingLocation ? (hourly.data?.readings?.walls ?? []) : []
-  const anyPair = walls.length > 0 && days.some((d) => wallDayPair(walls, d.local_date)?.kind === 'pair')
   // A good day where two or more weather models say it'll be wet shows them as dots under the score.
   const readingDays = isClimbingLocation ? hourly.data?.readings?.days : undefined
   const anySplit = days.some((d) => rainSplitShown(readingDays, d.local_date) !== null)
   return (
     <Card title="Next days" aside={aside}>
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))`, gap: '4px', textAlign: 'center' }}>
-        {days.map((day) => {
+      {/* One day per row, because days are compared (#644 variant C). */}
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        {days.map((day, i) => {
           const summary = skyDays.find((d) => d.local_date === day.local_date)?.summary ?? null
           const chance = hourly.data === undefined ? null : dayChance(hourly.data.hours, day.local_date)
           const open = props.drawableDates?.has(day.local_date) === true ? () => props.onOpenDay(day.local_date) : null
@@ -521,35 +534,35 @@ function NextDaysCard({ props }: { props: OverviewTabProps }) {
           const split = rainSplitShown(readingDays, day.local_date)
           const content = (
             <>
-              {summary === null ? <span style={{ height: '22px' }} /> : <SkyIcon sky={skyDayIcon(summary)} size={22} />}
-              {pair?.kind === 'pair' ? (
-                <DayPair pair={pair} />
-              ) : isClimbingLocation ? (
-                // Beside a pair, a lone score takes the pair's height so every day's name stays on one line.
-                <span style={anyPair ? { display: 'flex', alignItems: 'center', minHeight: `${DAY_PAIR_HEIGHT}px` } : undefined}>
-                  <b style={{ ...typeV2.dayScore, margin: '4px 0 2px', color: day.score === null ? colorsV2.txtMuted : scoreRampColor(day.score) }}>
-                    {day.score ?? EM_DASH}
-                  </b>
-                </span>
-              ) : null}
-              {anySplit ? (
-                <RainSplitDots wet={split?.wet ?? 0} models={split?.models ?? 0} label={split === null ? null : rainSplitText(split)} />
-              ) : null}
-              <span style={{ ...typeV2.daySmall, color: colorsV2.txt2 }}>{shortDay(day.local_date, todayDate)}</span>
-              <span style={typeV2.daySmall}>
+              <span style={{ ...typeV2.lead, fontWeight: 600, color: colorsV2.txt1, minWidth: 0 }}>{shortDay(day.local_date, todayDate)}</span>
+              {summary === null ? <span /> : <SkyIcon sky={skyDayIcon(summary)} size={22} />}
+              <span style={{ ...typeV2.dayTemp, color: colorsV2.txt2, fontVariantNumeric: 'tabular-nums' }}>
                 {formatTempDeg(day.highC)}/{formatTempDeg(day.lowC)}
               </span>
-              <span style={{ ...typeV2.daySmall, color: colorsV2.rain }}>{chance === null ? EM_DASH : formatHumidity(chance)}</span>
+              <span style={{ ...typeV2.dayTemp, color: colorsV2.rain, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                {chance === null ? EM_DASH : formatHumidity(chance)}
+              </span>
+              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
+                {pair?.kind === 'pair' ? (
+                  <DayPair pair={pair} />
+                ) : isClimbingLocation ? (
+                  <b style={{ ...typeV2.dayScore, color: day.score === null ? colorsV2.txtMuted : scoreRampColor(day.score) }}>
+                    {day.score ?? EM_DASH}
+                  </b>
+                ) : null}
+                {split === null ? null : <RainSplitDots wet={split.wet} models={split.models} label={rainSplitText(split)} />}
+              </span>
             </>
           )
           const style: CSSProperties = {
-            display: 'flex',
-            flexDirection: 'column',
+            display: 'grid',
+            gridTemplateColumns: `minmax(0, 1fr) 24px 76px 44px ${isClimbingLocation ? '64px' : '0px'}`,
+            columnGap: '10px',
             alignItems: 'center',
-            gap: '2px',
-            padding: '6px 0',
-            borderRadius: '14px',
-            minWidth: 0,
+            minHeight: '44px',
+            padding: '8px 0',
+            textAlign: 'left',
+            ...listRow(i === 0),
           }
           return open === null ? (
             <div key={day.local_date} style={style}>
@@ -567,7 +580,7 @@ function NextDaysCard({ props }: { props: OverviewTabProps }) {
                     ? 'no score'
                     : `score ${day.score}`
               }${split === null ? '' : `, ${rainSplitText(split)}`}`}
-              style={{ ...bareButton, ...style, width: 'auto' }}
+              style={{ ...bareButton, ...style, width: '100%' }}
             >
               {content}
             </button>
@@ -583,37 +596,6 @@ function NextDaysCard({ props }: { props: OverviewTabProps }) {
     </Card>
   )
 }
-
-/**
- * One dot per weather model read, filled for each that says it'll be wet
- * (`ReadingsDay.rain_split`). With no models it holds the row's height, so
- * every column's day name stays on one line. `label` reads the count aloud;
- * null leaves the dots decorative (the key, the empty slot).
- */
-function RainSplitDots({ wet, models, label }: { wet: number; models: number; label: string | null }) {
-  return (
-    <span
-      {...(label === null ? { 'aria-hidden': true } : { role: 'img', 'aria-label': label })}
-      style={{ display: 'inline-flex', gap: '3px', height: '12px', alignItems: 'center' }}>
-      {Array.from({ length: models }, (_, i) => (
-        <i
-          key={i}
-          style={{
-            width: '7px',
-            height: '7px',
-            borderRadius: '50%',
-            border: `1.5px solid ${colorsV2.rainMark}`,
-            background: i < wet ? colorsV2.rainMark : 'transparent',
-            boxSizing: 'border-box',
-          }}
-        />
-      ))}
-    </span>
-  )
-}
-
-/** Two 22px lines and the 2px above them. */
-const DAY_PAIR_HEIGHT = 46
 
 /** A day's best wall in sun over its best in shade, in the crag score's place (#445). A withheld group is a dash. */
 function DayPair({ pair }: { pair: Extract<WallDayPair, { kind: 'pair' }> }) {
@@ -719,8 +701,9 @@ function RightNowCard({ props }: { props: OverviewTabProps }) {
 
   return (
     <Card title="Right now">
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '6px' }}>
-        {figures.map((f) => (
+      {/* Label and value rows (#644 variant C); each still opens the tab that draws it. */}
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        {figures.map((f, i) => (
           <button
             key={f.label}
             type="button"
@@ -729,18 +712,24 @@ function RightNowCard({ props }: { props: OverviewTabProps }) {
             style={{
               ...bareButton,
               display: 'grid',
-              alignContent: 'start',
-              gap: '1px',
-              padding: '8px 8px 10px',
-              borderRadius: '16px',
-              background: colorsV2.raised,
-              minWidth: 0,
+              gridTemplateColumns: 'auto minmax(0, 1fr) 12px',
+              columnGap: '12px',
+              alignItems: 'center',
+              width: '100%',
+              minHeight: '44px',
+              padding: '8px 0',
+              textAlign: 'left',
+              ...listRow(i === 0),
             }}
           >
-            <span style={typeV2.statLabel}>{f.label}</span>
-            <b style={{ ...typeV2.readFigure, fontSize: '24px', lineHeight: '26px' }}>{f.value}</b>
-            {f.note === null ? null : <small style={typeV2.keyRow}>{f.note}</small>}
-            <em style={{ ...typeV2.keyRow, fontStyle: 'normal', color: colorsV2.brandInk, marginTop: '3px' }}>{f.tabLabel} ›</em>
+            <span style={{ ...typeV2.lead, color: colorsV2.txtMuted }}>{f.label}</span>
+            <span style={{ display: 'grid', justifyItems: 'end', minWidth: 0, textAlign: 'right' }}>
+              <b style={{ ...typeV2.lead, fontWeight: 600, color: colorsV2.txt1 }}>{f.value}</b>
+              {f.note === null ? null : <small style={{ ...typeV2.keyRow, color: colorsV2.txtMuted }}>{f.note}</small>}
+            </span>
+            <span aria-hidden="true" style={{ ...typeV2.lead, color: colorsV2.txtMuted }}>
+              ›
+            </span>
           </button>
         ))}
       </div>

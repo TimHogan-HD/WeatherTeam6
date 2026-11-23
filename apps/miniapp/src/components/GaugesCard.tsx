@@ -211,7 +211,7 @@ export function GaugesCard({ rain, river, soil, visits, models, today, utcOffset
                     boxShadow: on ? `inset 0 0 0 1px ${withOpacity(colorsV2.brand, 0.45)}` : 'none',
                   }}
                 >
-                  <span style={{ ...typeV2.sect, color: on ? colorsV2.brandInk : colorsV2.txtTab }}>
+                  <span style={{ ...typeV2.sect, fontSize: 16, lineHeight: '20px', color: on ? colorsV2.brandInk : colorsV2.txtTab }}>
                     {KIND_NAME[k]}
                   </span>
                   <span
@@ -439,7 +439,7 @@ function Cell({ cell, visit, borderTop }: { cell: GridCell; visit: boolean; bord
 }
 
 function VisitTag() {
-  return <span style={{ ...typeV2.sect, fontSize: 10, letterSpacing: 0.8, color: colorsV2.brandInk }}>Visit</span>
+  return <span style={{ ...typeV2.keyRow, fontWeight: 600, color: colorsV2.brandInk }}>Visit</span>
 }
 
 /* ----------------------------------------------------------------- river */

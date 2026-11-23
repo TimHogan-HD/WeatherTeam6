@@ -314,3 +314,55 @@ describe('DailyList — sun line', () => {
     expect(html).not.toContain('bright sunshine')
   })
 })
+
+describe('DailyList — the model dots (#644)', () => {
+  const split = (d: ReadingsDay, wet: number, models: number): ReadingsDay => ({ ...d, rain_split: { wet, models } })
+  /** The text after each row's dots: the dots' own span closes first, then the count. */
+  const dots = (html: string): string[] => [...html.matchAll(/data-model-dots=""[^>]*>.*?<\/span>([^<]*)</g)].map((m) => m[1] ?? '')
+
+  it('counts the dry models on every scored day that carries a split, including a day with none wet', () => {
+    const html = render(
+      <DailyList
+        days={[day(DATES[0]), day(DATES[1])]}
+        readings={readings([split(readingsDay(DATES[0], 92), 0, 4), split(readingsDay(DATES[1], 85), 3, 4)])}
+        hours={[]}
+        sky={[]}
+      />,
+    )
+    expect(dots(html)).toEqual(['4 of 4 dry', '1 of 4 dry'])
+    expect(html).toContain(dailyFoot(true, false, false, true))
+  })
+
+  it('reads the count aloud on a tappable row', () => {
+    const html = render(
+      <DailyList
+        days={[day(DATES[0])]}
+        readings={readings([split(readingsDay(DATES[0], 90), 1, 4)])}
+        hours={[]}
+        sky={[]}
+        onSelectDay={() => {}}
+        drawableDates={new Set([DATES[0]])}
+      />,
+    )
+    expect(html).toContain("score 90, 1 of 4 weather models say it&#x27;ll be wet")
+  })
+
+  it('draws nothing, and no dots footnote, where the split is withheld or absent or the day is unscored', () => {
+    // Under RAIN_SPLIT_MIN_SCORE the API sends no split; under MIN_RAIN_MODELS it sends null.
+    // A split beside an unscored day would be a count with no score to qualify.
+    const html = render(
+      <DailyList
+        days={[day(DATES[0]), day(DATES[1]), day(DATES[2])]}
+        readings={readings([
+          readingsDay(DATES[0], 40),
+          { ...readingsDay(DATES[1], 90), rain_split: null },
+          split(readingsDay(DATES[2], null), 2, 4),
+        ])}
+        hours={[]}
+        sky={[]}
+      />,
+    )
+    expect(html).not.toContain('data-model-dots')
+    expect(html).not.toContain('Dots are the weather models')
+  })
+})
