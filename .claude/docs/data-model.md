@@ -23,7 +23,7 @@ feedback                  -- app feedback and forecast checks
 route_ticks               -- logbook (OpenBeta ids, no FK)
 route_todos               -- logbook (OpenBeta ids, no FK)
 area_locations            -- recorded boulder positions, shared by every account
-usage_events              -- temporary: screens and crag tabs opened, by random visit id, no account and no FK; POST /usage (docs/usage-log.md)
+usage_events              -- temporary: screens and crag tabs opened, by random visit id, no account (only an owner flag) and no FK; POST /usage (docs/usage-log.md)
 user_preferences
 walls
 weather_alerts            -- /api/cron/check-alerts

@@ -330,6 +330,13 @@
       "when": 1795467283409,
       "tag": "0046_usage_events_visit",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1795468313813,
+      "tag": "0047_usage_events_owner",
+      "breakpoints": true
     }
   ]
 }

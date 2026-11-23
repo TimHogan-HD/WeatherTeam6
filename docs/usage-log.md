@@ -1,6 +1,6 @@
 # Usage log
 
-**Temporary** (owner, 2026-11-23). It records which screens and crag tabs each account opens,
+**Temporary** (owner, 2026-11-23). It records which screens and crag tabs get opened,
 so the next redesign starts from what people actually use rather than from guesses. Remove it
 once that question is answered; the steps are below.
 
@@ -15,10 +15,15 @@ One row in `usage_events` each time someone signed in:
   `precip`, `rock` or `crag`.
 
 **No account is stored** (owner, 2026-11-23). Each row has a visit id, the screen, the tab
-(crag screen only) and the time, and nothing else: no account, no location, no device, no
-address. The visit id is random, made each time the app loads and kept only in memory, so a
+(crag screen only), whether it is the owner's, and the time, and nothing else: no account, no
+location, no device, no address. The visit id is random, made each time the app loads and kept only in memory, so a
 reload starts a new one and nothing links a visit to a person or to another visit. It exists
 only so one visit's screens can be put in order for the time-on-screen figure.
+
+**The owner's own use is marked** (owner, 2026-11-23), so it does not muddy what the partners
+do. The server sets `owner` from the signed-in account (`isOwner`, the account
+`DEFAULT_USER_ID` names); the app sends nothing for it. Every other account is `false`, so
+the mark names no one else.
 
 A failed report is dropped silently and never retried, so the app never waits on it or shows an
 error for it. The server refuses any screen name that is not a route pattern. An automated
@@ -33,12 +38,14 @@ cap at this many accounts, so nothing prunes it.
 From `apps/api`, with `DATABASE_URL` set in the shell:
 
 ```bash
-npm run usage          # the last 30 days
-npm run usage -- 7     # the last 7 days
+npm run usage                  # everyone but the owner, the last 30 days
+npm run usage -- 7             # the last 7 days
+npm run usage -- --owner       # the owner's use only
+npm run usage -- 7 --all       # everyone, the owner included
 ```
 
-It prints every screen and tab, across everyone, with how many times it was opened and a median
-time on it. There is no per-person view. **The time is approximate.** The app reports when a
+It prints every screen and tab with how many times it was opened and a median time on it.
+There is no per-person view beyond the owner's mark. **The time is approximate.** The app reports when a
 screen opens, not when the phone is put away, so time on a screen is the gap to the same
 visit's next event, counted only under five minutes (`MAX_GAP_MS`). The last screen of each
 visit gets no time.
