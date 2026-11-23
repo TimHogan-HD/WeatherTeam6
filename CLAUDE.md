@@ -96,6 +96,7 @@ Do not create a `.env` file at all — set variables in the shell for the one co
 | Wall angle, aspect, temperature/humidity scoring, `walls` | `.claude/docs/climbing-terminology-research.md` — `cliff_angle` runs backwards from climbers' usage and `aspectDegrees` scores nothing |
 | Sun and shade walls on the Overview, Wall A per wall (#445) | `docs/handoffs/wall-a-sun-shade-v1.md`, then the mockups it lists, opened in a browser |
 | Any UI work | `docs/handoffs/miniapp-design-v1.md` (the current screen spec — open, see Rules), `design-system-v1.md`, and `miniapp-hybrid-transition-v1.md` (built; wins for the items it lists). Open the mockup itself (`docs/handoffs/design-mockups/weatherteam6-hybrid.html`), not a prose summary of it — one phase was built twice from the description |
+| Designing, critiquing or proposing a screen change | The `ui-ux-design` skill: the general craft (hierarchy, layout, type, colour, states, feedback, writing, data display, accessibility) from NN/g, Apple HIG, Material 3 and WCAG, and the critique checklist |
 | CSS, hover, transitions or animation | `docs/handoffs/design-system-v1.md` § CSS and motion — allowed since 2026-10-01, on tokens, with `prefers-reduced-motion` |
 | Placement, motion numbers, platform features, design tools | `.claude/docs/ui-craft.md` |
 | Setting up or repairing a Vercel project, or migrating from a restricted environment | `apps/api/README.md` |

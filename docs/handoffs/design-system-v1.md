@@ -50,7 +50,8 @@ scales in `packages/design` — `tempScale`, `windScale`, `chanceScale`, `uvScal
 - Card padding: `spacing.cardPad` (14px)
 - Bottom inset: `spacing.bottomInset` (24px)
 
-All mockup screens are drawn at **375 × 812** (iPhone logical resolution).
+Mockups draw a phone frame **390 px** wide (CLAUDE.md § Rules); the owner's phone is about
+480 × 1000, which `check:ui` uses.
 
 ## Copy rules (honesty, not taste)
 
