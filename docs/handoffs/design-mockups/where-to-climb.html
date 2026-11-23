@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Where to Climb Today</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a Cold day / Hot day switch, then two phone screens (the list and one crag) and a notes column.
+   Wide screens put them side by side; a phone stacks them. Visual direction is the field-guide one from #644
+   (chalk / basalt, one face, hairlines instead of cards); this mockup is about content, not that look.
+   Colours follow the viewer's theme. Each hue keeps one meaning: green = score, blue = rain/wet/dew, ink = everything else. */
+:root{
+  --ground:#dfe1dc;
+  --paper:#f2f3f0;
+  --ink:#1d2124;
+  --muted:#4f565c;
+  --faint:#5b6166;
+  --rule:#d5d8d2;
+  --score:#2c6a3b;
+  --rain:#2f6db5;
+  --warn:#8a4b12;
+  --dock:rgba(250,251,248,.9);
+  --bezel:#2a2e31;
+  --chip:rgba(29,33,36,.07);
+  --chipOn:#ffffff;
+  --body:'Public Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  color-scheme:dark;--ground:#15181a;--paper:#23282b;--ink:#e9ebe7;--muted:#adb4b9;--faint:#9aa2a7;--rule:#3a4145;
+  --score:#86c795;--rain:#90b9ee;--warn:#e7a86a;--dock:rgba(43,49,53,.92);--bezel:#0a0b0c;--chip:rgba(233,235,231,.08);--chipOn:#3a4145}}
+:root[data-theme="dark"]{
+  color-scheme:dark;--ground:#15181a;--paper:#23282b;--ink:#e9ebe7;--muted:#adb4b9;--faint:#9aa2a7;--rule:#3a4145;
+  --score:#86c795;--rain:#90b9ee;--warn:#e7a86a;--dock:rgba(43,49,53,.92);--bezel:#0a0b0c;--chip:rgba(233,235,231,.08);--chipOn:#3a4145}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--body);font-variant-numeric:tabular-nums;line-height:1.4;
+  padding-block:24px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button:focus-visible,a:focus-visible{outline:2px solid var(--rain);outline-offset:2px}
+.switch{display:flex;gap:4px;margin:0 auto 24px;padding:4px;width:max-content;max-width:100%;border-radius:12px;background:var(--chip)}
+.switch button{min-height:44px;padding:0 18px;border:0;border-radius:9px;background:none;font:inherit;font-size:15px;font-weight:500;color:var(--muted);cursor:pointer}
+.switch button[aria-pressed="true"]{background:var(--chipOn);color:var(--ink);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.wrap{max-width:1300px;margin:0 auto;display:flex;flex-wrap:wrap;gap:32px;justify-content:center;align-items:flex-start}
+.col{display:flex;flex-direction:column;gap:12px;align-items:center;max-width:100%}
+.col > p{margin:0;font-size:14px;font-weight:600;color:var(--muted)}
+.phone{position:relative;width:390px;max-width:100%;border-radius:40px;overflow:hidden;background:var(--paper);
+  box-shadow:0 0 0 8px var(--bezel),0 30px 70px rgba(0,0,0,.25);padding:22px 22px 96px}
+h1{margin:20px 0 0;font-size:30px;line-height:1.1;font-weight:700;letter-spacing:-.01em}
+.sub{margin:4px 0 0;font-size:15px;color:var(--muted)}
+h2{margin:32px 0 0;font-size:17px;font-weight:600}
+.back{display:inline-flex;align-items:center;min-height:44px;font-size:15px;font-weight:500;color:var(--ink);text-decoration:none}
+
+/* The list */
+.crags{margin:18px 0 0;padding:0;list-style:none;border-bottom:1px solid var(--rule)}
+.crag{padding:14px 0;border-top:1px solid var(--rule)}
+.crag-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.crag-top b{font-size:18px;font-weight:600}
+.best{font-size:13px;color:var(--muted);white-space:nowrap}
+.best strong{font-size:20px;font-weight:700;color:var(--score);margin-right:4px}
+.best.none strong{color:var(--muted)}
+.why{margin:6px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:2px;font-size:15px}
+.why li{display:flex;gap:8px}
+.why .k{flex:0 0 96px;color:var(--muted)}
+.wet{color:var(--rain);font-weight:600}
+.flag{color:var(--warn);font-weight:600}
+.hidden-note{margin:14px 0 0;font-size:13px;color:var(--faint)}
+
+/* One crag */
+.facts{margin:14px 0 0;display:grid;grid-template-columns:112px minmax(0,1fr);font-size:16px;border-bottom:1px solid var(--rule)}
+.facts dt,.facts dd{margin:0;padding:12px 0;border-top:1px solid var(--rule)}
+.facts dt{color:var(--muted)}
+.facts dd small{display:block;font-size:13px;color:var(--muted);margin-top:2px}
+.alert{margin:18px 0 0;padding:12px 14px;border-left:3px solid var(--warn);font-size:15px}
+.alert b{color:var(--warn)}
+.week{margin:12px 0 0;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));text-align:center;font-size:13px;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.week > div{padding:10px 0;display:flex;flex-direction:column;gap:3px}
+.week .d{color:var(--muted)}
+.week .t{font-size:15px;font-weight:600}
+.week .s{color:var(--score);font-weight:700}
+.week .s.low{color:var(--muted);font-weight:500}
+.week .r{color:var(--rain);min-height:1.2em}
+.week .today{background:var(--chip)}
+.week-key{margin:8px 0 0;font-size:13px;color:var(--muted)}
+.more{margin:14px 0 0;padding:0;list-style:none;border-bottom:1px solid var(--rule)}
+.more li{display:flex;justify-content:space-between;padding:12px 0;border-top:1px solid var(--rule);font-size:16px}
+.more li span{color:var(--faint);font-size:14px}
+
+.dock{position:absolute;left:12px;right:12px;bottom:14px;display:grid;grid-template-columns:repeat(4,1fr);padding:10px 4px;border-radius:22px;
+  background:var(--dock);box-shadow:0 0 0 1px var(--rule);font-size:12px;text-align:center;color:var(--muted)}
+.dock .on{color:var(--ink);font-weight:600}
+
+/* Notes */
+.notes{width:420px;max-width:100%;min-width:0;font-size:15px;line-height:1.5;background:var(--paper);border-radius:16px;padding:20px 22px}
+.notes h3{margin:22px 0 6px;font-size:16px}
+.notes h3:first-child{margin-top:0}
+.notes p,.notes ul{margin:0 0 8px}
+.notes ul{padding-left:20px}
+.notes li{margin-bottom:4px}
+.notes code{font-size:13px;background:var(--chip);padding:1px 4px;border-radius:4px}
+.ex{display:inline-block;font-size:12px;font-weight:600;color:var(--warn);margin-bottom:8px}
+</style></head><body>
+
+<div class="switch" role="group" aria-label="Weather">
+  <button id="btn-cold" type="button" aria-pressed="true" data-state="cold">Cold day</button>
+  <button id="btn-hot" type="button" aria-pressed="false" data-state="hot">Hot day</button>
+</div>
+
+<div class="wrap">
+
+  <!-- ============ COLD DAY ============ -->
+  <div class="col" data-show="cold">
+    <p>Home: where can I climb today?</p>
+    <div class="phone">
+      <h1>Today</h1>
+      <p class="sub">Sun 23 Nov · best first</p>
+      <ul class="crags">
+        <li class="crag">
+          <div class="crag-top"><b>Joshua Tree</b><span class="best"><strong>82</strong>at 1pm</span></div>
+          <ul class="why">
+            <li><span class="k">Temperature</span><span>41°F at 9am, 58°F by 1pm</span></li>
+            <li><span class="k">Last rain</span><span>9 days ago, light</span></li>
+          </ul>
+        </li>
+        <li class="crag">
+          <div class="crag-top"><b>Red Rock</b><span class="best none"><strong>—</strong>wet rock</span></div>
+          <ul class="why">
+            <li><span class="k">Rock</span><span class="wet">Wet sandstone</span></li>
+            <li><span class="k">Last rain</span><span>Saturday, 0.4 in</span></li>
+            <li><span class="k">Temperature</span><span>High 54°F</span></li>
+          </ul>
+        </li>
+        <li class="crag">
+          <div class="crag-top"><b>Indian Creek</b><span class="best"><strong>31</strong>at 2pm</span></div>
+          <ul class="why">
+            <li><span class="k">Temperature</span><span class="flag">High 36°F</span></li>
+            <li><span class="k">Last rain</span><span>Snow Friday, 2 in</span></li>
+          </ul>
+        </li>
+      </ul>
+      <p class="hidden-note">Humidity, dew point and wind are left off: none is a factor in this weather.</p>
+      <nav class="dock"><span class="on">Conditions</span><span>Trips</span><span>Map</span><span>Profile</span></nav>
+    </div>
+  </div>
+
+  <div class="col" data-show="cold">
+    <p>Tap a crag: the reasons, then the week</p>
+    <div class="phone">
+      <a class="back" href="#" onclick="return false">‹ Today</a>
+      <h1>Joshua Tree</h1>
+      <p class="sub">Granite</p>
+      <dl class="facts">
+        <dt>Temperature</dt><dd>58°F by 1pm<small>41°F at 9am, back under 45°F by 5pm</small></dd>
+        <dt>Last rain</dt><dd>9 days ago<small>Fri 14 Nov, 0.1 in. None forecast this week.</small></dd>
+        <dt>Rock</dt><dd>Dry</dd>
+        <dt>Sun</dt><dd>South faces 9am to 3pm<small>North faces stay in shade</small></dd>
+        <dt>Score</dt><dd><span style="color:var(--score);font-weight:600">82 at 1pm</span></dd>
+      </dl>
+      <h2>This week</h2>
+      <div class="week">
+        <div class="today"><span class="d">Sun</span><span class="t">58°</span><span class="s">82</span><span class="r"></span></div>
+        <div><span class="d">Mon</span><span class="t">61°</span><span class="s">88</span><span class="r"></span></div>
+        <div><span class="d">Tue</span><span class="t">63°</span><span class="s">90</span><span class="r"></span></div>
+        <div><span class="d">Wed</span><span class="t">55°</span><span class="s">74</span><span class="r"></span></div>
+        <div><span class="d">Thu</span><span class="t">49°</span><span class="s low">40</span><span class="r">rain</span></div>
+        <div><span class="d">Fri</span><span class="t">47°</span><span class="s low">35</span><span class="r"></span></div>
+        <div><span class="d">Sat</span><span class="t">52°</span><span class="s low">58</span><span class="r"></span></div>
+      </div>
+      <p class="week-key">High, best score of the day, rain if any</p>
+      <h2>All the data</h2>
+      <ul class="more">
+        <li>Hourly <span>›</span></li><li>Daily <span>›</span></li><li>Precip <span>›</span></li><li>Rock <span>›</span></li><li>Crag <span>›</span></li>
+      </ul>
+      <nav class="dock"><span class="on">Conditions</span><span>Trips</span><span>Map</span><span>Profile</span></nav>
+    </div>
+  </div>
+
+  <!-- ============ HOT DAY ============ -->
+  <div class="col" data-show="hot" hidden>
+    <p>Home: where can I climb today?</p>
+    <div class="phone">
+      <h1>Today</h1>
+      <p class="sub">Sat 12 Jul · best first</p>
+      <div class="alert"><b>Heat warning</b> at Red Rock until 8pm (NWS)</div>
+      <ul class="crags">
+        <li class="crag">
+          <div class="crag-top"><b>Joshua Tree</b><span class="best"><strong>64</strong>at 7am</span></div>
+          <ul class="why">
+            <li><span class="k">Temperature</span><span>74°F at 7am, 96°F by 2pm</span></li>
+            <li><span class="k">Dew point</span><span>38°F, dry air</span></li>
+            <li><span class="k">Last rain</span><span>3 weeks ago</span></li>
+          </ul>
+        </li>
+        <li class="crag">
+          <div class="crag-top"><b>Indian Creek</b><span class="best"><strong>52</strong>at 8am</span></div>
+          <ul class="why">
+            <li><span class="k">Temperature</span><span>79°F at 8am, 94°F by 3pm</span></li>
+            <li><span class="k">Dew point</span><span class="wet">58°F, muggy</span></li>
+            <li><span class="k">Last rain</span><span>Storm Thursday, 0.6 in</span></li>
+          </ul>
+        </li>
+        <li class="crag">
+          <div class="crag-top"><b>Red Rock</b><span class="best"><strong>18</strong>at 6am</span></div>
+          <ul class="why">
+            <li><span class="k">Temperature</span><span class="flag">91°F at 6am, 109°F by 3pm</span></li>
+            <li><span class="k">Wind</span><span>Gusts 35 mph</span></li>
+          </ul>
+        </li>
+      </ul>
+      <p class="hidden-note">Wind shows only at Red Rock, where it is strong.</p>
+      <nav class="dock"><span class="on">Conditions</span><span>Trips</span><span>Map</span><span>Profile</span></nav>
+    </div>
+  </div>
+
+  <div class="col" data-show="hot" hidden>
+    <p>Tap a crag: the reasons, then the week</p>
+    <div class="phone">
+      <a class="back" href="#" onclick="return false">‹ Today</a>
+      <h1>Indian Creek</h1>
+      <p class="sub">Wingate sandstone</p>
+      <dl class="facts">
+        <dt>Temperature</dt><dd>79°F at 8am<small>94°F by 3pm, under 85°F again after 7pm</small></dd>
+        <dt>Dew point</dt><dd><span class="wet">58°F, muggy</span><small>Humidity 45% at 8am. Drier air arrives Monday.</small></dd>
+        <dt>Last rain</dt><dd>Storm Thursday, 0.6 in<small>Storms possible again after 2pm today</small></dd>
+        <dt>Rock</dt><dd>Drying<small>Sandstone, 2 days of sun since the storm</small></dd>
+        <dt>Sun</dt><dd>West walls in shade until 1pm</dd>
+        <dt>Wind</dt><dd>10 to 15 mph<small>Shown because it helps with the humidity</small></dd>
+        <dt>Score</dt><dd><span style="color:var(--score);font-weight:600">52 at 8am</span></dd>
+      </dl>
+      <h2>This week</h2>
+      <div class="week">
+        <div class="today"><span class="d">Sat</span><span class="t">94°</span><span class="s low">52</span><span class="r">storm</span></div>
+        <div><span class="d">Sun</span><span class="t">96°</span><span class="s low">48</span><span class="r"></span></div>
+        <div><span class="d">Mon</span><span class="t">88°</span><span class="s">71</span><span class="r"></span></div>
+        <div><span class="d">Tue</span><span class="t">85°</span><span class="s">76</span><span class="r"></span></div>
+        <div><span class="d">Wed</span><span class="t">87°</span><span class="s">73</span><span class="r"></span></div>
+        <div><span class="d">Thu</span><span class="t">91°</span><span class="s low">55</span><span class="r">storm</span></div>
+        <div><span class="d">Fri</span><span class="t">93°</span><span class="s low">50</span><span class="r"></span></div>
+      </div>
+      <p class="week-key">High, best score of the day, rain if any</p>
+      <h2>All the data</h2>
+      <ul class="more">
+        <li>Hourly <span>›</span></li><li>Daily <span>›</span></li><li>Precip <span>›</span></li><li>Rock <span>›</span></li><li>Crag <span>›</span></li>
+      </ul>
+      <nav class="dock"><span class="on">Conditions</span><span>Trips</span><span>Map</span><span>Profile</span></nav>
+    </div>
+  </div>
+
+  <!-- ============ NOTES ============ -->
+  <aside class="notes">
+    <span class="ex">Example numbers, not real forecasts</span>
+    <h3>What this is</h3>
+    <p>A first sketch of what you described, to react to. It is not a decision and nothing in the app changes. The look borrows the field-guide direction from #644 so the old styling doesn't distract. Judge what is on the screen, not the colours.</p>
+
+    <h3>Your points, and where they went</h3>
+    <ul>
+      <li><b>"Where can I climb today?"</b> The home screen is your crags sorted best first.</li>
+      <li><b>Trust needs a reason, not just a number.</b> Every crag shows its two or three deciding facts in words you can check against your own sense of the weather. The score stays, but small and beside its hour.</li>
+      <li><b>Temperature and last rain, always.</b> They are on every row and at the top of every crag.</li>
+      <li><b>Cold days:</b> temperature, wet rock and snow. Humidity, dew point and wind are left off, and a line says so, so you know they weren't forgotten.</li>
+      <li><b>Hot days:</b> dew point, humidity, sun and shade appear because the weather makes them matter. This triggers on the actual temperature, not the month, so a muggy November day or a cold June morning still gets the right facts.</li>
+      <li><b>Wind only when it matters:</b> at Red Rock because the gusts are strong, at Indian Creek because it is helping with the humidity.</li>
+      <li><b>All your data stays.</b> The five current tabs sit under "All the data", unchanged.</li>
+    </ul>
+
+    <h3>Where this runs into the current rules</h3>
+    <ul>
+      <li><b>No climbing opinions</b> (no go / don't go). Kept. No row says "good" or "go". The sorting and the reasons do that work.</li>
+      <li><b>A reading is a label and a value, never a sentence.</b> Mostly kept: "Dew point: 58°F, muggy". The small second lines are close to sentences. Is that the tone you want, or do you want plainer?</li>
+      <li><b>New rule needed:</b> hide a factor when it isn't in play, and say what was hidden. The cutoffs would come from the score's own humidity and wind factors.</li>
+      <li><b>Red Rock with wet sandstone has no score.</b> That's on purpose: a missing input means a gap, never a plausible number. Rock damage outranks the forecast.</li>
+    </ul>
+
+    <h3>What to look for</h3>
+    <ul>
+      <li>Could a partner who has never seen the app pick a crag from the home screen in a few seconds?</li>
+      <li>Would you trust it enough to skip checking Precip first? If not, what would you still go and look for?</li>
+      <li>Is anything missing that you always check? Anything here you'd never look at?</li>
+    </ul>
+  </aside>
+</div>
+
+<script>
+(function(){
+  var btns=document.querySelectorAll('.switch button');
+  function show(state){
+    btns.forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.state===state));});
+    document.querySelectorAll('[data-show]').forEach(function(el){el.hidden=el.dataset.show!==state;});
+  }
+  btns.forEach(function(b){b.addEventListener('click',function(){show(b.dataset.state);});});
+})();
+</script>
+</body></html>
