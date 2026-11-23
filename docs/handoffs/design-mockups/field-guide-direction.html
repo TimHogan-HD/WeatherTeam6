@@ -6,9 +6,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap">
 <style>
-/* Layout: the same crag Overview twice, light and dark, side by side on wide screens and stacked on a phone, with a notes column.
-   A direction mockup for #637, not a decision: glass only on the tab dock, no card per section, one face, ink plus two meaning-bearing hues.
-   Each phone carries its own palette as tokens, so the page does not follow the viewer's theme: both are always shown. */
+/* Layout: three phone screens of one crag (Overview, Daily, Hourly) side by side on wide screens and stacked on a phone,
+   a Light / Dark switch above them, and a notes column. A direction mockup for #637, not a decision: glass only on the
+   tab dock, no card per section, one face, ink plus hues that each carry one meaning.
+   Each phone carries its own palette as tokens; the switch sets data-mock on .wrap, so the page never follows the viewer's theme. */
 :root{
   color-scheme:light;
   --ground:#dfe1dc;   /* the page behind the phones */
@@ -19,12 +20,14 @@
 /* Light: a cool chalk-white map sheet, not cream. */
 .phone{
   --paper:#f2f3f0;
-  --ink:#1d2124;      /* text, the air line, buttons */
+  --ink:#1d2124;      /* text, the air and wind lines, buttons */
   --muted:#4f565c;    /* labels, 7:1 on paper */
   --faint:#5b6166;    /* axis words and sources, 6:1 on paper */
   --rule:#d5d8d2;     /* hairlines and gridlines */
-  --score:#2c6a3b;    /* scores only */
+  --band:rgba(29,33,36,.09); /* a 10th-90th percentile range */
+  --score:#2c6a3b;    /* scores and good hours only */
   --rain:#2f6db5;     /* rain and dew point only */
+  --sun:#b5850f;      /* minutes of sun only (a mark, never text) */
   --contour:#b98d63;  /* decoration: the contour lines at the top */
   --contourA:.35;
   --dock:rgba(250,251,248,.78);
@@ -32,17 +35,18 @@
   --dockShadow:rgba(29,33,36,.10);
   --bezel:#2a2e31;
 }
-/* Dark: basalt grey, lighter than the current near-black, and no acid accent:
-   the same two hues at lighter, calmer tones. All text 5:1 or better on paper. */
-.phone.dark{
+/* Dark: basalt grey, lighter than the current near-black, and no acid accent. All text 5.7:1 or better. */
+.wrap[data-mock="dark"] .phone{
   color-scheme:dark;
   --paper:#23282b;
   --ink:#e9ebe7;      /* 12.4:1 */
-  --muted:#adb4b9;    /* 7:1 */
-  --faint:#9aa2a7;    /* 5.6:1 */
+  --muted:#adb4b9;    /* 7.1:1 */
+  --faint:#9aa2a7;    /* 5.75:1 */
   --rule:#3a4145;
+  --band:rgba(233,235,231,.10);
   --score:#86c795;    /* 7.5:1, a sage green, not lime */
-  --rain:#90b9ee;     /* 7.4:1 */
+  --rain:#90b9ee;     /* 7.35:1 */
+  --sun:#e0bd62;
   --contour:#b98d63;
   --contourA:.28;
   --dock:rgba(43,49,53,.80);
@@ -52,8 +56,11 @@
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--ground);color:var(--pageInk);font-family:var(--body);font-variant-numeric:tabular-nums;padding-block:24px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-a:focus-visible,button:focus-visible{outline:2px solid var(--rain);outline-offset:2px}
-.wrap{max-width:1320px;margin:0 auto;display:flex;flex-wrap:wrap;gap:32px;justify-content:center;align-items:flex-start}
+a:focus-visible,button:focus-visible{outline:2px solid var(--rain,#2f6db5);outline-offset:2px}
+.switch{display:flex;justify-content:center;gap:4px;margin:0 auto 24px;padding:4px;width:max-content;border-radius:12px;background:rgba(29,33,36,.07)}
+.switch button{min-height:44px;min-width:88px;border:0;border-radius:9px;background:none;font:inherit;font-size:15px;font-weight:500;color:var(--pageMuted);cursor:pointer}
+.switch button[aria-pressed="true"]{background:#fff;color:var(--pageInk);font-weight:600;box-shadow:0 1px 3px rgba(29,33,36,.15)}
+.wrap{max-width:1360px;margin:0 auto;display:flex;flex-wrap:wrap;gap:32px;justify-content:center;align-items:flex-start}
 .col{display:flex;flex-direction:column;gap:12px;align-items:center;max-width:100%}
 .col > p{margin:0;font-size:14px;font-weight:600;color:var(--pageMuted)}
 .phone{position:relative;width:390px;max-width:100%;border-radius:40px;overflow:hidden;background:var(--paper);color:var(--ink);box-shadow:0 0 0 8px var(--bezel),0 30px 70px rgba(29,33,36,.28);padding:20px 24px 104px}
@@ -64,25 +71,48 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--rain);outline-offse
 .top{display:flex;justify-content:space-between;align-items:center;min-height:44px}
 .top a{display:flex;align-items:center;gap:6px;min-height:44px;text-decoration:none;font-size:15px;font-weight:500}
 h1{margin:28px 0 0;font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-.01em;text-wrap:balance}
+h1.small{font-size:26px}
 .sub{margin:6px 0 0;font-size:15px;color:var(--muted)}
 .score{margin-top:40px;display:flex;align-items:baseline;gap:14px}
 .score b{font-size:56px;line-height:1;font-weight:700;color:var(--score)}
 .score span{font-size:15px;color:var(--muted)}
-figure{margin:20px 0 0}
-figure svg{display:block;width:100%;height:auto;overflow:visible}
+h2{margin:44px 0 0;font-size:17px;font-weight:600}
+h2.first{margin-top:32px}
+figure{margin:12px 0 0}
+figure > svg{display:block;width:100%;height:auto;overflow:visible}
+.readout{margin:12px 0 0;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px}
+.readout b{font-weight:600}
+.pairs{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;margin-top:8px}
+.pairs span,.readout span{white-space:nowrap}
+.l{color:var(--muted)}
 .grid line{stroke:var(--rule);stroke-width:1}
+.band{fill:var(--band)}
 .air{fill:none;stroke:var(--ink);stroke-width:2;stroke-linejoin:round}
 .dew{fill:none;stroke:var(--rain);stroke-width:1.5;stroke-dasharray:4 4}
+.gust{fill:none;stroke:var(--muted);stroke-width:1.5;stroke-dasharray:4 4}
+.good{stroke:var(--score);stroke-width:4;stroke-linecap:round}
+.sunbar{fill:var(--sun)}
+.rainbar{fill:var(--rain)}
+.nowline{stroke:var(--faint);stroke-width:1;stroke-dasharray:2 3}
 .now{fill:var(--ink)}
 .ax{font-family:var(--body);font-size:11px;fill:var(--faint)}
 .hr{font-family:var(--body);font-size:12px;fill:var(--faint)}
+.fig{font-family:var(--body);font-size:12px;font-weight:600;fill:var(--ink)}
 .sc{font-family:var(--body);font-size:13px;font-weight:600;fill:var(--score)}
-figcaption{margin-top:12px;display:flex;flex-wrap:wrap;gap:18px;font-size:13px;color:var(--muted)}
-figcaption span{display:flex;align-items:center;gap:6px}
+figcaption{margin-top:12px;display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;color:var(--muted)}
+figcaption > span{display:flex;flex:0 0 auto;align-items:center;gap:6px;white-space:nowrap}
+figcaption svg{flex:0 0 auto}
 figcaption .k{font-weight:600;color:var(--score)}
 .key-air{stroke:var(--ink);stroke-width:2}
 .key-dew{stroke:var(--rain);stroke-width:1.5;stroke-dasharray:4 3}
-h2{margin:44px 0 0;font-size:17px;font-weight:600}
+.key-gust{stroke:var(--muted);stroke-width:1.5;stroke-dasharray:4 3}
+.key-good{stroke:var(--score);stroke-width:4;stroke-linecap:round}
+.key-band{fill:var(--band)}
+.key-sun{fill:var(--sun)}
+.strip{margin-top:10px;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));font-size:12px;text-align:center;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.strip > span{padding:6px 0}
+.strip .h{color:var(--faint)}
+.strip .cap{grid-column:1 / -1;text-align:left;color:var(--muted);padding:6px 0 0}
 dl{margin:10px 0 0;display:grid;grid-template-columns:112px minmax(0,1fr);font-size:15px;line-height:1.35;border-bottom:1px solid var(--rule)}
 dt,dd{margin:0;padding:11px 0;border-top:1px solid var(--rule)}
 dt{color:var(--muted)}
@@ -97,6 +127,27 @@ td.s{font-weight:600;color:var(--score)}
 td.r{color:var(--muted)}
 td.r.wet{color:var(--rain);font-weight:600}
 .src{margin:18px 0 0;font-size:13px;line-height:1.45;color:var(--faint)}
+/* Daily */
+.days{margin-top:10px;border-bottom:1px solid var(--rule)}
+.day{padding:14px 0 12px;border-top:1px solid var(--rule)}
+.day-top{display:grid;grid-template-columns:minmax(0,1fr) 40px 150px 38px;gap:8px;align-items:center}
+.day-name{display:flex;flex-direction:column;line-height:1.2}
+.day-name b{font-size:16px;font-weight:600}
+.day-name span{font-size:13px;color:var(--muted)}
+.day-score{font-size:20px;font-weight:700;color:var(--score);text-align:right}
+.temps{display:flex;align-items:center;gap:6px;font-size:14px}
+.temps span{width:28px;text-align:right}
+.temps span:last-child{text-align:left}
+.track{position:relative;flex:1;height:6px;border-radius:3px;background:var(--rule)}
+.track i{position:absolute;top:0;bottom:0;border-radius:3px;background:var(--ink)}
+.day-rain{text-align:right;font-size:14px;color:var(--muted)}
+.day-rain.wet{color:var(--rain);font-weight:600}
+/* Hourly */
+.chips{margin-top:16px;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-bottom:1px solid var(--rule)}
+.chips button{min-height:52px;border:0;background:none;font:inherit;color:var(--muted);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;line-height:1.1}
+.chips button span{font-size:12px}
+.chips button b{font-size:17px;font-weight:600}
+.chips button[aria-current]{color:var(--ink);box-shadow:inset 0 -2px 0 var(--ink)}
 .dock{position:absolute;left:12px;right:12px;bottom:16px;display:flex;justify-content:space-between;padding:4px 6px;border-radius:18px;background:var(--dock);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--dockLine);box-shadow:0 6px 20px var(--dockShadow)}
 .dock button{min-height:44px;padding:0 6px;border:0;background:none;font:inherit;font-size:14px;color:var(--muted);cursor:pointer}
 .dock button[aria-current]{font-weight:600;color:var(--ink);box-shadow:inset 0 -2px 0 var(--ink)}
@@ -110,10 +161,17 @@ td.r.wet{color:var(--rain);font-weight:600}
 </style>
 </head>
 <body>
-<div class="wrap">
 
+<div class="switch" role="group" aria-label="Theme of the mockups">
+  <button type="button" id="theme-light" aria-pressed="true">Light</button>
+  <button type="button" id="theme-dark" aria-pressed="false">Dark</button>
+</div>
+
+<div class="wrap" id="wrap" data-mock="light">
+
+<!-- ───────────── Overview ───────────── -->
 <div class="col">
-<p>Light</p>
+<p>Overview</p>
 <div class="phone">
   <svg class="contours" aria-hidden="true" viewBox="0 0 390 230" preserveAspectRatio="none">
     <path d="M-10 40 C 60 20, 120 70, 200 48 S 330 10, 400 36"/>
@@ -180,7 +238,7 @@ td.r.wet{color:var(--rain);font-weight:600}
     </table>
     <p class="src">Air from HRRR. Rain from GFS, ECMWF, ICON and GEM.</p>
   </div>
-  <nav class="dock" aria-label="Crag sections, light">
+  <nav class="dock" aria-label="Crag sections">
     <button type="button" aria-current="page">Overview</button>
     <button type="button">Daily</button>
     <button type="button">Hourly</button>
@@ -191,77 +249,31 @@ td.r.wet{color:var(--rain);font-weight:600}
 </div>
 </div>
 
+<!-- ───────────── Daily ───────────── -->
 <div class="col">
-<p>Dark</p>
-<div class="phone dark">
+<p>Daily</p>
+<div class="phone">
   <svg class="contours" aria-hidden="true" viewBox="0 0 390 230" preserveAspectRatio="none">
     <path d="M-10 40 C 60 20, 120 70, 200 48 S 330 10, 400 36"/>
     <path d="M-10 66 C 70 44, 130 96, 210 74 S 330 38, 400 62"/>
     <path d="M-10 92 C 80 70, 140 122, 220 100 S 330 66, 400 88"/>
-    <path d="M-10 118 C 90 96, 150 148, 230 126 S 330 94, 400 114"/>
-    <path d="M-10 144 C 100 124, 160 172, 240 152 S 330 122, 400 140"/>
   </svg>
   <div class="screen">
     <div class="top">
       <a href="#"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3 5 8l5 5"/></svg>Crags</a>
       <a href="#">Feedback</a>
     </div>
-    <h1>Taylors Falls</h1>
+    <h1 class="small">Taylors Falls</h1>
     <p class="sub">Basalt (dense), St. Croix River</p>
-    <div class="score"><b>93</b><span>Score at 8 am</span></div>
-    <figure>
-      <svg role="img" aria-label="Today from 8 am to 11 pm: air 28 to 30 degrees falling to 23, dew point 21 falling to 13, scores 93 to 99 then 75" viewBox="0 0 342 150">
-        <g class="grid"><line x1="0" y1="22" x2="342" y2="22"/><line x1="0" y1="66" x2="342" y2="66"/><line x1="0" y1="110" x2="342" y2="110"/></g>
-        <polyline class="dew" points="0,61.6 22.8,66 45.6,70.4 68.4,79.2 91.2,79.2 114,83.6 136.8,88 159.6,92.4 182.4,92.4 205.2,92.4 228,92.4 250.8,96.8 273.6,92.4 296.4,92.4 319.2,96.8 342,96.8"/>
-        <polyline class="air" points="0,30.8 22.8,30.8 45.6,26.4 68.4,22 91.2,22 114,22 136.8,26.4 159.6,30.8 182.4,39.6 205.2,44 228,44 250.8,48.4 273.6,48.4 296.4,48.4 319.2,48.4 342,52.8"/>
-        <circle class="now" cx="0" cy="30.8" r="4"/>
-        <text class="ax" x="342" y="18" text-anchor="end">30°</text>
-        <text class="ax" x="342" y="62" text-anchor="end">20°</text>
-        <text class="ax" x="342" y="106" text-anchor="end">10°</text>
-        <text class="hr" x="0" y="132">8a</text>
-        <text class="hr" x="68.4" y="132" text-anchor="middle">11a</text>
-        <text class="hr" x="136.8" y="132" text-anchor="middle">2p</text>
-        <text class="hr" x="205.2" y="132" text-anchor="middle">5p</text>
-        <text class="hr" x="273.6" y="132" text-anchor="middle">8p</text>
-        <text class="hr" x="342" y="132" text-anchor="end">11p</text>
-        <text class="sc" x="0" y="148">93</text>
-        <text class="sc" x="68.4" y="148" text-anchor="middle">95</text>
-        <text class="sc" x="136.8" y="148" text-anchor="middle">99</text>
-        <text class="sc" x="205.2" y="148" text-anchor="middle">94</text>
-        <text class="sc" x="273.6" y="148" text-anchor="middle">76</text>
-        <text class="sc" x="342" y="148" text-anchor="end">75</text>
-      </svg>
-      <figcaption>
-        <span><svg aria-hidden="true" width="18" height="2"><line class="key-air" x1="0" y1="1" x2="18" y2="1"/></svg>Air</span>
-        <span><svg aria-hidden="true" width="18" height="2"><line class="key-dew" x1="0" y1="1" x2="18" y2="1"/></svg>Dew point</span>
-        <span><span class="k">93</span>Score</span>
-      </figcaption>
-    </figure>
-    <h2>Now</h2>
-    <dl>
-      <dt>Dryness</dt><dd>Dry, 32 h since rain</dd>
-      <dt>Air</dt><dd>28°F, high 31°, low 23°</dd>
-      <dt>Good hours</dt><dd>8 am to 11 pm</dd>
-      <dt>Last rain</dt><dd>Sunday, 0.12 in</dd>
-      <dt>Wind</dt><dd>13 mph, gusts 18</dd>
-    </dl>
-    <h2>Next days</h2>
-    <table>
-      <thead><tr><th scope="col">Day</th><th scope="col">Score</th><th scope="col">High / low</th><th scope="col">Rain</th></tr></thead>
-      <tbody>
-        <tr><th scope="row">Today</th><td class="s">98</td><td>31° / 23°</td><td class="r">0%</td></tr>
-        <tr><th scope="row">Tue</th><td class="s">100</td><td>33° / 21°</td><td class="r">1%</td></tr>
-        <tr><th scope="row">Wed</th><td class="s">100</td><td>37° / 25°</td><td class="r">3%</td></tr>
-        <tr><th scope="row">Thu</th><td class="s">100</td><td>38° / 25°</td><td class="r">3%</td></tr>
-        <tr><th scope="row">Fri</th><td class="s">100</td><td>40° / 26°</td><td class="r wet">24%</td></tr>
-        <tr><th scope="row">Sat</th><td class="s">100</td><td>39° / 31°</td><td class="r wet">23%</td></tr>
-      </tbody>
-    </table>
-    <p class="src">Air from HRRR. Rain from GFS, ECMWF, ICON and GEM.</p>
+
+    <h2 class="first">Seven days</h2>
+    <div class="days" id="days"></div>
+    <p class="src">A day's score is the worst hour of its best three hours in a row inside your climbing hours. Rain is the median amount; its chance is the likeliest hour's. Tap a day for its hours.</p>
+    <p class="src">Rain from GFS, ECMWF, ICON and GEM. Sun from HRRR.</p>
   </div>
-  <nav class="dock" aria-label="Crag sections, dark">
-    <button type="button" aria-current="page">Overview</button>
-    <button type="button">Daily</button>
+  <nav class="dock" aria-label="Crag sections">
+    <button type="button">Overview</button>
+    <button type="button" aria-current="page">Daily</button>
     <button type="button">Hourly</button>
     <button type="button">Precip</button>
     <button type="button">Rock</button>
@@ -270,24 +282,246 @@ td.r.wet{color:var(--rain);font-weight:600}
 </div>
 </div>
 
+<!-- ───────────── Hourly ───────────── -->
+<div class="col">
+<p>Hourly</p>
+<div class="phone">
+  <svg class="contours" aria-hidden="true" viewBox="0 0 390 230" preserveAspectRatio="none">
+    <path d="M-10 40 C 60 20, 120 70, 200 48 S 330 10, 400 36"/>
+    <path d="M-10 66 C 70 44, 130 96, 210 74 S 330 38, 400 62"/>
+    <path d="M-10 92 C 80 70, 140 122, 220 100 S 330 66, 400 88"/>
+  </svg>
+  <div class="screen">
+    <div class="top">
+      <a href="#"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3 5 8l5 5"/></svg>Crags</a>
+      <a href="#">Feedback</a>
+    </div>
+    <h1 class="small">Taylors Falls</h1>
+    <p class="sub">Today, November 23</p>
+
+    <div class="chips" role="group" aria-label="Day">
+      <button type="button" aria-current="date"><span>Today</span><b>23</b></button>
+      <button type="button"><span>Tue</span><b>24</b></button>
+      <button type="button"><span>Wed</span><b>25</b></button>
+      <button type="button"><span>Thu</span><b>26</b></button>
+      <button type="button"><span>Fri</span><b>27</b></button>
+      <button type="button"><span>Sat</span><b>28</b></button>
+      <button type="button"><span>Sun</span><b>29</b></button>
+    </div>
+
+    <h2 class="first">Temperature</h2>
+    <p class="readout"><b>8 am</b><span><span class="l">Air</span> 26°</span><span><span class="l">Dew point</span> 21°</span><span><span class="l">Humidity</span> 75%</span><span><span class="l">Score</span> <b style="color:var(--score)">93</b></span></p>
+    <figure>
+      <svg id="chart-temp" role="img" aria-label="Air temperature, today: 30 degrees at midnight, 26 at 8 am, 30 around 1 pm, falling to 23 by 11 pm. Dew point 24 falling to 14. Good hours 8 am to 11 pm." viewBox="0 0 342 140"></svg>
+      <figcaption>
+        <span><svg aria-hidden="true" width="18" height="2"><line class="key-air" x1="0" y1="1" x2="18" y2="1"/></svg>Air</span>
+        <span><svg aria-hidden="true" width="18" height="10"><rect class="key-band" x="0" y="0" width="18" height="10"/></svg>Range</span>
+        <span><svg aria-hidden="true" width="18" height="2"><line class="key-dew" x1="0" y1="1" x2="18" y2="1"/></svg>Dew point</span>
+        <span><svg aria-hidden="true" width="18" height="4"><line class="key-good" x1="2" y1="2" x2="16" y2="2"/></svg>Good hours</span>
+      </figcaption>
+    </figure>
+    <div class="strip" id="strip-hum"></div>
+
+    <h2>Sun</h2>
+    <p class="readout"><b>7 to 8 am</b><span><span class="l">Sun</span> 0 min</span><span><span class="l">Cloud</span> 100%</span></p>
+    <figure>
+      <svg id="chart-sun" role="img" aria-label="Minutes of sun each hour, today: none until 11 am, a full hour from 11 am to 4 pm, 15 minutes from 4 to 5 pm, then night." viewBox="0 0 342 112"></svg>
+      <figcaption>
+        <span><svg aria-hidden="true" width="12" height="12"><rect class="key-sun" x="0" y="0" width="12" height="12"/></svg>Minutes of sun in the hour</span>
+      </figcaption>
+    </figure>
+    <div class="strip" id="strip-cloud"></div>
+
+    <h2>Rain</h2>
+    <p class="readout"><span><span class="l">Today</span> 0 in</span><span><span class="l">Chance</span> 0% at its likeliest hour</span></p>
+    <figure>
+      <svg id="chart-rain" role="img" aria-label="Rain in three-hour blocks, today: 0 inches in every block, 0% chance in every block." viewBox="0 0 342 128"></svg>
+    </figure>
+
+    <h2>Wind</h2>
+    <p class="readout"><b>8 am</b><span><span class="l">Wind</span> 11 mph</span><span><span class="l">Gusts</span> 18 mph</span></p>
+    <figure>
+      <svg id="chart-wind" role="img" aria-label="Wind, today: 13 mph at midnight easing to 4 mph by 11 pm, gusts 21 falling to 11 then 13." viewBox="0 0 342 140"></svg>
+      <figcaption>
+        <span><svg aria-hidden="true" width="18" height="2"><line class="key-air" x1="0" y1="1" x2="18" y2="1"/></svg>Wind</span>
+        <span><svg aria-hidden="true" width="18" height="10"><rect class="key-band" x="0" y="0" width="18" height="10"/></svg>Range</span>
+        <span><svg aria-hidden="true" width="18" height="2"><line class="key-gust" x1="0" y1="1" x2="18" y2="1"/></svg>Gusts</span>
+      </figcaption>
+    </figure>
+
+    <p class="src">Ranges run from the 10th to the 90th percentile for one hour. Air, dew point, sun and wind from HRRR. Rain from GFS, ECMWF, ICON and GEM.</p>
+  </div>
+  <nav class="dock" aria-label="Crag sections">
+    <button type="button">Overview</button>
+    <button type="button">Daily</button>
+    <button type="button" aria-current="page">Hourly</button>
+    <button type="button">Precip</button>
+    <button type="button">Rock</button>
+    <button type="button">Crag</button>
+  </nav>
+</div>
+</div>
+
+<!-- ───────────── Notes ───────────── -->
 <div class="notes">
   <h2>Field guide direction</h2>
-  <p>One screen, the crag Overview, redrawn against the AI-design tells in #637, in light and dark. Figures are sample data from a <code>check:ui</code> run. A starting point to react to, not a decision.</p>
+  <p>Three screens of one crag, redrawn against the AI-design tells in #637, in light and dark (switch above). Figures are sample data from a <code>check:ui</code> run. A starting point to react to, not a decision.</p>
   <ul>
     <li><b>Glass only on the dock.</b> Content sits on the page, split by space and hairlines, not a card per section (Apple HIG: no glass in the content layer).</li>
     <li><b>No template chrome.</b> Sentence-case headings, no tracked caps, no <code>A · B</code> strings, no <code>›</code> links, no glow.</li>
-    <li><b>Readings as a label and value table</b>, not a stat grid beside a giant number.</li>
-    <li><b>The score beside its hour</b>, then the Today chart with scores on its time axis.</li>
-    <li><b>Colour with one meaning each:</b> green is a score, blue is rain or dew point, ink is everything else, buttons included.</li>
+    <li><b>Colour with one meaning each:</b> green is a score or good hours, blue is rain or dew point, ochre is minutes of sun, ink is everything else.</li>
     <li><b>One face, Public Sans</b>, for its kinship with US government map and NWS lettering.</li>
   </ul>
-  <h3>The dark version</h3>
+  <h3>Daily</h3>
   <ul>
-    <li><b>Basalt grey, not near-black.</b> <code>#23282b</code> against the app's <code>#07090c</code>: dark enough for night at the crag, light enough that the page reads as a surface rather than a void.</li>
-    <li><b>Sage green, not lime.</b> The score keeps its hue but drops the acid tone that is the strongest single tell (near-black plus one acid accent).</li>
-    <li><b>Same layout, same rules</b>; only the tokens change. Every text colour is 5.6:1 or better on its ground.</li>
+    <li><b>One row per day, no card.</b> Score, low-to-high bar and chance of rain on the first line; the rest as label and value pairs under it, in place of a <code>·</code> string.</li>
+    <li><b>The temperature bar is one ink colour</b> on the week's scale, not a cool-to-warm gradient.</li>
+    <li><b>A forecast that disagrees shows as its range</b> (<code>Sun 5 to 8 h</code>) rather than a coloured "forecasts differ" tag.</li>
+  </ul>
+  <h3>Hourly</h3>
+  <ul>
+    <li><b>Day picker as an underlined row</b>, not seven boxed chips.</li>
+    <li><b>The readout is a line of label and value</b> above each chart, not a pill over it.</li>
+    <li><b>Humidity and cloud move to a printed row</b> every three hours under their charts. Humidity is a percentage and does not share the °F axis.</li>
+    <li><b>Good hours are a green rule</b> under the temperature line, not a tinted block over it.</li>
+    <li><b>Rain keeps its block columns and inch scale</b>; a dry day shows its zeros.</li>
   </ul>
 </div>
 
 </div>
+
+<script>
+(function () {
+  var NS = 'http://www.w3.org/2000/svg';
+  function el(tag, attrs, parent) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function text(parent, x, y, cls, s, anchor) {
+    var t = el('text', { x: x, y: y, 'class': cls, 'text-anchor': anchor || 'start' }, parent);
+    t.textContent = s;
+  }
+  function pts(xs, ys) { return xs.map(function (x, i) { return x.toFixed(1) + ',' + ys[i].toFixed(1); }).join(' '); }
+
+  // Sample hours, today (24 values, midnight to 11 pm).
+  var air  = [30,30,29,29,28,28,27,26,26,27,28,29,30,30,30,29,28,27,26,25,25,24,24,23];
+  var dew  = [24,23,23,23,22,22,22,21,21,20,19,18,17,16,15,14,14,14,14,14,15,14,14,14];
+  var wind = [13,13,12,12,12,11,11,11,11,11,11,10,10,10,9,8,7,6,5,5,5,5,4,4];
+  var gust = [21,20,20,19,18,16,15,18,18,18,17,17,16,15,14,13,12,11,11,11,12,12,13,13];
+  var sun  = [0,0,0,0,0,0,0,0,0,0,0,60,60,60,60,60,15,0,0,0,0,0,0,0];
+  var NOW = 8;
+  var hours = air.map(function (_, h) { return h; });
+  var X = function (h) { return h * 342 / 23; };
+  var hourLabels = [[0,'12a','start'],[6,'6a','middle'],[12,'12p','middle'],[18,'6p','middle'],[23,'11p','end']];
+
+  // Temperature: 10 to 35 °F over 110 px.
+  (function () {
+    var s = document.getElementById('chart-temp');
+    var Y = function (t) { return (35 - t) * 4.4; };
+    var g = el('g', { 'class': 'grid' }, s);
+    [30, 20, 10].forEach(function (t) { el('line', { x1: 0, y1: Y(t), x2: 342, y2: Y(t) }, g); text(s, 342, Y(t) - 4, 'ax', t + '°', 'end'); });
+    var xs = hours.map(X);
+    el('polygon', { 'class': 'band', points: pts(xs, air.map(function (t) { return Y(t + 2); })) + ' ' + pts(xs.slice().reverse(), air.slice().reverse().map(function (t) { return Y(t - 2); })) }, s);
+    el('polyline', { 'class': 'dew', points: pts(xs, dew.map(Y)) }, s);
+    el('polyline', { 'class': 'air', points: pts(xs, air.map(Y)) }, s);
+    el('line', { 'class': 'nowline', x1: X(NOW), y1: 0, x2: X(NOW), y2: 110 }, s);
+    el('circle', { 'class': 'now', cx: X(NOW), cy: Y(air[NOW]), r: 4 }, s);
+    el('line', { 'class': 'good', x1: X(8), y1: 118, x2: X(23), y2: 118 }, s);
+    hourLabels.forEach(function (l) { text(s, X(l[0]), 136, 'hr', l[1], l[2]); });
+  })();
+
+  // Sun: minutes in the hour, 0 to 60 over 80 px, one column per hour.
+  (function () {
+    var s = document.getElementById('chart-sun');
+    var bw = 342 / 24, base = 88;
+    var g = el('g', { 'class': 'grid' }, s);
+    [[60,'60 min'],[30,'30'],[0,'0']].forEach(function (m) { var y = base - m[0] * 80 / 60; el('line', { x1: 0, y1: y, x2: 342, y2: y }, g); if (m[0]) text(s, 342, y - 4, 'ax', m[1], 'end'); });
+    sun.forEach(function (m, h) { if (m > 0) el('rect', { 'class': 'sunbar', x: h * bw + 1, y: base - m * 80 / 60, width: bw - 2, height: m * 80 / 60 }, s); });
+    text(s, 3.5 * bw, base - 8, 'ax', 'Night', 'middle');
+    text(s, 20.5 * bw, base - 8, 'ax', 'Night', 'middle');
+    [[0,'12a','start'],[6,'6a','middle'],[12,'12p','middle'],[18,'6p','middle']].forEach(function (l) { text(s, l[0] === 0 ? 0 : l[0] * bw, 106, 'hr', l[1], l[2]); });
+  })();
+
+  // Rain: three-hour blocks, total inches on a printed scale, the likeliest hour's chance under each.
+  (function () {
+    var s = document.getElementById('chart-rain');
+    var bw = 342 / 8, base = 80, top = 8;
+    var Y = function (inch) { return base - inch / 0.2 * (base - top); };
+    var g = el('g', { 'class': 'grid' }, s);
+    [[0.2,'0.2 in'],[0.1,'0.1'],[0,'']].forEach(function (v) { el('line', { x1: 0, y1: Y(v[0]), x2: 342, y2: Y(v[0]) }, g); if (v[1]) text(s, 342, Y(v[0]) - 4, 'ax', v[1], 'end'); });
+    var labels = ['12a','3a','6a','9a','12p','3p','6p','9p'];
+    for (var i = 0; i < 8; i++) {
+      var cx = i * bw + bw / 2, amount = 0, chance = 0;
+      if (amount > 0) el('rect', { 'class': 'rainbar', x: i * bw + 6, y: Y(amount), width: bw - 12, height: base - Y(amount) }, s);
+      text(s, cx, base - 6, 'fig', amount === 0 ? '0' : amount.toFixed(2), 'middle');
+      text(s, cx, base + 18, 'ax', chance + '%', 'middle');
+      text(s, cx, base + 38, 'hr', labels[i], 'middle');
+    }
+  })();
+
+  // Wind: 0 to 25 mph over 110 px.
+  (function () {
+    var s = document.getElementById('chart-wind');
+    var Y = function (v) { return (25 - v) * 4.4; };
+    var g = el('g', { 'class': 'grid' }, s);
+    [[20,'20 mph'],[10,'10'],[0,'0']].forEach(function (v) { el('line', { x1: 0, y1: Y(v[0]), x2: 342, y2: Y(v[0]) }, g); text(s, 342, Y(v[0]) - 4, 'ax', v[1], 'end'); });
+    var xs = hours.map(X);
+    el('polygon', { 'class': 'band', points: pts(xs, wind.map(function (v) { return Y(v + 2); })) + ' ' + pts(xs.slice().reverse(), wind.slice().reverse().map(function (v) { return Y(Math.max(0, v - 2)); })) }, s);
+    el('polyline', { 'class': 'gust', points: pts(xs, gust.map(Y)) }, s);
+    el('polyline', { 'class': 'air', points: pts(xs, wind.map(Y)) }, s);
+    el('line', { 'class': 'nowline', x1: X(NOW), y1: 0, x2: X(NOW), y2: 110 }, s);
+    el('circle', { 'class': 'now', cx: X(NOW), cy: Y(wind[NOW]), r: 4 }, s);
+    hourLabels.forEach(function (l) { text(s, X(l[0]), 130, 'hr', l[1], l[2]); });
+  })();
+
+  // Printed rows every three hours: humidity, cloud.
+  function strip(id, caption, values) {
+    var d = document.getElementById(id);
+    ['12a','3a','6a','9a','12p','3p','6p','9p'].forEach(function (h) { var s = document.createElement('span'); s.className = 'h'; s.textContent = h; d.appendChild(s); });
+    values.forEach(function (v) { var s = document.createElement('span'); s.textContent = v + '%'; d.appendChild(s); });
+    var c = document.createElement('span'); c.className = 'cap'; c.textContent = caption; d.insertBefore(c, d.firstChild);
+  }
+  strip('strip-hum', 'Humidity', [78, 80, 84, 75, 66, 60, 70, 76]);
+  strip('strip-cloud', 'Cloud', [90, 100, 100, 100, 10, 15, 60, 80]);
+
+  // Daily rows. Week scale for the low-to-high bar: 21 to 40 °F.
+  var days = [
+    ['Today','Nov 23',98,23,31,0,[['Good hours','8a to 11p'],['Dryness','Dry'],['Rain','0 in'],['Peak wind','13 mph'],['Sun','5 h, 11a to 4p']]],
+    ['Tue','Nov 24',100,21,33,1,[['Good hours','9a to 11p'],['Dryness','Dry'],['Rain','0 in'],['Peak wind','6 mph'],['Sun','5 to 8 h']]],
+    ['Wed','Nov 25',100,25,37,3,[['Good hours','All day'],['Dryness','Dry'],['Rain','0 in'],['Peak wind','6 mph'],['Sun','8 h, 8a to 4p']]],
+    ['Thu','Nov 26',100,25,38,3,[['Good hours','All day'],['Dryness','Dry'],['Rain','0 in'],['Peak wind','5 mph'],['Sun','5 to 9 h']]],
+    ['Fri','Nov 27',100,26,40,24,[['Good hours','All day'],['Dryness','Dry'],['Rain','0 in'],['Peak wind','7 mph'],['Sun','8 h, 8a to 3p']]],
+    ['Sat','Nov 28',100,31,39,23,[['Good hours','9a to 11p'],['Dryness','Dry'],['Rain','Trace'],['Peak wind','10 mph'],['Sun','0 to 8 h']]],
+    ['Sun','Nov 29',100,31,37,18,[['Good hours','All day'],['Dryness','Dry'],['Rain','0 in'],['Peak wind','11 mph'],['Sun','0 to 8 h']]]
+  ];
+  var MIN = 21, MAX = 40, list = document.getElementById('days');
+  days.forEach(function (d) {
+    var row = document.createElement('div'); row.className = 'day';
+    var left = ((d[3] - MIN) / (MAX - MIN) * 100).toFixed(1), width = ((d[4] - d[3]) / (MAX - MIN) * 100).toFixed(1);
+    row.innerHTML =
+      '<div class="day-top">' +
+        '<div class="day-name"><b>' + d[0] + '</b><span>' + d[1] + '</span></div>' +
+        '<div class="day-score" aria-label="Score ' + d[2] + '">' + d[2] + '</div>' +
+        '<div class="temps" aria-label="Low ' + d[3] + ', high ' + d[4] + '"><span>' + d[3] + '°</span><div class="track"><i style="left:' + left + '%;width:' + width + '%"></i></div><span>' + d[4] + '°</span></div>' +
+        '<div class="day-rain' + (d[5] >= 20 ? ' wet' : '') + '" aria-label="Chance of rain ' + d[5] + '%">' + d[5] + '%</div>' +
+      '</div>' +
+      '<div class="pairs">' + d[6].map(function (p) { return '<span><span class="l">' + p[0] + '</span> ' + p[1] + '</span>'; }).join('') + '</div>';
+    list.appendChild(row);
+  });
+
+  // Light / Dark switch, remembered per viewer when storage allows.
+  var wrap = document.getElementById('wrap'), bl = document.getElementById('theme-light'), bd = document.getElementById('theme-dark');
+  function set(mode) {
+    wrap.setAttribute('data-mock', mode);
+    bl.setAttribute('aria-pressed', String(mode === 'light'));
+    bd.setAttribute('aria-pressed', String(mode === 'dark'));
+    try { localStorage.setItem('wt6-mock-theme', mode); } catch (e) {}
+  }
+  bl.addEventListener('click', function () { set('light'); });
+  bd.addEventListener('click', function () { set('dark'); });
+  try { var saved = localStorage.getItem('wt6-mock-theme'); if (saved === 'dark' || saved === 'light') set(saved); } catch (e) {}
+})();
+</script>
 </body></html>
