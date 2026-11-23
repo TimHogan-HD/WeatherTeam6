@@ -277,9 +277,14 @@ function DayDetail({ tile, locationId }: { tile: TripDayTile; locationId: string
   )
 }
 
-/** `0.04–0.31 in`: a total's range, never summed. */
+/**
+ * `0.04–0.31 in`: a total's range, never summed. Rain cannot fall below zero, but an
+ * interpolated p10 can sit a hair under it and printed `-0.00`; both ends are floored at
+ * zero, as `RangeBar` already does.
+ */
 function rangeLabel(p10Mm: number, p90Mm: number): string {
-  return `${mmToIn(p10Mm).toFixed(2)}–${mmToIn(p90Mm).toFixed(2)} in`
+  const inches = (mm: number) => mmToIn(Math.max(0, mm)).toFixed(2)
+  return `${inches(p10Mm)}–${inches(p90Mm)} in`
 }
 
 /** The likely total, its range as a bar, and each day's amount. Amounts sum; a range never does. */

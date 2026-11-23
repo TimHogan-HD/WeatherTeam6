@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { OutlookDay, TripDayTrend, TripOutlook, TripTrendPoint } from '@weatherteam6/types'
 import { renderInRouter } from '../../test/renderInRouter.js'
-import { TripCragView, TrendCard } from './TripCragView.js'
+import { rainTotalParts, TripCragView, TrendCard } from './TripCragView.js'
 import { TripDayTrendChart } from './TripDayTrendChart.js'
 import { TripTrendChart } from './TripTrendChart.js'
 
@@ -75,6 +75,16 @@ describe('TripCragView — the outlook states', () => {
     expect(html).toContain('0.18 in')
     expect(html).toContain('Agreement 82%')
     expect(html).toContain('Trend starts after the next forecast update.')
+  })
+
+  it('never prints a negative rain range, on this view or in the grid’s parts', () => {
+    // An interpolated p10 a hair under zero printed "-0.00–0.00 in" (check:ui, 2026-11-23).
+    const total = { mean_mm: 0.05, p10_mm: -0.0004, p90_mm: 0.1, member_count: 50, days_covered: 3 }
+    const outlook: TripOutlook = { ...base, utc_offset_seconds: 0, days: DATES.map(day), rain_total: total, high_c_range: { min: 16, max: 16 } }
+    const html = view(outlook)
+    expect(html).toContain('Range 0.00–0.00 in')
+    expect(html).not.toContain('-0.00')
+    expect(rainTotalParts(outlook)?.range).toBe('0.00–0.00 in')
   })
 })
 

@@ -33,6 +33,11 @@ and never restates a literal. See the `miniapp-patterns` skill.
 
 ## Contrast floors (readability)
 
+- **The floor is a measured ratio: 4.5:1 for text under 24 px (18.5 px bold), on the surface
+  it is drawn on** (WCAG 1.4.3). An opacity gives a different ratio on every surface:
+  `txt5` (38%) measured 2.76–3.70:1 on the Rock tab (#648). `apps/miniapp/src/theme/contrast.test.ts`
+  checks every `colorsV2` text colour on every surface; a new text or surface token goes in
+  its lists. The opacity minimums below are the older form of this rule and still hold.
 - Labels (`txt4`): min opacity 0.50
 - Body copy (`txt3`): min opacity 0.62
 - Stat values (`txt2`): min opacity 0.82
