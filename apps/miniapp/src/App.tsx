@@ -32,6 +32,7 @@ import { TabBar } from './components/TabBar.js'
 import { arrivalScrollY, barGivesWay, sectionFor } from './lib/bottomNav.js'
 import { SpeedInsights } from '@vercel/speed-insights/react'
 import { insightsRoute, redactInsightsEvent } from './lib/speedInsights.js'
+import { useScreenUsage } from './lib/usage.js'
 
 const queryClient = createQueryClient()
 
@@ -157,6 +158,7 @@ function SignedIn() {
   useLayoutEffect(() => pageCommitted(), [key])
   // Asked for once here, so a crag opened later finds its opening tab cached.
   const prefs = usePreferences()
+  useScreenUsage(pathname)
   useEffect(() => {
     // A failure here costs nothing: the tab's own load tries again and says so.
     const timer = window.setTimeout(() => void loadMapScreen().catch(() => undefined), WARM_MAP_AFTER_MS)

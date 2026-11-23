@@ -32,6 +32,7 @@ import { flipSource, flyFrom, type FlipRect } from '../lib/flip.js'
 import { slimFigure } from '../lib/slimHeader.js'
 import { useEdgeSwipeBack } from '../hooks/useEdgeSwipeBack.js'
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion.js'
+import { openingTabSettled, useTabUsage } from '../lib/usage.js'
 
 const TAB_PANEL_ID = 'detail-tab-panel'
 const FORECAST_TABS: ReadonlySet<DetailTab> = new Set(['overview', 'daily', 'hourly', 'precip'])
@@ -118,6 +119,12 @@ export function LocationDetail() {
   // loaded must not point at one.
   const options = location.data === undefined ? null : detailTabs(location.data.is_climbing_location)
   const activeTab = options === null || options.some((o) => o.value === tab) ? tab : 'overview'
+  const tabSettled = openingTabSettled({
+    locationLoaded: location.data !== undefined,
+    tabChosen: inGuide || picked !== null || searchParams.get('tab') !== null,
+    preferencesLoaded: prefs !== undefined,
+  })
+  useTabUsage(tabSettled ? activeTab : null)
   const rainGauges = useRainGauges(id, activeTab === 'precip')
   const visits = useVisits(id, activeTab === 'precip')
   const soil = useSoil(id, location.data?.known_crag, activeTab === 'precip')
