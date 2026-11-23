@@ -916,7 +916,8 @@ export const areaLocations = pgTable(
  * **No account** (owner, 2026-11-23): `visit_id` is a random id per app
  * launch, linked to nobody. `screen` is a route pattern with no ids
  * (`parseUsageEvent`); `tab` is null off the crag screen. No foreign keys,
- * so no delete anywhere has to clear it.
+ * so no delete anywhere has to clear it. `owner` marks the owner's own use
+ * (owner, 2026-11-23), so the report can leave it out; it names no one else.
  */
 export const usageEvents = pgTable(
   'usage_events',
@@ -925,6 +926,7 @@ export const usageEvents = pgTable(
     visit_id: uuid('visit_id').notNull(),
     screen: text('screen').notNull(),
     tab: text('tab'),
+    owner: boolean('owner').default(false).notNull(),
     created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [index('usage_events_created_idx').on(t.created_at)],

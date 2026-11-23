@@ -7,7 +7,8 @@
  *   npm run check:usage
  *
  * Why a script: the migration and the insert only meet against Postgres.
- * Checks that an event is stored under its visit id and no account, that a
+ * Checks that an event is stored under its visit id and no account, that only
+ * the owner's is marked as the owner's, that a
  * refused body writes nothing, and that the report reads it back. Creates one
  * throwaway user (the route is behind the sign-in gate) and its own random
  * visit ids, and removes all of them in `finally`. No upstream weather call,
@@ -77,6 +78,7 @@ async function run(): Promise<void> {
   let userId: string | null = null
   const visit = randomUUID()
   const otherVisit = randomUUID()
+  const ownerVisit = randomUUID()
 
   try {
     const inserted = await db
@@ -107,6 +109,22 @@ async function run(): Promise<void> {
       stored.every((r) => !Object.keys(r).some((k) => k.includes('user')) && !Object.values(r).includes(userId)),
       JSON.stringify(stored[0]),
     )
+    check('another account is not marked as the owner', stored.every((r) => !r.owner), JSON.stringify(stored))
+
+    console.log('\nThe owner')
+    // `isOwner` reads DEFAULT_USER_ID per call; naming the test user the owner in
+    // this process only is how its marking is reached without the real owner.
+    const realOwner = process.env['DEFAULT_USER_ID']
+    process.env['DEFAULT_USER_ID'] = userId
+    const mine = await post(token, { visit: ownerVisit, screen: '/map', tab: null })
+    if (realOwner === undefined) delete process.env['DEFAULT_USER_ID']
+    else process.env['DEFAULT_USER_ID'] = realOwner
+    const ownerRows = await db.select().from(usageEvents).where(eq(usageEvents.visit_id, ownerVisit))
+    check(
+      "the owner's use is stored, and marked",
+      mine.status === 201 && ownerRows.length === 1 && ownerRows[0]?.owner === true,
+      JSON.stringify({ mine, ownerRows }),
+    )
 
     console.log('\nRefusals')
     const withId = await post(token, { visit: otherVisit, screen: '/location/3f2a9c1e-0000-4000-8000-000000000001', tab: null })
@@ -134,7 +152,7 @@ async function run(): Promise<void> {
   } finally {
     let cleaned = true
     try {
-      await db.delete(usageEvents).where(inArray(usageEvents.visit_id, [visit, otherVisit]))
+      await db.delete(usageEvents).where(inArray(usageEvents.visit_id, [visit, otherVisit, ownerVisit]))
       if (userId !== null) await db.delete(users).where(eq(users.id, userId))
     } catch (err) {
       cleaned = false
@@ -143,7 +161,7 @@ async function run(): Promise<void> {
     console.log(
       cleaned
         ? '\n  cleaned up the test user and its usage rows'
-        : `\n  COULD NOT CLEAN UP — remove the user named "${PREFIX}-*" and usage_events rows for visits ${visit}, ${otherVisit} by hand`,
+        : `\n  COULD NOT CLEAN UP — remove the user named "${PREFIX}-*" and usage_events rows for visits ${visit}, ${otherVisit}, ${ownerVisit} by hand`,
     )
     server.close()
     await pool.end()
