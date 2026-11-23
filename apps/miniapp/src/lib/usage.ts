@@ -39,10 +39,29 @@ export function useScreenUsage(pathname: string): void {
   }, [screen])
 }
 
-/** The crag screen: once on opening, and again each time the tab changes. */
-export function useTabUsage(tab: DetailTabKey): void {
+/**
+ * Whether the crag screen's open tab is the one the reader will see, rather than
+ * a stand-in while its inputs load. The location decides which tabs exist (a
+ * city has no Rock or Crag), and with no tab asked for in the address or
+ * picked, the saved preference decides the opening one. Until both are in,
+ * the screen draws Overview, which may never have been the reader's tab.
+ */
+export function openingTabSettled(input: {
+  locationLoaded: boolean
+  /** A wall screen, a picked tab or `?tab=`: the preference plays no part. */
+  tabChosen: boolean
+  preferencesLoaded: boolean
+}): boolean {
+  return input.locationLoaded && (input.tabChosen || input.preferencesLoaded)
+}
+
+/**
+ * The crag screen: once its opening tab settles, and again each time the tab
+ * changes. `null` is a tab not yet settled, which reports nothing.
+ */
+export function useTabUsage(tab: DetailTabKey | null): void {
   const screen = insightsRoute(useLocation().pathname)
   useEffect(() => {
-    report(screen, tab)
+    if (tab !== null) report(screen, tab)
   }, [screen, tab])
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { parseUsageEvent } from '@weatherteam6/types'
 import { insightsRoute } from './speedInsights.js'
-import { reportsItsOwnTab } from './usage.js'
+import { openingTabSettled, reportsItsOwnTab } from './usage.js'
 
 const ID = '3f2a9c1e-0000-4000-8000-000000000001'
 
@@ -14,6 +14,22 @@ describe('reportsItsOwnTab', () => {
     expect(reportsItsOwnTab(insightsRoute(`/location/${ID}/edit`))).toBe(false)
     expect(reportsItsOwnTab(insightsRoute('/'))).toBe(false)
     expect(reportsItsOwnTab(insightsRoute(`/trips/${ID}/crag/${ID}`))).toBe(false)
+  })
+})
+
+describe('openingTabSettled', () => {
+  it('waits for the location, which decides whether Rock and Crag exist', () => {
+    expect(openingTabSettled({ locationLoaded: false, tabChosen: true, preferencesLoaded: true })).toBe(false)
+  })
+
+  it('waits for the preferences on a reload with no tab asked for', () => {
+    // The screen draws Overview meanwhile; a saved Rock tab would then open.
+    expect(openingTabSettled({ locationLoaded: true, tabChosen: false, preferencesLoaded: false })).toBe(false)
+    expect(openingTabSettled({ locationLoaded: true, tabChosen: false, preferencesLoaded: true })).toBe(true)
+  })
+
+  it('does not wait for the preferences when the tab was chosen', () => {
+    expect(openingTabSettled({ locationLoaded: true, tabChosen: true, preferencesLoaded: false })).toBe(true)
   })
 })
 
