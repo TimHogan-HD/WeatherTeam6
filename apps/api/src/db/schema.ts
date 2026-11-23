@@ -910,22 +910,22 @@ export const areaLocations = pgTable(
 )
 
 /**
- * **The usage log** (owner, 2026-11-23): one row each time an account opens a
+ * **The usage log** (owner, 2026-11-23): one row each time the app opens a
  * screen or a crag tab, to see which screens are used before the next
- * redesign. Temporary: `docs/usage-log.md` says how to remove it. `screen` is
- * a route pattern with no ids (`parseUsageEvent`); `tab` is null off the crag
- * screen. No `location_id`, so no location delete has to clear it.
+ * redesign. Temporary: `docs/usage-log.md` says how to remove it.
+ * **No account** (owner, 2026-11-23): `visit_id` is a random id per app
+ * launch, linked to nobody. `screen` is a route pattern with no ids
+ * (`parseUsageEvent`); `tab` is null off the crag screen. No foreign keys,
+ * so no delete anywhere has to clear it.
  */
 export const usageEvents = pgTable(
   'usage_events',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    user_id: uuid('user_id')
-      .notNull()
-      .references(() => users.id),
+    visit_id: uuid('visit_id').notNull(),
     screen: text('screen').notNull(),
     tab: text('tab'),
     created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [index('usage_events_user_created_idx').on(t.user_id, t.created_at)],
+  (t) => [index('usage_events_created_idx').on(t.created_at)],
 )

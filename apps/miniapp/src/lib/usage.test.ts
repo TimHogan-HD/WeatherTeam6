@@ -33,7 +33,7 @@ describe('a reported screen', () => {
       '/profile',
       '/welcome',
     ]) {
-      expect(parseUsageEvent({ screen: insightsRoute(path), tab: null }), path).not.toBeNull()
+      expect(parseUsageEvent({ visit: crypto.randomUUID(), screen: insightsRoute(path), tab: null }), path).not.toBeNull()
     }
   })
 })

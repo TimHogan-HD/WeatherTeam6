@@ -1,14 +1,14 @@
 /**
- * The usage log's report (`npm run usage`, `docs/usage-log.md`): events per
- * account per screen, and a rough time on each.
+ * The usage log's report (`npm run usage`, `docs/usage-log.md`): how often
+ * each screen and tab was opened across everyone, and a rough time on each.
+ * No account is stored, so there is no per-person view.
  */
 
 /** A gap longer than this is someone who left the app, not someone reading. */
 export const MAX_GAP_MS = 5 * 60_000
 
 export type UsageRow = {
-  username: string | null
-  user_id: string
+  visit_id: string
   screen: string
   tab: string | null
   at: Date
@@ -22,9 +22,9 @@ export type ScreenUsage = {
   medianSeconds: number | null
 }
 
-export type AccountUsage = {
-  username: string
+export type UsageSummary = {
   events: number
+  visits: number
   /** Most opened first. */
   screens: ScreenUsage[]
 }
@@ -37,21 +37,20 @@ function median(values: number[]): number | null {
 }
 
 /**
- * Rows in any order. Each account's are sorted by time here, and an event's
- * time is the gap to the same account's next event, never another account's.
+ * Rows in any order. Each visit's are sorted by time here, and an event's
+ * time is the gap to the same visit's next event, never another visit's.
  */
-export function summarizeUsage(rows: readonly UsageRow[]): AccountUsage[] {
-  const byUser = new Map<string, UsageRow[]>()
+export function summarizeUsage(rows: readonly UsageRow[]): UsageSummary {
+  const byVisit = new Map<string, UsageRow[]>()
   for (const row of rows) {
-    const list = byUser.get(row.user_id)
-    if (list === undefined) byUser.set(row.user_id, [row])
+    const list = byVisit.get(row.visit_id)
+    if (list === undefined) byVisit.set(row.visit_id, [row])
     else list.push(row)
   }
 
-  const accounts: AccountUsage[] = []
-  for (const [userId, list] of byUser) {
+  const screens = new Map<string, { count: number; gaps: number[] }>()
+  for (const list of byVisit.values()) {
     list.sort((a, b) => a.at.getTime() - b.at.getTime())
-    const screens = new Map<string, { count: number; gaps: number[] }>()
     list.forEach((row, i) => {
       const label = row.tab === null ? row.screen : `${row.screen} · ${row.tab}`
       const entry = screens.get(label) ?? { count: 0, gaps: [] }
@@ -63,16 +62,16 @@ export function summarizeUsage(rows: readonly UsageRow[]): AccountUsage[] {
       }
       screens.set(label, entry)
     })
-    accounts.push({
-      username: list[0]?.username ?? userId,
-      events: list.length,
-      screens: [...screens.entries()]
-        .map(([label, { count, gaps }]) => {
-          const m = median(gaps)
-          return { label, count, medianSeconds: m === null ? null : Math.round(m / 1000) }
-        })
-        .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)),
-    })
   }
-  return accounts.sort((a, b) => b.events - a.events)
+
+  return {
+    events: rows.length,
+    visits: byVisit.size,
+    screens: [...screens.entries()]
+      .map(([label, { count, gaps }]) => {
+        const m = median(gaps)
+        return { label, count, medianSeconds: m === null ? null : Math.round(m / 1000) }
+      })
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)),
+  }
 }

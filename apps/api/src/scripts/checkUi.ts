@@ -256,7 +256,6 @@ async function run(): Promise<void> {
     routeTicks,
     routeTodos,
     areaLocations,
-    usageEvents,
   } = await import('../db/schema.js')
   const { deleteLocationCascade } = await import('../lib/locations/deleteLocation.js')
   const { hashPassword } = await import('../lib/auth/password.js')
@@ -281,7 +280,7 @@ async function run(): Promise<void> {
           await tx.delete(trips).where(inArray(trips.id, owned))
         }
         await tx.delete(invites).where(or(eq(invites.created_by, id), eq(invites.used_by, id)))
-        for (const table of [feedback, userPreferences, walls, routeTicks, routeTodos, usageEvents]) {
+        for (const table of [feedback, userPreferences, walls, routeTicks, routeTodos]) {
           await tx.delete(table).where(eq(table.user_id, id))
         }
         await tx.delete(areaLocations).where(eq(areaLocations.recorded_by, id))
