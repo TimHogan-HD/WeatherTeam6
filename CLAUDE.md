@@ -67,6 +67,8 @@ Do not create a `.env` file at all — set variables in the shell for the one co
 
 - **Design is a conversation, not a rulebook** (owner, 2026-10-01). Every visual and interaction choice in the docs — palette, layout, spacing, type, motion, press feedback, the Figma direction — is the current state, not a decision to defend. When you see a better option, say so and show it as variants; when a design skill disagrees with what is built, put the disagreement to the owner rather than silently applying or dropping it. Not taste, and still in force: the copy rules that keep a reading honest, and the contrast floors.
 
+- **A mockup is a standalone HTML file, always** (owner, 2026-11-23, after a session made a Design-canvas artifact instead). It goes in `docs/handoffs/design-mockups/<name>.html`: one self-contained page with a phone frame at 390 px and a notes column, like `welcome-screen.html`. The owner views it on a phone through a private Artifact published from that same file (the Artifact tool's plain-page publish). Never a Design canvas, Figma frame, `.dc.html`, Slides deck or image as the mockup, even when a tool or skill offers one first; use one only when the owner names it. A mockup is real HTML and CSS, so it is the thing that gets built, not a picture of it.
+
 - TypeScript strict mode everywhere. No `any`.
 - All API responses use the shape `{ data, error, status }`.
 - All external API calls are wrapped in try/catch with exponential backoff retry.

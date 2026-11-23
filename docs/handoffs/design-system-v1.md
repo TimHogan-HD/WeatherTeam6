@@ -77,6 +77,10 @@ Two rules the client added that belong here now:
 
 ## Mockup reference
 
+Every mockup is a standalone `.html` file in `docs/handoffs/design-mockups/` (CLAUDE.md §
+Rules, owner 2026-11-23). `field-guide-direction.html` is a direction proposal for #637, not
+the current look.
+
 `docs/handoffs/design-mockups/weatherteam6-hybrid.html` — the current look (owner,
 2026-10-19). Open it directly in a browser; `miniapp-hybrid-transition-v1.md` says what it
 covers and where the app departs from it. **Open the mockup itself, not a prose summary of
