@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>WT6 Look Variants</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: two decisions, each one phone (390 px) with a variant switcher above and a notes column beside it; stacks on a phone. */
+:root{
+  color-scheme:dark;
+  /* colorsV2, packages/design/src/tokens.ts */
+  --bg:#07090c; --surface:#10161d; --card:#171f28; --raised:#1f2833; --line:#2a3644;
+  --txt1:#f4f7fa; --txt2:#d3e1e4; --muted:#bccad0; --tab:#7d8997;
+  --brand:#1DC5D2; --brandInk:#6fe3ec; --brandWash:rgba(29,197,210,.16);
+  --good:#b8f542; --fair:#f6ad55; --poor:#fc8181; --rain:#bcc7fd; --rainMark:#a5b4fc; --sun:#ffd76a;
+  --ground:#05070a;
+  --display:'Barlow Condensed','Arial Narrow',sans-serif; --body:'Barlow','Segoe UI',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--txt1);font-family:var(--body);font-variant-numeric:tabular-nums;padding-block:24px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:2px solid var(--brandInk);outline-offset:2px}
+p{margin:0}
+
+/* ---------- page frame ---------- */
+.page{max-width:1000px;margin:0 auto;display:flex;flex-direction:column;gap:56px}
+.intro{display:flex;flex-direction:column;gap:8px;max-width:640px}
+.intro h1{margin:0;font-family:var(--display);font-weight:700;font-size:36px;line-height:1.05;text-wrap:balance}
+.intro p{color:var(--muted);font-size:15px;line-height:1.55}
+.decision{display:flex;flex-direction:column;gap:16px}
+.decision > h2{margin:0;font-family:var(--display);font-weight:700;font-size:28px;line-height:1.1}
+.switch{display:flex;gap:6px;flex-wrap:wrap}
+.switch button{min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-family:var(--display);font-weight:600;font-size:16px;color:var(--txt2)}
+.switch button[aria-pressed="true"]{border-color:var(--brand);color:var(--brandInk);background:var(--brandWash)}
+.wrap{display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start}
+.phone{width:390px;max-width:100%;border-radius:40px;overflow:hidden;box-shadow:0 0 0 8px #020304,0 30px 80px #000c;background:var(--bg);padding:18px 16px 28px}
+.notes{flex:1 1 300px;min-width:0;max-width:460px;display:flex;flex-direction:column;gap:12px}
+.notes h3{margin:0;font-family:var(--display);font-weight:700;font-size:24px;line-height:1.1}
+.notes p,.notes li{color:var(--muted);line-height:1.55;font-size:15px}
+.notes ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.notes b{color:var(--txt1);font-weight:600}
+.notes .data{border-left:2px solid var(--line);padding-left:12px}
+.scale{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:baseline;font-size:14px;color:var(--muted)}
+.scale b{font-family:var(--display);color:var(--txt1)}
+
+/* ---------- shared phone parts ---------- */
+.bar{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px}
+.back{min-width:44px;min-height:44px;border:0;background:none;color:var(--brandInk);font-size:22px;padding:0;text-align:left}
+.crag{flex:1;min-width:0;font-family:var(--display);font-weight:600;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.figs{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px}
+.figs dt{margin:0}
+.figs dd{margin:0}
+
+/* ---------- A: current ---------- */
+.A .fb{border:1.5px solid var(--good);color:var(--good);background:none;border-radius:999px;min-height:40px;padding:0 14px;font-family:var(--display);font-weight:600;font-size:16px}
+.A .glass{border-radius:28px;padding:16px;margin-top:14px;background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02));box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 0 0 1px rgba(255,255,255,.08),0 10px 30px #0008}
+.A .warn{font-size:12px;color:var(--muted);margin-top:10px}
+.A .name{font-family:var(--display);font-weight:700;font-size:30px;line-height:1.05}
+.A .at{font-size:13px;color:var(--muted);margin:2px 0 10px}
+.A .hero{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center}
+.A .big{font-family:var(--display);font-weight:700;font-size:92px;line-height:.85;color:var(--good)}
+.A .figs{border-left:1px solid var(--line);padding-left:12px}
+.A dt{font-family:var(--display);font-weight:600;font-size:9px;letter-spacing:1.6px;text-transform:uppercase;color:var(--muted)}
+.A dd b{display:block;font-family:var(--display);font-weight:700;font-size:20px}
+.A dd small{font-size:10px;color:var(--muted)}
+.A .eyebrow{font-family:var(--display);font-weight:600;font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--brandInk)}
+.A .head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:10px}
+.A .head span:last-child{font-size:11px;color:var(--muted)}
+.A .days{display:grid;grid-template-columns:repeat(6,1fr);text-align:center;gap:2px}
+.A .days b{display:block;font-family:var(--display);font-weight:700;font-size:24px;color:var(--good)}
+.A .days small{display:block;font-size:10px;color:var(--muted)}
+.A .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.A .tile{background:var(--raised);border-radius:14px;padding:8px}
+.A .tile i{display:block;font-style:normal;font-family:var(--display);font-weight:600;font-size:9px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted)}
+.A .tile b{display:block;font-family:var(--display);font-weight:700;font-size:19px}
+.A .tile small{font-size:10px;color:var(--muted)}
+.A .src{font-size:10px;color:var(--muted);margin-top:8px}
+
+/* ---------- B: quiet cards ---------- */
+.B .fb{border:0;background:none;color:var(--muted);min-height:44px;padding:0 4px;font-size:15px}
+.B .top{padding:14px 2px 18px;display:flex;flex-direction:column;gap:2px}
+.B .name{font-family:var(--display);font-weight:700;font-size:28px;line-height:1.1}
+.B .meta{font-size:13px;color:var(--muted)}
+.B .hero{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center;padding:0 2px 22px}
+.B .big{font-family:var(--display);font-weight:700;font-size:88px;line-height:.85;color:var(--good)}
+.B .big small{display:block;font-family:var(--body);font-weight:500;font-size:13px;color:var(--muted);margin-top:8px;line-height:1.2}
+.B dt{font-size:13px;color:var(--muted)}
+.B dd{font-family:var(--display);font-weight:700;font-size:20px;line-height:1.15}
+.B .card{background:var(--card);border-radius:16px;padding:14px 14px 16px;margin-top:12px}
+.B .ttl{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:12px}
+.B .ttl h4{margin:0;font-family:var(--display);font-weight:600;font-size:20px}
+.B .ttl span{font-size:13px;color:var(--muted)}
+.B .days{display:grid;grid-template-columns:repeat(6,1fr);text-align:center}
+.B .days span{display:block;font-size:13px;color:var(--muted)}
+.B .days b{display:block;font-family:var(--display);font-weight:700;font-size:24px;color:var(--good);line-height:1.2}
+.B .days small{display:block;font-size:12px;color:var(--muted)}
+.B .rows{display:flex;flex-direction:column;gap:10px}
+.B .rows div{display:flex;justify-content:space-between;gap:12px;font-size:15px}
+.B .rows span{color:var(--muted)}
+.B .rows b{font-weight:600}
+.B .link{color:var(--brandInk);font-size:14px;margin-top:12px;display:inline-block}
+
+/* ---------- C: open list ---------- */
+.C .fb{border:0;background:none;color:var(--muted);min-height:44px;padding:0 4px;font-size:15px}
+.C .top{padding:14px 2px 6px}
+.C .name{font-family:var(--display);font-weight:700;font-size:28px;line-height:1.1}
+.C .hero{display:flex;align-items:baseline;gap:12px;padding:6px 2px 4px}
+.C .big{font-family:var(--display);font-weight:700;font-size:88px;line-height:.9;color:var(--good)}
+.C .hero p{font-size:15px;color:var(--txt2);line-height:1.4}
+.C .hero p span{color:var(--muted)}
+.C section{padding:22px 2px 0}
+.C h4{margin:0 0 6px;font-family:var(--display);font-weight:600;font-size:20px}
+.C .list{display:flex;flex-direction:column}
+.C .list div{display:grid;grid-template-columns:5em 1fr auto;gap:10px;align-items:baseline;padding:9px 0;border-top:1px solid var(--line);font-size:15px}
+.C .list div:first-child{border-top:0}
+.C .list .d{font-weight:600}
+.C .list b{font-family:var(--display);font-weight:700;font-size:22px;color:var(--good);text-align:right}
+.C .list .t{color:var(--txt2)}
+.C .list .r{color:var(--rain);text-align:right}
+.C .kv{display:flex;flex-direction:column}
+.C .kv div{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--line);font-size:15px}
+.C .kv div:first-child{border-top:0}
+.C .kv span{color:var(--muted)}
+
+/* ---------- Daily uncertainty ---------- */
+.daily .ttl{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:16px 2px 6px}
+.daily .ttl h4{margin:0;font-family:var(--display);font-weight:600;font-size:20px}
+.daily .ttl span{font-size:13px;color:var(--muted)}
+.daily .sum{font-size:14px;color:var(--txt2);padding:0 2px 10px;line-height:1.45}
+.drow{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:11px 2px;border-top:1px solid var(--line)}
+.drow .dn{font-family:var(--display);font-weight:700;font-size:19px;line-height:1.1}
+.drow .dn small{display:block;font-family:var(--body);font-weight:400;font-size:13px;color:var(--muted)}
+.drow .line{grid-column:1/3;font-size:14px;color:var(--txt2)}
+.drow .line span{color:var(--muted)}
+.drow .sc{display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+.drow .num{font-family:var(--display);font-weight:700;font-size:30px;line-height:1;color:var(--good)}
+.drow .num.split{color:var(--txt1);-webkit-text-stroke:0}
+.drow .tag{font-size:12px;color:var(--muted);white-space:nowrap;display:flex;align-items:center;gap:5px}
+.dots{display:inline-flex;gap:3px}
+.dots i{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.dots i.w{background:none;box-shadow:inset 0 0 0 1.5px var(--rainMark)}
+.chance{font-family:var(--display);font-weight:700;font-size:30px;line-height:1;color:var(--good)}
+.chance small{font-family:var(--body);font-weight:500;font-size:12px;color:var(--muted);margin-left:2px}
+.pill{font-size:12px;border-radius:999px;padding:2px 8px;background:var(--raised);color:var(--txt2)}
+.foot{font-size:13px;color:var(--muted);padding:12px 2px 0;line-height:1.45}
+
+@media (prefers-reduced-motion:no-preference){.switch button{transition:background .15s ease-out,border-color .15s ease-out}}
+</style>
+
+</head><body>
+<main class="page">
+  <header class="intro">
+    <h1>Look variants for #644</h1>
+    <p>Two decisions, each shown on one phone. Pick a variant above each phone; the notes say what changes, what it rests on, and what it costs. Figures are this week's Taylor Falls screenshots, shortened. The models-wet counts in the second section are examples.</p>
+  </header>
+
+  <!-- ===================== Decision 1: the look ===================== -->
+  <section class="decision" aria-labelledby="d1">
+    <h2 id="d1">1. Colour roles, cards and type</h2>
+    <div class="switch" role="group" aria-label="Look variant" data-group="look">
+      <button type="button" aria-pressed="true" data-v="A">A · Current</button>
+      <button type="button" aria-pressed="false" data-v="B">B · Quiet cards</button>
+      <button type="button" aria-pressed="false" data-v="C">C · Open list</button>
+    </div>
+    <div class="wrap">
+      <div class="phone" aria-label="Overview, phone width">
+
+        <!-- A: what is built -->
+        <div class="A" data-look="A">
+          <div class="bar"><button class="back" type="button" aria-label="Back">‹</button><span class="crag">Taylors Falls</span><button class="fb" type="button">Feedback</button></div>
+          <p class="warn">Warnings not checked recently</p>
+          <div class="glass">
+            <div class="name">Taylors Falls</div>
+            <p class="at">Score at 4pm</p>
+            <div class="hero">
+              <div class="big">95</div>
+              <dl class="figs">
+                <div><dt>Dryness</dt><dd><b>Dry</b><small>40h since real rain</small></dd></div>
+                <div><dt>Rock</dt><dd><b>Basalt</b><small>holds up when wet</small></dd></div>
+                <div><dt>Air</dt><dd><b>29°F</b><small>high 31° · low 22°</small></dd></div>
+                <div><dt>Good hours</dt><dd><b>4p–11p</b><small>8 hours</small></dd></div>
+              </dl>
+            </div>
+          </div>
+          <div class="glass">
+            <div class="head"><span class="eyebrow">Next days</span><span>score · high/low · rain</span></div>
+            <div class="days">
+              <div><b>92</b><small>Today</small><small>31/22°</small></div>
+              <div><b>100</b><small>Tue</small><small>33/21°</small></div>
+              <div><b>100</b><small>Wed</small><small>37/25°</small></div>
+              <div><b>100</b><small>Thu</small><small>38/25°</small></div>
+              <div><b>100</b><small>Fri</small><small>40/26°</small></div>
+              <div><b>100</b><small>Sat</small><small>39/31°</small></div>
+            </div>
+          </div>
+          <div class="glass">
+            <div class="head"><span class="eyebrow">Right now</span></div>
+            <div class="tiles">
+              <div class="tile"><i>Last rain</i><b>Sun</b><small>0.12 in · 37h ago</small></div>
+              <div class="tile"><i>Next rain</i><b>None</b><small>through Sun</small></div>
+              <div class="tile"><i>Wind</i><b>9 mph</b><small>gusts 13</small></div>
+            </div>
+            <p class="src">Air: HRRR · rain: median of GFS, ECMWF, ICON, GEM</p>
+          </div>
+        </div>
+
+        <!-- B: quiet cards -->
+        <div class="B" data-look="B" hidden>
+          <div class="bar"><button class="back" type="button" aria-label="Back">‹</button><span class="crag"></span><button class="fb" type="button">Feedback</button></div>
+          <div class="top">
+            <div class="name">Taylors Falls</div>
+            <p class="meta">Basalt · warnings not checked recently</p>
+          </div>
+          <div class="hero">
+            <div class="big">95<small>Score at 4 PM</small></div>
+            <dl class="figs">
+              <div><dt>Dryness</dt><dd>Dry</dd></div>
+              <div><dt>Air</dt><dd>29°F</dd></div>
+              <div><dt>Since rain</dt><dd>40 h</dd></div>
+              <div><dt>Good hours</dt><dd>4–11 PM</dd></div>
+            </dl>
+          </div>
+          <div class="card">
+            <div class="ttl"><h4>Next days</h4><span>score · high / low</span></div>
+            <div class="days">
+              <div><span>Today</span><b>92</b><small>31/22°</small></div>
+              <div><span>Tue</span><b>100</b><small>33/21°</small></div>
+              <div><span>Wed</span><b>100</b><small>37/25°</small></div>
+              <div><span>Thu</span><b>100</b><small>38/25°</small></div>
+              <div><span>Fri</span><b>100</b><small>40/26°</small></div>
+              <div><span>Sat</span><b>100</b><small>39/31°</small></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="ttl"><h4>Right now</h4></div>
+            <div class="rows">
+              <div><span>Last rain</span><b>0.12 in, Sunday</b></div>
+              <div><span>Next rain</span><b>None likely through Sunday</b></div>
+              <div><span>Wind</span><b>9 mph, gusts 13</b></div>
+            </div>
+            <span class="link">Sources ›</span>
+          </div>
+        </div>
+
+        <!-- C: open list -->
+        <div class="C" data-look="C" hidden>
+          <div class="bar"><button class="back" type="button" aria-label="Back">‹</button><span class="crag"></span><button class="fb" type="button">Feedback</button></div>
+          <div class="top"><div class="name">Taylors Falls</div></div>
+          <div class="hero">
+            <div class="big">95</div>
+            <p>Score at 4 PM<br>Dry · 29°F · good 4–11 PM<br><span>Basalt · warnings not checked recently</span></p>
+          </div>
+          <section>
+            <h4>Next days</h4>
+            <div class="list">
+              <div><span class="d">Today</span><span class="t">31° / 22°</span><b>92</b></div>
+              <div><span class="d">Tue</span><span class="t">33° / 21°</span><b>100</b></div>
+              <div><span class="d">Wed</span><span class="t">37° / 25°</span><b>100</b></div>
+              <div><span class="d">Thu</span><span class="t">38° / 25°</span><b>100</b></div>
+              <div><span class="d">Fri</span><span class="t">40° / 26°</span><b>100</b></div>
+              <div><span class="d">Sat</span><span class="t">39° / 31°</span><b>100</b></div>
+            </div>
+          </section>
+          <section>
+            <h4>Right now</h4>
+            <div class="kv">
+              <div><span>Last rain</span><b>0.12 in, Sunday</b></div>
+              <div><span>Next rain</span><b>None likely through Sunday</b></div>
+              <div><span>Wind</span><b>9 mph, gusts 13</b></div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <div class="notes">
+        <div data-look="A">
+          <h3>A · Current</h3>
+          <ul>
+            <li><b>Glass on every card.</b> Apple keeps glass for the navigation layer, never content.</li>
+            <li><b>Lime means two things.</b> It marks the scores and also the Feedback and + Add buttons, so an action wears a score colour.</li>
+            <li><b>The crag name shows twice</b> in the first screen, and a tracked-caps eyebrow sits over every card.</li>
+            <li><b>Text down to 9 px</b> (the hero labels, the tile labels, the source line). The floor in the skill is 11 px.</li>
+            <li><b>About eight text sizes</b> in this one view: 92, 30, 24, 20, 19, 13, 12, 10, 9.</li>
+          </ul>
+        </div>
+        <div data-look="B" hidden>
+          <h3>B · Quiet cards</h3>
+          <ul>
+            <li><b>One solid card fill, no glass,</b> no inner highlight and no shadow. Cards hold groups (Next days, Right now); the hero sits on the ground.</li>
+            <li><b>Lime only on scores.</b> Feedback becomes a plain text control in the muted colour, still 44 px tall.</li>
+            <li><b>Sentence-case headings</b> replace the tracked caps. The name appears once.</li>
+            <li><b>Right now as label and value rows</b>, not three tiles in a card.</li>
+            <li>Smallest text is 12 px.</li>
+          </ul>
+          <div class="scale" aria-label="Type scale B">
+            <b>88</b><span>Score</span>
+            <b>28</b><span>Crag name</span>
+            <b>20</b><span>Card title, hero figure</span>
+            <b>15</b><span>Body, rows</span>
+            <b>13</b><span>Label, meta</span>
+            <b>12</b><span>Floor (axis ticks, day figures)</span>
+          </div>
+          <p class="data"><b>Cost:</b> styling only. Removes <code>glass.ts</code> from content cards and moves Feedback off lime; no data change.</p>
+        </div>
+        <div data-look="C" hidden>
+          <h3>C · Open list</h3>
+          <ul>
+            <li><b>No cards.</b> Space and one hairline group things. NN/g: proximity first, a container only when space cannot do it.</li>
+            <li><b>Next days as a list</b>, one day per row, because days are compared. NN/g: cards are a poor choice for comparison.</li>
+            <li><b>The hero is a number and one line</b>, so the first screen reaches the week without scrolling.</li>
+            <li>Same colour rules and type scale as B.</li>
+          </ul>
+          <p class="data"><b>Cost:</b> larger. Next days and the hourly chart would need relayout, and the card reordering (<code>Rearrange cards</code>) would rearrange sections instead.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== Decision 2: uncertainty on Daily ===================== -->
+  <section class="decision" aria-labelledby="d2">
+    <h2 id="d2">2. How sure is a day's score</h2>
+    <div class="switch" role="group" aria-label="Uncertainty variant" data-group="unc">
+      <button type="button" aria-pressed="true" data-v="U0">Current</button>
+      <button type="button" aria-pressed="false" data-v="U1">1 · Model dots</button>
+      <button type="button" aria-pressed="false" data-v="U2">2 · Split dims</button>
+      <button type="button" aria-pressed="false" data-v="U3">3 · Chance of good</button>
+    </div>
+    <div class="wrap">
+      <div class="phone daily" aria-label="Daily, phone width">
+        <div class="bar"><button class="back" type="button" aria-label="Back">‹</button><span class="crag">Taylors Falls</span></div>
+        <div class="ttl"><h4>Seven days</h4><span id="unc-aside">score · high/low · rain</span></div>
+        <p class="sum" id="unc-sum" hidden></p>
+        <div id="unc-rows"></div>
+        <p class="foot" id="unc-foot">A day's score is the worst hour of its best three-hour run inside your climbing hours.</p>
+      </div>
+
+      <div class="notes">
+        <div data-unc="U0">
+          <h3>Current</h3>
+          <p>Six 100s in a row. Nothing in the row says Saturday and Sunday are less settled than Tuesday, so the score cannot rank the days a climber is choosing between.</p>
+          <p class="data">The research (LeClerc &amp; Joslyn 2015; Burgeno &amp; Joslyn, WCAS): adding a probability to a single-value forecast improved decisions and trust in lab tasks. Student samples.</p>
+        </div>
+        <div data-unc="U1" hidden>
+          <h3>1 · Model dots</h3>
+          <ul>
+            <li>Four dots beside every score: <b>filled</b> for a model that leaves the rock dry, <b>ringed in rain colour</b> for one that leaves it wet, and the count in words.</li>
+            <li>Ties among 100s break by eye: Tue–Wed 4 of 4 dry, Sun 1 of 4.</li>
+            <li>Extends the Next days rain-split dots, which today show only when two or more models are wet.</li>
+          </ul>
+          <p class="data"><b>Data:</b> exists. <code>ReadingsDay.rain_split</code> (<code>wet</code>, <code>models</code>) is already on <code>/hourly</code> for every day scored 70 or more. Below 70 it is absent, and the row shows no dots.</p>
+        </div>
+        <div data-unc="U2" hidden>
+          <h3>2 · Split dims the score</h3>
+          <ul>
+            <li>The score stays lime only while the models agree. With two or more models wet it turns white and carries <b>models split</b>.</li>
+            <li>A one-line summary on top names the days the models agree on.</li>
+            <li>Quieter than dots; the colour change does work only alongside its words (WCAG 1.4.1).</li>
+          </ul>
+          <p class="data"><b>Data:</b> the same <code>rain_split</code>. <b>Copy check:</b> lime then means "good and agreed", which changes what the score colour means everywhere it appears. Owner call.</p>
+        </div>
+        <div data-unc="U3" hidden>
+          <h3>3 · Chance of a good day</h3>
+          <ul>
+            <li>The headline becomes the share of forecast runs in which the day scores 70 or more, in the same form as chance of rain. The score stays beside it.</li>
+            <li>This is the format the research found most useful: the chance of crossing the threshold the person decides on.</li>
+            <li>Plain words, no p10/p90, so it fits the copy rules.</li>
+          </ul>
+          <p class="data"><b>Data:</b> does not exist. It needs Crag A run per ensemble member for each day: about 50 runs per crag per request, or stored at collect time. A scoring-model change, and it would need an outcome check before any screen leads with it.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+// Example days. Scores, temperatures and rain chances are the 2026-11-23 screenshot; the models-wet counts are invented to show the variants.
+var DAYS = [
+  {d:'Today', dt:'Nov 23', s:92,  lo:22, hi:31, r:0,  wet:0, good:'good 4–11 PM', p:96},
+  {d:'Tuesday', dt:'Nov 24', s:100, lo:21, hi:33, r:1,  wet:0, good:'good all day', p:94},
+  {d:'Wednesday', dt:'Nov 25', s:100, lo:25, hi:37, r:3,  wet:0, good:'good all day', p:91},
+  {d:'Thursday', dt:'Nov 26', s:100, lo:25, hi:38, r:3,  wet:1, good:'good all day', p:84},
+  {d:'Friday', dt:'Nov 27', s:100, lo:26, hi:40, r:22, wet:1, good:'good all day', p:71},
+  {d:'Saturday', dt:'Nov 28', s:100, lo:31, hi:39, r:17, wet:2, good:'good 9 AM–11 PM', p:58},
+  {d:'Sunday', dt:'Nov 29', s:100, lo:30, hi:37, r:16, wet:3, good:'good all day', p:42}
+];
+var MODELS = 4;
+
+function dots(wet){
+  var h = '<span class="dots" aria-hidden="true">';
+  for (var i = 0; i < MODELS; i++) h += '<i' + (i >= MODELS - wet ? ' class="w"' : '') + '></i>';
+  return h + '</span>';
+}
+function score(day, v){
+  if (v === 'U1') return '<span class="num">' + day.s + '</span><span class="tag">' + dots(day.wet) + (MODELS - day.wet) + ' of ' + MODELS + ' dry</span>';
+  if (v === 'U2') {
+    var split = day.wet >= 2;
+    return '<span class="num' + (split ? ' split' : '') + '">' + day.s + '</span>' + (split ? '<span class="pill">models split</span>' : (day.wet === 1 ? '<span class="tag">1 of 4 wet</span>' : ''));
+  }
+  if (v === 'U3') return '<span class="chance">' + day.p + '<small>%</small></span><span class="tag">chance of good · score ' + day.s + '</span>';
+  return '<span class="num">' + day.s + '</span>';
+}
+function renderUnc(v){
+  var rows = DAYS.map(function(day){
+    return '<div class="drow"><div class="dn">' + day.d + '<small>' + day.dt + '</small></div><div class="sc">' + score(day, v) + '</div>' +
+      '<p class="line">' + day.hi + '° / ' + day.lo + '° · ' + day.r + '% rain <span>· ' + day.good + '</span></p></div>';
+  }).join('');
+  document.getElementById('unc-rows').innerHTML = rows;
+  var sum = document.getElementById('unc-sum');
+  sum.hidden = v !== 'U2';
+  sum.textContent = 'Models agree on Today to Wednesday. Split on Saturday and Sunday.';
+  document.getElementById('unc-aside').textContent = v === 'U3' ? 'chance of good · high/low · rain' : 'score · high/low · rain';
+  document.getElementById('unc-foot').textContent = v === 'U3'
+    ? 'Chance of good is the share of forecast runs in which the day scores 70 or more.'
+    : v === 'U0' ? "A day's score is the worst hour of its best three-hour run inside your climbing hours."
+    : v === 'U2' ? 'Models split: two or more of the four weather models leave the rock wet that day, so the score is shown in white.'
+    : 'Dots are the four weather models; a ringed dot is one whose rain leaves the rock wet that day.';
+}
+
+function wire(group, attr, onPick){
+  var box = document.querySelector('[data-group="' + group + '"]');
+  box.addEventListener('click', function(e){
+    var b = e.target.closest('button'); if (!b) return;
+    box.querySelectorAll('button').forEach(function(x){ x.setAttribute('aria-pressed', String(x === b)); });
+    document.querySelectorAll('[' + attr + ']').forEach(function(el){ el.hidden = el.getAttribute(attr) !== b.dataset.v; });
+    if (onPick) onPick(b.dataset.v);
+  });
+}
+wire('look', 'data-look');
+wire('unc', 'data-unc', renderUnc);
+renderUnc('U0');
+</script>
+</body></html>
