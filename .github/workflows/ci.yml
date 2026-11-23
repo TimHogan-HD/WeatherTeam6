@@ -67,6 +67,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Production dependencies only. Advisories were cleared twice (#198, #411)
+      # and both times only because someone asked for an audit. Dev-only
+      # advisories are excluded: the four high ones all come through
+      # @vercel/node, whose latest release still pins the vulnerable versions,
+      # and none of it ships (#633).
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
       # makeRepo() sets user.email/user.name on each scratch repo itself, so
       # this is belt and braces — but a scenario that forgets to would fail on a
       # runner with no global identity and pass locally, which is the exact
