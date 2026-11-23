@@ -63,12 +63,12 @@
     "check:ui": "tsx src/scripts/checkUi.ts"
   },
   "dependencies": {
-    "@neondatabase/serverless": "^1.2.0",
+    "@neondatabase/serverless": "^1.2.1",
     "@weatherteam6/types": "*",
     "drizzle-orm": "^0.45.4",
     "express": "^4.21.2",
     "pino": "^10.4.0",
-    "ws": "^8.22.2"
+    "ws": "^8.23.0"
   },
   "devDependencies": {
     "@stryker-mutator/core": "^10.1.1",
