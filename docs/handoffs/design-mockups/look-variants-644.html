@@ -403,7 +403,7 @@ function score(day, v){
 function renderUnc(v){
   var rows = DAYS.map(function(day){
     return '<div class="drow"><div class="dn">' + day.d + '<small>' + day.dt + '</small></div><div class="sc">' + score(day, v) + '</div>' +
-      '<p class="line">' + day.lo + '° / ' + day.hi + '° · ' + day.r + '% rain <span>· ' + day.good + '</span></p></div>';
+      '<p class="line">' + day.hi + '° / ' + day.lo + '° · ' + day.r + '% rain <span>· ' + day.good + '</span></p></div>';
   }).join('');
   document.getElementById('unc-rows').innerHTML = rows;
   var sum = document.getElementById('unc-sum');
@@ -413,6 +413,7 @@ function renderUnc(v){
   document.getElementById('unc-foot').textContent = v === 'U3'
     ? 'Chance of good is the share of forecast runs in which the day scores 70 or more.'
     : v === 'U0' ? "A day's score is the worst hour of its best three-hour run inside your climbing hours."
+    : v === 'U2' ? 'Models split: two or more of the four weather models leave the rock wet that day, so the score is shown in white.'
     : 'Dots are the four weather models; a ringed dot is one whose rain leaves the rock wet that day.';
 }
 
