@@ -152,7 +152,7 @@ code{font-size:.92em;color:var(--txt2)}
   <header class="intro">
     <h1>Overview and Hourly, from the weather app research</h1>
     <p>Two screens, each with the current layout and two variants built from the research report (<code>docs/handoffs/weather-app-ui-research-v1.md</code>). Every variant keeps the copy rules: no word from the score, a reading is a label and a value, weather beside every score. The figures are an invented Thursday at Taylors Falls, where the day scores 85 on its dry morning while rain arrives at 2 PM. Drag across any Hourly chart to read an hour.</p>
-    <p class="picked"><b>Owner picks, 2026-11-24:</b> Overview A + B; Hourly A + B with rain drawn as C (chance row on top, amount bars below); none of section 3 for now. Each switch opens on the pick; the other variants stay for comparison. Still open: "Each forecast" or "Range" for the rain spread, and whether partners' forecast checks show on Overview.</p>
+    <p class="picked"><b>Owner picks, 2026-11-24:</b> Overview A + B; Hourly A + B with rain drawn as C (chance row on top, amount bars below); none of section 3 for now. Rain spread as Range (shaded from the driest forecast to the wettest). Forecast checks are out of Overview: they are the app's track record, not whether the crag is climbable. Each switch opens on the pick; the other variants stay for comparison.</p>
   </header>
 
   <!-- ===================== Overview ===================== -->
@@ -195,12 +195,6 @@ code{font-size:.92em;color:var(--txt2)}
           <p class="src" data-ov="O2">One dot per weather model; a filled dot is a model that leaves the rock wet that day.</p>
         </section>
 
-        <section class="sec" data-ov="O2">
-          <h4>Forecast checks here</h4>
-          <div class="check"><b>Sat Nov 21 · you</b><b class="match">Dry, as forecast</b><span>Score that morning 90 · 1 photo</span></div>
-          <div class="check"><b>Nov 14 · Sam</b><b style="color:var(--fair)">Damp in the cracks</b><span>Score that morning 72</span></div>
-        </section>
-
         <section class="sec">
           <h4>Right now</h4>
           <div class="kv">
@@ -237,11 +231,10 @@ code{font-size:.92em;color:var(--txt2)}
           <h3>A + B · How sure · picked 2026-11-24</h3>
           <ul>
             <li>Everything in A, plus <b>model dots on every scored day</b>, as Daily shows them since #644, with <code>N of 4 dry</code>. Sunday's 90 shows 2 of 4 dry; Tuesday's 92 shows 4 of 4.</li>
-            <li><b>Forecast checks here</b>: the last few Report entries at this crag, with the score that morning beside what was found. It is the one place the app can show its own track record.</li>
+            <li><b>Left out (owner, 2026-11-24): forecast checks.</b> B first drew the last few Report entries at this crag beside the score each morning. That is the app's track record, not whether the crag is climbable, so it does not belong on Overview. If it returns, the Crag tab is the place.</li>
           </ul>
           <p class="data"><b>Research:</b> uncertainty shown as numbers improved decisions and softened lost trust after a miss (Met Office game n=8,220; Joslyn's lab). Acme's founder calls nearby reports the most reliable signal. No climbing app found shows its own hit rate (report options 5, 10).</p>
-          <p class="rule"><b>Decide:</b> partners' checks are per account today (<code>/visits</code> is the reader's own). Showing Sam's check to Tim is a new cross-account read and a privacy choice. Shown here with both, to judge.</p>
-          <p class="data"><b>Data:</b> dots exist (<code>rain_split</code>, days scored 70 or more; Friday at 64 has none). Own checks exist. Partners' checks need a new route.</p>
+          <p class="data"><b>Data:</b> dots exist (<code>rain_split</code>, days scored 70 or more; Friday at 64 has none). </p>
         </div>
       </div>
     </div>
@@ -284,7 +277,7 @@ code{font-size:.92em;color:var(--txt2)}
             <button type="button" aria-pressed="false" data-m="wind">Wind</button>
           </div>
           <h4 style="font-size:17px"><span id="oneTitle">Score</span><span class="chip" id="oneChip"></span></h4>
-          <div class="mini" role="group" aria-label="How to show the forecasts" id="oneMini" data-hr="H3"><button type="button" aria-pressed="true" data-rm="lines">Each forecast</button><button type="button" aria-pressed="false" data-rm="range">Range</button></div>
+          <div class="mini" role="group" aria-label="How to show the forecasts" id="oneMini" data-hr="H3"><button type="button" aria-pressed="false" data-rm="lines">Each forecast</button><button type="button" aria-pressed="true" data-rm="range">Range · picked</button></div>
           <svg class="chart scrub" id="oneChart" viewBox="0 0 358 130" role="img" aria-label="One chart for the chosen measure"></svg>
           <div class="legend" id="oneLegend" data-hr="H1 H3"></div>
         </section>
@@ -297,7 +290,7 @@ code{font-size:.92em;color:var(--txt2)}
         </section>
         <section class="sec" data-hr="H0 H2">
           <h4>Rain<span class="chip" id="rChip"></span></h4>
-          <div class="mini" role="group" aria-label="How to show the forecasts" data-hr="H2"><button type="button" aria-pressed="true" data-rm="lines">Each forecast</button><button type="button" aria-pressed="false" data-rm="range">Range</button></div>
+          <div class="mini" role="group" aria-label="How to show the forecasts" data-hr="H2"><button type="button" aria-pressed="false" data-rm="lines">Each forecast</button><button type="button" aria-pressed="true" data-rm="range">Range · picked</button></div>
           <svg class="chart scrub" id="rChart" viewBox="0 0 358 130" role="img" aria-label="Rain by hour"></svg>
           <div class="legend" id="rKey" data-hr="H0 H2"></div>
         </section>
@@ -330,7 +323,7 @@ code{font-size:.92em;color:var(--txt2)}
         <div data-hr="H3" hidden>
           <h3>A + B, rain as C · picked 2026-11-24</h3>
           <ul>
-            <li><b>Rain is drawn as C</b> (section 2b): a chance row on top, darker the likelier, with the amount bars below on the inch scale. The spread sits on the amount bars, under the small toggle; "Each forecast" or "Range" is still to pick.</li>
+            <li><b>Rain is drawn as C</b> (section 2b): a chance row on top, darker the likelier, with the amount bars below on the inch scale. The spread is the Range (owner, 2026-11-24): shaded from the driest forecast to the wettest, as the temperature band is. "Each forecast" stays on the toggle here for comparison only; the build ships Range alone.</li>
             <li><b>A's shape</b>: the day strip, good hours and the rain window, then one chart with a switch.</li>
             <li><b>B's spread inside that one chart</b>: Rain draws each model's line behind the median columns, Temperature draws the band. Score and Wind are as in A.</li>
             <li><b>Freshness under the name</b>, from B.</li>
@@ -557,7 +550,7 @@ code{font-size:.92em;color:var(--txt2)}
     <ul>
       <li><b>A word band beside the score</b> (Good, Caution, Poor), which every climbing app found uses. Copy rule 1: no word is mapped from the score. The Met Office game also found numbers beat low/medium/high at equal information, so the rule and the evidence agree here.</li>
       <li><b>A verdict sentence</b> ("Dry until 2 PM, showers to 6 PM"). Copy rule 3: a reading is a label and a value. Variant A carries the same facts as rows; a sentence would need the rule changed.</li>
-      <li><b>Marking the score unvalidated</b>, or holding back the top of the scale until a check backs it. A product and safety call; variant B's Forecast checks is the softer version.</li>
+      <li><b>Marking the score unvalidated</b>, or holding back the top of the scale until a check backs it. A product and safety call; Overview B's forecast checks were the softer version, and the owner left those out too (2026-11-24).</li>
       <li><b>"Crag becomes climbable" alerts.</b> Parked: there is no notification channel.</li>
     </ul>
   </section>
@@ -589,7 +582,7 @@ code{font-size:.92em;color:var(--txt2)}
   function hl(h){return h===12?"12 PM":h>12?(h-12)+" PM":h+" AM"}
   function shortH(h){return h===12?"12p":h>12?(h-12)+"p":h+"a"}
 
-  var state={ov:"O2",hr:"H3",read:9,metric:"score",rainMode:"lines"};
+  var state={ov:"O2",hr:"H3",read:9,metric:"score",rainMode:"range"};
   // four hues clear of the score rungs (lime, amber, red) and of the rain bars' cyan; GEM, the dry one, in grey
   var MODEL_COL={GFS:"#c3a6ff",ECMWF:"#ffd36b",ICON:"#f29ac9",GEM:"#959ca3"};
   function rainKey(models){
