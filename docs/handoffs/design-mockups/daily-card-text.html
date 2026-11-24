@@ -110,9 +110,9 @@ button:focus-visible{outline:2px solid var(--brandInk);outline-offset:2px}
     <p>Score placed three ways; small text drawn three ways. Mix any score with any text.</p>
     <h3>Score</h3>
     <div class="switch" role="group" aria-label="Score placement">
-      <button data-p="A" aria-pressed="true">A · right column</button>
+      <button data-p="A" aria-pressed="false">A · right column</button>
       <button data-p="D" aria-pressed="false">D · right, second line</button>
-      <button data-p="B" aria-pressed="false">B · first reading</button>
+      <button data-p="B" aria-pressed="true">B · first reading</button>
       <button data-p="C" aria-pressed="false">C · bar</button>
     </div>
     <h3>Small text</h3>
@@ -180,8 +180,8 @@ const P={
   C:(d,t)=>`${name(d)}<span class="tt">${d.lo}° <span>to</span> ${d.hi}°</span>${chance(d)}<span class="sbar"><span class="tr"><i style="width:${d.s}%;background:var(--${d.c})"></i></span>${score(d)}</span>${T[t](d,false)}`,
 };
 const ASIDE={A:'low–high · chance of rain · score',D:'low–high · chance of rain / score',B:'low–high · chance of rain',C:'low–high · chance of rain'};
-let st={p:'A',t:'lab'};
-try{st=Object.assign(st,JSON.parse(localStorage.getItem('dct2')||'{}'))}catch(e){}
+let st={p:'B',t:'lab'};
+try{st=Object.assign(st,JSON.parse(localStorage.getItem('dct3')||'{}'))}catch(e){}
 if(!P[st.p])st.p='A';if(!T[st.t])st.t='lab';
 function draw(){
   const ph=document.getElementById('phone');ph.className='phone p'+st.p;
@@ -189,7 +189,7 @@ function draw(){
   document.getElementById('days').innerHTML=DAYS.map(d=>`<div class="day">${P[st.p](d,st.t)}</div>`).join('');
   document.querySelectorAll('[data-p]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.p===st.p)));
   document.querySelectorAll('[data-t]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.t===st.t)));
-  try{localStorage.setItem('dct2',JSON.stringify(st))}catch(e){}
+  try{localStorage.setItem('dct3',JSON.stringify(st))}catch(e){}
 }
 document.querySelectorAll('[data-p]').forEach(b=>b.addEventListener('click',()=>{st.p=b.dataset.p;draw()}));
 document.querySelectorAll('[data-t]').forEach(b=>b.addEventListener('click',()=>{st.t=b.dataset.t;draw()}));
