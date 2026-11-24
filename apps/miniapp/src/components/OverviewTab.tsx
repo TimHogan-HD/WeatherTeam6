@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
-import { colorsV2, spacing } from '@weatherteam6/design/tokens'
+import { colorsV2 } from '@weatherteam6/design/tokens'
 import {
   DRYNESS_LABEL,
   EM_DASH,
@@ -28,7 +28,7 @@ import {
   type RecentPrecip,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton } from '../theme/styles.js'
+import { bareButton, sectionV2 } from '../theme/styles.js'
 import { CardStack } from './CardStack.js'
 import { formatTempDeg } from '../lib/format.js'
 import { FLIP_ATTR } from '../lib/flip.js'
@@ -116,11 +116,7 @@ export type OverviewTabProps = {
   onOpenTab: (tab: 'precip' | 'hourly') => void
 }
 
-/**
- * An open section (owner, 2026-11-23, #644 variant C "Open list"): no card. Space
- * and one hairline above group a section; the hero sits on the ground with none.
- */
-const openSect: CSSProperties = { padding: `${spacing.sectionGap}px 2px 0`, borderTop: `1px solid ${colorsV2.line}` }
+/** The hero sits on the ground with no hairline above it; the sections under it are `sectionV2`. */
 const heroSect: CSSProperties = { padding: '4px 2px 0' }
 
 /** A row in an open list: a hairline between rows, none above the first. */
@@ -130,7 +126,7 @@ function listRow(first: boolean): CSSProperties {
 
 function Card({ title, aside, children }: { title: string; aside?: string | null; children: ReactNode }) {
   return (
-    <section style={openSect}>
+    <section style={sectionV2}>
       <Sect title={title} aside={aside ?? null} />
       {children}
     </section>

@@ -2,7 +2,7 @@ import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import { ROCK_TYPE_GROUPS, isRockType, rockTypeLabel, type RockType } from '@weatherteam6/types'
 import { Link } from 'react-router-dom'
 import { typeV2 } from '../theme/tokens.css.js'
-import { brandButton, cardV2, choicePill, fieldV2, stack } from '../theme/styles.js'
+import { brandButton, surfaceV2, choicePill, fieldV2, stack } from '../theme/styles.js'
 
 /**
  * The add flow's save form (§12.1 step 3).
@@ -59,7 +59,7 @@ export function SaveBar({
         bottom: 0,
         // A glass pane: the scroll passes under it frosted, and turns opaque
         // with reduced transparency like every other pane.
-        ...cardV2,
+        ...surfaceV2,
         marginTop: `${spacing.sectionGap}px`,
         // The `0px` fallback stays: a browser without this inset resolves the
         // function to nothing, and CSS then drops the whole declaration rather

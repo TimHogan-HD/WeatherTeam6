@@ -1,7 +1,7 @@
 import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import type { ClimbingAreaEntry, ClimbingAreaLevel, ClimbingStateSummary } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, brandButton, cardV2, row, stack } from '../theme/styles.js'
+import { bareButton, brandButton, sectionV2, row, stack } from '../theme/styles.js'
 import { Sect } from './charts/liquid.js'
 import { useClimbingAreaLevel, useClimbingStates } from '../hooks/useGeocode.js'
 import { ChevronRightIcon } from './Icons.js'
@@ -65,7 +65,7 @@ export function BrowseStates({ onOpen }: { onOpen: (at: BrowseAt) => void }) {
   }
   if (states.data === undefined) return <SkeletonCards count={2} height={56} />
   return (
-    <section style={{ ...cardV2, paddingBottom: `${spacing.tight}px` }} aria-label="Browse climbing areas">
+    <section style={{ ...sectionV2, paddingBottom: `${spacing.tight}px` }} aria-label="Browse climbing areas">
       <Sect title="Browse climbing areas" />
       {states.data.map((s: ClimbingStateSummary, i) => (
         <AreaRow
@@ -152,7 +152,7 @@ export function BrowseLevel({
       )}
 
       {data.children.length === 0 ? null : (
-        <div style={{ ...cardV2, paddingBlock: `${spacing.tight}px` }}>
+        <div style={{ ...sectionV2, paddingBlock: `${spacing.tight}px` }}>
           {data.children.map((child, i) => (
             <AreaRow
               key={child.area_id}

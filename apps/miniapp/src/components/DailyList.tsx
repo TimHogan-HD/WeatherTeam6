@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import { colorsV2, spacing } from '@weatherteam6/design/tokens'
+import { colorsV2 } from '@weatherteam6/design/tokens'
 import {
   EM_DASH,
   formatPrecipIn,
@@ -11,7 +11,7 @@ import {
   type SkyDay,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, cardV2 } from '../theme/styles.js'
+import { bareButton, sectionV2 } from '../theme/styles.js'
 import { formatTempDeg } from '../lib/format.js'
 import { findToday } from '../lib/forecast.js'
 import { rainSplitText, scoredDays, type DayReadings } from '../lib/overview.js'
@@ -134,7 +134,7 @@ export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDat
   const span = temps.length === 0 ? 1 : Math.max(...temps) - lo || 1
   const pct = (c: number) => ((c - lo) / span) * 100
   return (
-    <section style={{ ...cardV2, padding: `${spacing.sectionGap}px 14px 14px` }}>
+    <section style={sectionV2}>
       <Sect title="Seven days" aside={readings === null ? 'low–high · chance of rain' : 'score · low–high · chance of rain'} />
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         {rows.map((day, i) => {

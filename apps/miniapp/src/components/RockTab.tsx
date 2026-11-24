@@ -16,7 +16,7 @@ import {
   type WetStrength,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { cardV2, row, stack, wellV2 } from '../theme/styles.js'
+import { sectionV2, row, stack, wellV2 } from '../theme/styles.js'
 import { CheckIcon, CrossIcon, RainIcon, SunIcon } from './Icons.js'
 import { CardStack } from './CardStack.js'
 import { CondensationCard, DryingCard } from './RockReadings.js'
@@ -300,7 +300,7 @@ const STRENGTH_FILL: Record<WetStrength, 1 | 2 | 3> = { holds: 3, softens: 2, fr
 
 function Card({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section style={{ ...cardV2, ...stack(spacing.listGapLg) }}>
+    <section style={{ ...sectionV2, ...stack(spacing.listGapLg) }}>
       <h2 style={typeV2.cardTitle}>{title}</h2>
       {children}
     </section>
@@ -344,9 +344,12 @@ function IconLine({ icon, title, text }: { icon: ReactNode; title: string; text:
 
 function Hero({ name, guide }: { name: string; guide: RockGuide | null }) {
   return (
-    <section style={{ ...cardV2, padding: 0, overflow: 'hidden' }}>
-      <RockArt swatch={guide?.swatch ?? 'pale'} kind={guide?.texture ?? 'crystalline'} />
-      <div style={{ ...stack(spacing.listGap), padding: `0 ${spacing.sectionGap}px ${spacing.sectionGap}px` }}>
+    // The tab's hero sits on the ground (#644 variant C); only the art keeps a rounded edge.
+    <section style={{ padding: '4px 2px 0' }}>
+      <div style={{ borderRadius: `${radius.glassCard}px`, overflow: 'hidden' }}>
+        <RockArt swatch={guide?.swatch ?? 'pale'} kind={guide?.texture ?? 'crystalline'} />
+      </div>
+      <div style={{ ...stack(spacing.listGap), paddingTop: `${spacing.listGapLg}px` }}>
         <h2 style={typeV2.screenTitle}>{name}</h2>
         <p style={typeV2.body}>
           {guide?.tagline ?? 'Rock type not set. Add it in Edit crag.'}

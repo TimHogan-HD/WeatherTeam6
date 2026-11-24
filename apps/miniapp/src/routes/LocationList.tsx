@@ -11,7 +11,7 @@ import {
   type RememberedCards,
 } from '../lib/rememberedCards.js'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, brandButton, cardV2, navClearance, row, stack, wellV2 } from '../theme/styles.js'
+import { bareButton, brandButton, sectionV2, navClearance, row, stack, wellV2 } from '../theme/styles.js'
 import { formatUpdatedAt } from '../lib/format.js'
 import {
   SORT_OPTIONS,
@@ -191,7 +191,7 @@ export function LocationList() {
             }
           />
         ) : (
-          <section style={{ ...cardV2, padding: '2px 16px' }}>
+          <section style={{ ...sectionV2, padding: '0 2px' }}>
             {ordered.map((location, i) => (
               <LocationCard
                 key={location.id}

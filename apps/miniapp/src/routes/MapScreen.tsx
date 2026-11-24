@@ -21,7 +21,7 @@ import mlcontour from 'maplibre-contour'
 import { colors, colorsV2, glass, mapPin, motion, radius, spacing } from '@weatherteam6/design/tokens'
 import '../theme/map.css'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, brandButton, cardV2, navBarHeight, row, stack, toneColors } from '../theme/styles.js'
+import { bareButton, brandButton, surfaceV2, navBarHeight, row, stack, toneColors } from '../theme/styles.js'
 import { glassDock, glassLegend } from '../theme/glass.js'
 import { Sect } from '../components/charts/liquid.js'
 import { withOpacity } from '../theme/tokens.css.js'
@@ -407,7 +407,7 @@ export function MapScreen() {
           </button>
 
           {dropped === null ? null : (
-            <section aria-label="Add this spot" style={{ ...cardV2, ...interactive, ...stack(spacing.listGap), alignSelf: 'stretch' }}>
+            <section aria-label="Add this spot" style={{ ...surfaceV2, ...interactive, ...stack(spacing.listGap), alignSelf: 'stretch' }}>
               <div style={{ ...row(spacing.listGap), justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <Sect title="Add this spot" />
                 <button type="button" aria-label="Dismiss" style={{ ...bareButton, width: 'auto' }} onClick={() => setDropped(null)}>
@@ -558,7 +558,7 @@ const LOCATE_SIZE = 42
 const interactive: CSSProperties = { pointerEvents: 'auto' }
 
 const overlayCard: CSSProperties = {
-  ...cardV2,
+  ...surfaceV2,
   ...stack(spacing.listGap),
   position: 'absolute',
   left: `${spacing.sectionGap}px`,

@@ -2,7 +2,7 @@ import { useCallback, useState, type FormEvent } from 'react'
 import { useNavigate } from '../hooks/useNavigate.js'
 import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import { typeV2 } from '../theme/tokens.css.js'
-import { brandButton, cardV2, fieldV2, stack } from '../theme/styles.js'
+import { brandButton, sectionV2, fieldV2, stack } from '../theme/styles.js'
 import { apiLogin, ApiError } from '../lib/api.js'
 import { setToken } from '../lib/authToken.js'
 import { Screen } from '../components/Screen.js'
@@ -91,7 +91,7 @@ export function Login() {
 
   return (
     <Screen title="WeatherTeam6">
-      <form onSubmit={onSubmit} style={{ ...cardV2, ...stack(spacing.listGapLg), marginTop: `${spacing.sectionTop}px` }}>
+      <form onSubmit={onSubmit} style={{ ...sectionV2, ...stack(spacing.listGapLg), marginTop: `${spacing.sectionTop}px` }}>
         <p style={{ ...typeV2.body, fontSize: '15px' }}>Sign in to see your locations.</p>
 
         <label style={stack(spacing.tight)}>

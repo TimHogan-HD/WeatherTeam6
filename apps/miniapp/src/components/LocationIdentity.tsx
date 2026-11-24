@@ -8,7 +8,7 @@ import {
   type Location,
   type Wall,
 } from '@weatherteam6/types'
-import { type } from '../theme/tokens.css.js'
+import { type, typeV2 } from '../theme/tokens.css.js'
 import { card, row, stack } from '../theme/styles.js'
 
 /**
@@ -146,8 +146,8 @@ function WallStrip({ walls }: { walls: readonly Wall[] }) {
       }}
     >
       <div style={{ ...row(spacing.chipGapMd), justifyContent: 'space-between', flexWrap: 'wrap' }}>
-        <span style={{ ...type.labelSm, color: colorsV2.txtMuted }}>Walls</span>
-        <span style={{ ...type.labelSm, color: colorsV2.txtMuted }}>Score is crag-wide</span>
+        <span style={{ ...typeV2.statLabel, color: colorsV2.txtMuted }}>Walls</span>
+        <span style={{ ...typeV2.statLabel, color: colorsV2.txtMuted }}>Score is crag-wide</span>
       </div>
       <div style={{ ...row(spacing.chipGap), overflowX: 'auto' }}>
         {walls.map((wall) => (
@@ -164,7 +164,7 @@ function WallStrip({ walls }: { walls: readonly Wall[] }) {
             }}
           >
             <span style={{ ...type.calDay, whiteSpace: 'nowrap' }}>{wall.name}</span>
-            <span style={{ ...type.labelSm, color: colorsV2.txtMuted, whiteSpace: 'nowrap' }}>
+            <span style={{ ...typeV2.statLabel, color: colorsV2.txtMuted, whiteSpace: 'nowrap' }}>
               {wallSummary(wall)}
             </span>
           </div>
@@ -202,7 +202,7 @@ export function LocationIdentity({ location, walls = [], condensed = false }: Lo
       .filter((f) => f.key === 'Rock' || f.key === 'Aspect' || f.key === 'Angle')
       .map((f) => f.value)
     if (summary.length === 0) return null
-    return <span style={type.labelSm}>{summary.join(' · ')}</span>
+    return <span style={typeV2.statLabel}>{summary.join(' · ')}</span>
   }
 
   if (rows.length === 0 && walls.length === 0) return null
@@ -229,7 +229,7 @@ export function LocationIdentity({ location, walls = [], condensed = false }: Lo
               ...(fact.wide === true ? { gridColumn: 'span 2' } : {}),
             }}
           >
-            <span style={{ ...type.labelSm, color: colorsV2.txtMuted }}>{fact.key}</span>
+            <span style={{ ...typeV2.statLabel, color: colorsV2.txtMuted }}>{fact.key}</span>
             <span
               style={{
                 ...(fact.mono === true

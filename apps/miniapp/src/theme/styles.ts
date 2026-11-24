@@ -43,10 +43,21 @@ const hairline = (color: string): CSSProperties => ({
 })
 
 /**
- * A section card: since the hybrid look (owner, 2026-10-19), a frosted glass
- * pane over the still ground (`theme/glass.ts`), with its 16px padding.
+ * A section, not a card (owner, 2026-11-23, #644 variant C "Open list"): space
+ * and one hairline above set it off from what comes before. Proximity first; a
+ * container only where space cannot do it.
  */
-export const cardV2: CSSProperties = glassCard
+export const sectionV2: CSSProperties = {
+  padding: `${spacing.sectionGap}px 2px 0`,
+  borderTop: `1px solid ${colorsV2.line}`,
+}
+
+/**
+ * A pane that floats over content (the save bar, the map's overlays): the
+ * frosted glass of the hybrid look (`theme/glass.ts`), because scrolled or
+ * mapped content passes under it and a hairline cannot hold it apart.
+ */
+export const surfaceV2: CSSProperties = glassCard
 
 /**
  * A text, date, select or textarea field on the glass (the mockup's

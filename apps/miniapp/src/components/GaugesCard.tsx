@@ -800,7 +800,7 @@ function PercentileRail({ top, below }: { top: number; below: number | null }) {
         {below === null ? null : mark(below, colorsV2.rainAmount, 12)}
         {mark(top, colorsV2.txt1, 16)}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', ...typeV2.axisTick, fontSize: 10, color: colorsV2.txtTab }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', ...typeV2.axisTick, color: colorsV2.txtTab }}>
         <span>Driest</span>
         <span>Middle half</span>
         <span>Wettest</span>
@@ -843,7 +843,7 @@ function RangeRail({ value, lo, hi, days }: { value: number; lo: number | null; 
           }}
         />
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', ...typeV2.axisTick, fontSize: 10, color: colorsV2.txtTab }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', ...typeV2.axisTick, color: colorsV2.txtTab }}>
         <span>{`${days}-day low ${formatVwc(lo)}`}</span>
         <span>{`${days}-day high ${formatVwc(hi)}`}</span>
       </div>

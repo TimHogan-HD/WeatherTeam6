@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, brandButton, cardV2, quietButton, row, stack } from '../theme/styles.js'
+import { bareButton, brandButton, sectionV2, quietButton, row, stack } from '../theme/styles.js'
 import { arrange, moveCard, saveOrder, savedOrder, type CardMove, type CardTab } from '../lib/cardOrder.js'
 import { ArrowDownIcon, ArrowUpIcon } from './Icons.js'
 import { Sect } from './charts/liquid.js'
@@ -114,7 +114,7 @@ function RearrangePanel({
   }
 
   return (
-    <section ref={panel} tabIndex={-1} style={{ ...cardV2, outline: 'none', ...stack(spacing.listGap) }}>
+    <section ref={panel} tabIndex={-1} style={{ ...sectionV2, outline: 'none', ...stack(spacing.listGap) }}>
       <Sect title="Rearrange cards" aside="saved on this device" />
       <ol style={{ ...stack(0), listStyle: 'none', margin: 0, padding: 0 }}>
         {rows.map((r, i) => (

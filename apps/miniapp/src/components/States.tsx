@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { colorsV2, glass, radius, spacing } from '@weatherteam6/design/tokens'
 import { type, typeV2, withOpacity } from '../theme/tokens.css.js'
-import { bareButton, cardV2, stack } from '../theme/styles.js'
+import { bareButton, sectionV2, stack } from '../theme/styles.js'
 
 /**
  * Loading, error and empty treatments, per miniapp-design-v1.md §5.
@@ -60,7 +60,7 @@ export function InlineError({ message, onRetry }: { message: string; onRetry?: (
 
 export function EmptyState({ title, action }: { title: string; action?: ReactNode }) {
   return (
-    <div style={{ ...cardV2, ...stack(spacing.sectionTop), marginTop: `${spacing.sectionTop}px` }}>
+    <div style={{ ...sectionV2, ...stack(spacing.sectionTop), marginTop: `${spacing.sectionTop}px` }}>
       <p style={{ ...typeV2.body, fontSize: '15px', color: colorsV2.txt1 }}>{title}</p>
       {action}
     </div>
