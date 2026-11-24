@@ -20,7 +20,7 @@ const PANE_COLOUR: Record<Pane, string> = {
   card: glass.tint,
   dock: glass.tint,
   header: glass.ground,
-  bar: glass.groundMid,
+  bar: glass.ground,
   legend: glass.tint,
 }
 
@@ -42,10 +42,7 @@ function layers(list: readonly Layer[]): string {
 /** The custom properties, as `glass-*` names: the see-through set, and the one for less transparency. */
 export function glassVars(): { normal: Record<string, string>; opaque: Record<string, string> } {
   const panes: Pane[] = ['card', 'header', 'dock', 'bar', 'legend']
-  const normal: Record<string, string> = {
-    // The ground is still: a glow at the top of the screen falling to near-black.
-    ground: `radial-gradient(130% 60% at 50% -8%, ${glass.groundGlow} 0%, ${glass.groundMid} 48%, ${glass.ground} 100%)`,
-  }
+  const normal: Record<string, string> = {}
   const opaque: Record<string, string> = {}
   for (const pane of panes) {
     const { blurPx, saturatePct } = glass[pane]

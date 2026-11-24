@@ -98,6 +98,9 @@ the current look. `look-variants-644.html` holds the #644 variants; the owner pi
 the model dots (U1) on 2026-11-23, and C was carried to every screen on 2026-11-24
 (`sectionV2` and `surfaceV2` in `theme/styles.ts`).
 
+`background-variants.html` holds the background options; the owner picked G, tonal steps
+on a flat `#121416`, on 2026-11-24 (`colorsV2` in `packages/design`).
+
 `docs/handoffs/design-mockups/weatherteam6-hybrid.html` — the layout of every screen (owner,
 2026-10-19); its glass cards, tracked caps, sub-12 px labels and lime Feedback pill are
 superseded by variant C in `look-variants-644.html`, as is every mockup drawn before

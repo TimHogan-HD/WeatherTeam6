@@ -54,15 +54,12 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
-/* The hybrid look's ground (owner, 2026-10-19): a glow at the top of the
-   screen falling to near-black, and **still** — it is a fixed layer behind
-   the page, so nothing moves behind the glass as the page scrolls.
-   `background-attachment: fixed` would say the same and iOS Safari ignores it. */
+/* The ground is flat `colorsV2.bg` (owner's tonal-steps pick, 2026-11-24, which
+   removed the teal glow), so `html` alone paints it. */
 body {
   margin: 0;
   min-height: 100dvh;
-  /* No background of its own: one would paint over the ground below, which
-     sits at z-index -1. `html` carries the colour. */
+  /* No background of its own: `html` carries the colour. */
   color: var(--wt6-color-txt1);
   font-family: var(--wt6-font-body);
   /* Every digit one width, so a figure that updates or a readout being
@@ -72,14 +69,6 @@ body {
      scroll felt stiff without it). `html` paints what it reveals. */
 }
 
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background-image: var(--wt6-glass-ground);
-  pointer-events: none;
-}
 
 /* The crag's dock rising into place as the app bar slides away. */
 @keyframes wt6-dock-rise {

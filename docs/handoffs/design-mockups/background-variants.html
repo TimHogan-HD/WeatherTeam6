@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>WT6 Background Options</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: one phone (390 px, variant C's Overview) with a background switcher above and a notes column beside it; the whole page takes the chosen ground so the comparison matches a full screen. Stacks on a phone. */
+:root{
+  color-scheme:dark;
+  /* Fixed colorsV2 (packages/design/src/tokens.ts): text, brand and score colours do not change between options. */
+  --txt1:#f4f7fa; --txt2:#d3e1e4; --muted:#bccad0;
+  --brand:#1DC5D2; --brandInk:#6fe3ec; --brandWash:rgba(29,197,210,.16);
+  --good:#b8f542; --fair:#f6ad55; --poor:#fc8181; --rain:#bcc7fd; --rainMark:#a5b4fc; --sun:#ffd76a;
+  --display:'Barlow Condensed','Arial Narrow',sans-serif; --body:'Barlow','Segoe UI',system-ui,sans-serif;
+  /* A · Current: what is built (colorsV2.bg, glass.groundGlow/groundMid, surface, raised, line, txtTab). */
+  --bg:#07090c; --glow:#10252b; --mid:#0a1215; --surface:#10161d; --raised:#1f2833; --line:#2a3644; --tab:#7d8997;
+}
+:root[data-bg="B"]{--bg:#15181c; --glow:#1d2226; --mid:#181b20; --surface:#1c2025; --raised:#272c33; --line:#363c45; --tab:#8d97a3}
+:root[data-bg="C"]{--bg:#161d26; --glow:#1f2b38; --mid:#19212b; --surface:#1d2530; --raised:#28323e; --line:#374352; --tab:#8f9cab}
+:root[data-bg="D"]{--bg:#0f1d21; --glow:#18323a; --mid:#12232a; --surface:#152629; --raised:#203339; --line:#2e454c; --tab:#8a9da3}
+:root[data-bg="E"]{--bg:#1d242d; --glow:#263241; --mid:#202833; --surface:#242c36; --raised:#2e3843; --line:#3e4a58; --tab:#98a4b2}
+/* F · D's colours with the glow removed: a flat ground. */
+:root[data-bg="F"]{--bg:#0f1d21; --glow:#0f1d21; --mid:#0f1d21; --surface:#152629; --raised:#203339; --line:#2e454c; --tab:#8a9da3}
+/* G · Tonal ladder (Material 3 surface containers): neutral ground, each level a fixed step lighter; tiles carry the grouping, so the hairlines go quiet. */
+:root[data-bg="G"]{--bg:#121416; --glow:#121416; --mid:#121416; --surface:#1d2022; --raised:#282b2e; --line:#26292c; --tab:#959ca3}
+/* I to K · Mid-dark grounds at L* 18 to 23 (A is L* 2, E is 14). Red lifts to #ffa0a5 on J and K so small red text keeps 4.5:1 on a tile. */
+:root[data-bg="I"]{--bg:#262c33; --glow:#2c343d; --mid:#283038; --surface:#2d343c; --raised:#343b44; --line:#434b56; --tab:#a9b2bc}
+:root[data-bg="J"]{--bg:#2e3540; --glow:#353e4b; --mid:#313944; --surface:#353d48; --raised:#3d4551; --line:#4c5562; --tab:#b3bcc6; --poor:#ffa0a5}
+:root[data-bg="K"]{--bg:#1e3a40; --glow:#27484f; --mid:#213e44; --surface:#244349; --raised:#2a4b52; --line:#3a5a61; --tab:#a9c0c5; --poor:#ffa0a5}
+/* H · Light, for a phone in light mode (prefers-color-scheme). Score and accent inks are darkened so each clears 4.5:1; lime on white does not. */
+:root[data-bg="H"]{color-scheme:light;
+  --bg:#f3f5f6; --glow:#e2f1f3; --mid:#eef2f3; --surface:#ffffff; --raised:#e4e9ec; --line:#cfd7dc; --tab:#56626d;
+  --txt1:#0f1418; --txt2:#26313a; --muted:#4a5661; --brand:#0b8792; --brandInk:#086a73; --brandWash:rgba(11,135,146,.12);
+  --good:#3b6a00; --fair:#94540a; --poor:#b4261c; --rain:#3d4ab8}
+:root[data-bg="H"] .phone{box-shadow:0 0 0 8px #020304,0 30px 80px #0004}
+:root[data-bg="H"] .dock{box-shadow:inset 0 0 0 1px var(--line),0 10px 30px #0002}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--txt1);font-family:var(--body);font-variant-numeric:tabular-nums;padding-block:24px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:2px solid var(--brandInk);outline-offset:2px}
+p{margin:0}
+
+/* ---------- page frame ---------- */
+.page{max-width:1000px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+.intro{display:flex;flex-direction:column;gap:8px;max-width:640px}
+.intro h1{margin:0;font-family:var(--display);font-weight:700;font-size:36px;line-height:1.05;text-wrap:balance}
+.intro p{color:var(--muted);font-size:15px;line-height:1.55}
+.switch{display:flex;gap:6px;flex-wrap:wrap}
+.switch button{min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-family:var(--display);font-weight:600;font-size:16px;color:var(--txt2);display:inline-flex;align-items:center;gap:8px}
+.switch button i{width:14px;height:14px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)}
+.switch button[aria-pressed="true"]{border-color:var(--brand);color:var(--brandInk);background:var(--brandWash)}
+.wrap{display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start}
+.phone{position:relative;width:390px;max-width:100%;border-radius:40px;overflow:hidden;box-shadow:0 0 0 8px #020304,0 30px 80px #000a;
+  background:radial-gradient(130% 60% at 50% -8%,var(--glow) 0%,var(--mid) 48%,var(--bg) 100%);padding:18px 16px 92px}
+.notes{flex:1 1 300px;min-width:0;max-width:460px;display:flex;flex-direction:column;gap:12px}
+.notes h2{margin:0;font-family:var(--display);font-weight:700;font-size:26px;line-height:1.1}
+.notes p,.notes li{color:var(--muted);line-height:1.55;font-size:15px}
+.notes ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.notes b{color:var(--txt1);font-weight:600}
+.notes .data{border-left:2px solid var(--line);padding-left:12px}
+.ratios{display:grid;grid-template-columns:1fr auto auto;gap:4px 14px;font-size:14px;color:var(--muted);align-items:baseline}
+.ratios b{font-family:var(--display);font-size:16px;text-align:right}
+.ratios .h{font-size:12px;color:var(--muted);text-align:right}
+.ratios .lo{color:var(--fair)}
+.ladder{display:flex;gap:6px;flex-wrap:wrap}
+.ladder span{flex:1 1 60px;min-height:48px;border-radius:10px;padding:6px 8px;font-size:12px;color:var(--txt2);display:flex;align-items:flex-end;box-shadow:inset 0 0 0 1px var(--line)}
+
+/* ---------- phone: variant C's Overview ---------- */
+.bar{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px}
+.back{min-width:44px;min-height:44px;border:0;background:none;color:var(--brandInk);font-size:22px;padding:0;text-align:left}
+.fb{border:0;background:none;color:var(--muted);min-height:44px;padding:0 4px;font-size:15px}
+.top{padding:10px 2px 6px}
+.name{font-family:var(--display);font-weight:700;font-size:28px;line-height:1.1}
+.hero{display:flex;align-items:baseline;gap:12px;padding:6px 2px 4px}
+.big{font-family:var(--display);font-weight:700;font-size:88px;line-height:.9;color:var(--good)}
+.hero p{font-size:15px;color:var(--txt2);line-height:1.4}
+.hero p span{color:var(--muted)}
+section{padding:18px 2px 0;border-top:1px solid var(--line);margin-top:16px}
+h3{margin:0 0 8px;font-family:var(--display);font-weight:600;font-size:20px}
+.days{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
+.days div{background:var(--raised);border-radius:12px;padding:8px 0 7px;text-align:center}
+.days div.on{background:var(--brandWash);box-shadow:inset 0 0 0 1.5px var(--brand)}
+.days small{display:block;font-size:13px;color:var(--muted)}
+.days b{font-family:var(--display);font-weight:700;font-size:22px}
+.list{display:flex;flex-direction:column}
+.list div{display:grid;grid-template-columns:4.2em 1fr auto auto;gap:10px;align-items:baseline;padding:9px 0;border-top:1px solid var(--line);font-size:15px}
+.list div:first-child{border-top:0}
+.list .d{font-weight:600}
+.list .t{color:var(--txt2)}
+.list .r{color:var(--rain);text-align:right}
+.list b{font-family:var(--display);font-weight:700;font-size:22px;color:var(--good);text-align:right;min-width:2.2em}
+.list b.f{color:var(--fair)} .list b.p{color:var(--poor)}
+.kv{display:flex;flex-direction:column}
+.kv div{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--line);font-size:15px}
+.kv div:first-child{border-top:0}
+.kv span{color:var(--muted)}
+.src{font-size:13px;color:var(--muted);padding-top:8px}
+.dock{position:absolute;left:16px;right:16px;bottom:18px;display:flex;justify-content:space-between;gap:2px;padding:5px;border-radius:999px;
+  background:color-mix(in srgb,var(--surface) 82%,transparent);box-shadow:inset 0 0 0 1px var(--line),0 10px 30px #0008}
+.dock span{flex:1;text-align:center;min-height:38px;display:flex;align-items:center;justify-content:center;border-radius:999px;font-family:var(--display);font-weight:600;font-size:15px;color:var(--tab)}
+.dock span.on{background:var(--brandWash);color:var(--brandInk);box-shadow:inset 0 0 0 1px var(--brand)}
+
+@media (prefers-reduced-motion:no-preference){
+  html,body,.phone,.switch button,.days div,.dock{transition:background .2s ease-out,background-color .2s ease-out,border-color .2s ease-out}
+}
+</style>
+</head><body>
+<main class="page">
+  <header class="intro">
+    <h1>Background options</h1>
+    <p><b>Why A to G look alike:</b> on a 0 to 100 lightness scale they run from 2 to 14, all of which reads as black on a phone. I, J and K sit at 18 to 23, where a dark theme starts to read as grey or colour.</p>
+    <p>Same Overview as variant C, eleven options. The page behind the phone takes the chosen ground, so it reads like a full screen. A to E move only the ground and the steps above it (tiles, the dock, hairlines); F drops the glow, G separates by tone instead of lines, and H is a light theme for a phone in light mode. Research notes are under each option's figures. Figures are a sample Taylors Falls week.</p>
+  </header>
+
+  <div class="switch" role="group" aria-label="Background">
+    <button type="button" aria-pressed="true" data-v="A"><i style="background:#07090c"></i>A · Current</button>
+    <button type="button" aria-pressed="false" data-v="B"><i style="background:#15181c"></i>B · Charcoal</button>
+    <button type="button" aria-pressed="false" data-v="C"><i style="background:#161d26"></i>C · Slate</button>
+    <button type="button" aria-pressed="false" data-v="D"><i style="background:#0f1d21"></i>D · Deep teal</button>
+    <button type="button" aria-pressed="false" data-v="E"><i style="background:#1d242d"></i>E · Dim</button>
+    <button type="button" aria-pressed="false" data-v="F"><i style="background:#0f1d21"></i>F · Teal, flat</button>
+    <button type="button" aria-pressed="false" data-v="G"><i style="background:#121416"></i>G · Tonal steps</button>
+    <button type="button" aria-pressed="false" data-v="I"><i style="background:#262c33"></i>I · Graphite</button>
+    <button type="button" aria-pressed="false" data-v="J"><i style="background:#2e3540"></i>J · Storm</button>
+    <button type="button" aria-pressed="false" data-v="K"><i style="background:#1e3a40"></i>K · Teal, mid</button>
+    <button type="button" aria-pressed="false" data-v="H"><i style="background:#f3f5f6"></i>H · Light mode</button>
+  </div>
+
+  <div class="wrap">
+    <div class="phone" aria-label="Overview, phone width">
+      <div class="bar"><button class="back" type="button" aria-label="Back">‹</button><button class="fb" type="button">Feedback</button></div>
+      <div class="top"><div class="name">Taylors Falls</div></div>
+      <div class="hero">
+        <div class="big">95</div>
+        <p>Score at 4 PM<br>Dry · 29°F · good 4–11 PM<br><span>Basalt · warnings not checked recently</span></p>
+      </div>
+      <section>
+        <h3>Hourly days</h3>
+        <div class="days">
+          <div class="on"><small>Today</small><b>23</b></div>
+          <div><small>Tue</small><b>24</b></div>
+          <div><small>Wed</small><b>25</b></div>
+          <div><small>Thu</small><b>26</b></div>
+          <div><small>Fri</small><b>27</b></div>
+        </div>
+      </section>
+      <section>
+        <h3>Next days</h3>
+        <div class="list">
+          <div><span class="d">Today</span><span class="t">31° / 22°</span><span class="r">3%</span><b>92</b></div>
+          <div><span class="d">Tue</span><span class="t">33° / 21°</span><span class="r">0%</span><b>100</b></div>
+          <div><span class="d">Wed</span><span class="t">37° / 25°</span><span class="r">41%</span><b class="f">58</b></div>
+          <div><span class="d">Thu</span><span class="t">38° / 25°</span><span class="r">80%</span><b class="p">12</b></div>
+          <div><span class="d">Fri</span><span class="t">40° / 26°</span><span class="r">22%</span><b>81</b></div>
+        </div>
+      </section>
+      <section>
+        <h3>Right now</h3>
+        <div class="kv">
+          <div><span>Last rain</span><b>0.12 in, Sunday</b></div>
+          <div><span>Next rain</span><b>Wednesday afternoon</b></div>
+          <div><span>Wind</span><b>9 mph, gusts 13</b></div>
+        </div>
+        <p class="src">Air: HRRR · rain: median of GFS, ECMWF, ICON, GEM</p>
+      </section>
+      <nav class="dock" aria-label="Crag tabs (sample)"><span class="on">Overview</span><span>Daily</span><span>Hourly</span><span>Precip</span><span>Rock</span></nav>
+    </div>
+
+    <div class="notes">
+      <div data-v="A">
+        <h2>A · Current</h2>
+        <ul>
+          <li><b>Near black, #07090c</b>, under a teal glow at the top that fades out by mid-screen. Most of the screen is the near-black.</li>
+          <li>Highest contrast of the five, and the reason it reads as very dark: the ground reflects about 0.3% of white.</li>
+          <li>On OLED phones a near-black ground can smear when scrolling (pixels switching off and on), and bright text on it can glow at the edges (halation). Material's dark theme uses #121212 rather than black for both reasons.</li>
+        </ul>
+      </div>
+      <div data-v="B" hidden>
+        <h2>B · Charcoal</h2>
+        <ul>
+          <li><b>Neutral dark grey, #15181c</b>, close to Material's #121212 recommendation. About three times the light of A.</li>
+          <li>Plain and calm. It drops the blue-black tint, so the teal brand and the lime scores carry all the colour.</li>
+          <li>The glow at the top is nearly gone; the ground is close to flat.</li>
+        </ul>
+      </div>
+      <div data-v="C" hidden>
+        <h2>C · Slate</h2>
+        <ul>
+          <li><b>Blue-grey, #161d26.</b> Keeps today's cool tint, lifted to about four times A's light.</li>
+          <li>Reads as night sky rather than black. The rain blue sits closer to the ground, so rain figures stand out a little less than on B or D.</li>
+        </ul>
+      </div>
+      <div data-v="D" hidden>
+        <h2>D · Deep teal</h2>
+        <ul>
+          <li><b>Dark teal, #0f1d21</b>, with the top glow kept. About four times A's light.</li>
+          <li>The ground takes the brand hue, so the app has one identity instead of black plus an accent. The lime scores and amber and red still separate clearly from it.</li>
+          <li>My pick: it answers "too dark" without going grey, and it keeps the one thing in the current look that was chosen for this app (the teal glow).</li>
+        </ul>
+      </div>
+      <div data-v="E" hidden>
+        <h2>E · Dim</h2>
+        <ul>
+          <li><b>Lifted slate, #1d242d</b>, about six times A's light. The softest of the five; closest to a "dimmed" theme.</li>
+          <li>Hairlines and tiles need bigger steps to show, and the red score on a tile drops to 4.9:1, the nearest to the floor of any option.</li>
+          <li>In direct sun on the crag, a lighter dark ground loses some punch. Size and contrast carry sunlight readability, not darkness.</li>
+        </ul>
+      </div>
+      <div data-v="F" hidden>
+        <h2>F · Teal, flat</h2>
+        <ul>
+          <li><b>D without the glow.</b> The radial glow tells the reader nothing; it is the "atmospheric gradient" #637 lists among the tells of a generated look. A flat ground puts the eye on the score instead.</li>
+          <li>Compare with D: if you can't tell which one you prefer, the glow isn't earning its place.</li>
+          <li>Removing it also removes one token (<code>glass.groundGlow</code>) and the gradient from <code>globals.css</code>.</li>
+        </ul>
+      </div>
+      <div data-v="G" hidden>
+        <h2>G · Tonal steps</h2>
+        <ul>
+          <li><b>Material 3's approach:</b> a neutral ground (#121416) and a fixed ladder of lighter surfaces, one step per level. A lighter surface means "closer to you", so the tiles separate by tone and the hairlines can fade.</li>
+          <li>Follows two research rules: <b>a surface ladder with one job per step</b> (Radix's 12-step scale), and <b>group by space and tone before borders</b> (NN/g: borders are "often added in an abundance of caution").</li>
+          <li>Most legible of the dark options: body text 17:1, inactive tab 5.1:1 on a tile. Apple asks dark mode to "strive for 7:1, especially in small text"; muted text here is 11:1.</li>
+          <li>Bigger than B to E: the hairlines between rows go nearly invisible, so the lists rely on spacing alone. Worth checking on your phone.</li>
+        </ul>
+      </div>
+      <div data-v="I" hidden>
+        <h2>I · Graphite</h2>
+        <ul>
+          <li><b>#262c33, lightness 18 of 100</b> (A is 2, E is 14). The first step that reads as grey rather than black on a phone.</li>
+          <li>Every colour stays as built and clears 4.5:1: body text 13:1, lime 10.9:1, red on a tile 4.6:1.</li>
+        </ul>
+      </div>
+      <div data-v="J" hidden>
+        <h2>J · Storm</h2>
+        <ul>
+          <li><b>#2e3540, lightness 22.</b> Blue-grey, close to Twitter/X's "Dim" theme lifted a step. Clearly a dark theme, clearly not black.</li>
+          <li>The red score lightens to #ffa0a5 so small red text keeps 4.5:1 on a tile (today's red would be 4.0:1). Lime is 9.5:1, body text 11.5:1.</li>
+          <li>The limit: much lighter than this and the light text starts losing contrast faster than it gains comfort.</li>
+        </ul>
+      </div>
+      <div data-v="K" hidden>
+        <h2>K · Teal, mid</h2>
+        <ul>
+          <li><b>#1e3a40, lightness 23.</b> D's brand teal at J's lightness: the app becomes a teal app rather than a black one.</li>
+          <li>Same red lift as J. Lime on teal is 9.3:1, but the brand teal accents (selected day, dock pill) sit closer to the ground, so the selection reads more by its outline than its fill.</li>
+        </ul>
+      </div>
+      <div data-v="H" hidden>
+        <h2>H · Light mode</h2>
+        <ul>
+          <li><b>A second theme, not a replacement.</b> The app would follow the phone's own light or dark setting, never an in-app switch (Apple: "Avoid offering an app-specific appearance setting").</li>
+          <li>Why consider it: in dim light, dark text on a light ground reads faster than the reverse (Dobres et al. 2017); in daylight the two did not differ. NN/g advises against dark-only for a general audience.</li>
+          <li>The cost: the score colours change shade. Lime on white measures about 1.3:1, so "good" becomes a dark green (#3b6a00, 5.3:1 on a tile), and amber and red darken too. Every chart's data ramps need a light version.</li>
+          <li>Sizeable: a full second token set and a <code>check:ui</code> pass in each mode. It could follow any of A to G as the dark half.</li>
+        </ul>
+      </div>
+
+      <div class="ladder" aria-label="Surface steps for this option">
+        <span style="background:var(--bg)">ground</span>
+        <span style="background:var(--surface)">surface</span>
+        <span style="background:var(--raised)">tile</span>
+        <span style="background:var(--line)">hairline</span>
+      </div>
+
+      <div class="ratios" aria-label="Contrast for this option">
+        <span></span><span class="h">ground</span><span class="h">tile</span>
+        <span>Body text</span><b data-r="txt1"></b><b data-r="txt1t"></b>
+        <span>Muted text</span><b data-r="muted"></b><b data-r="mutedt"></b>
+        <span>Lime score</span><b data-r="good"></b><b data-r="goodt"></b>
+        <span>Red score</span><b data-r="poor"></b><b data-r="poort"></b>
+        <span>Inactive tab</span><b data-r="tab"></b><b data-r="tabt"></b>
+      </div>
+
+      <p class="data"><b>What B to G change:</b> the ground, the glow, the surface, tile and hairline steps, and the inactive tab grey (lifted so it stays over 4.5:1 on a tile; today's measures 4.2:1 there). The phone's status bar colour follows the ground. Text, scores and the brand teal are untouched and stay well over the 4.5:1 floor. H also changes the text and score shades, as its note says.</p>
+      <p class="data"><b>Cost:</b> B to G are about seven token values in <code>packages/design</code> and a <code>check:ui</code> pass; no layout or data change. H is a second theme.</p>
+      <p class="data"><b>The options combine.</b> Ground (B, C, D, E or G), glow or flat (F), and light mode (H) are three separate choices: for example "D, flat, no light mode yet".</p>
+
+      <h2 style="margin-top:8px">What the research says</h2>
+      <ul>
+        <li><b>Not pure black.</b> Material's dark theme recommends a dark grey (#121212) over black: it shows elevation and avoids the smear and edge glow bright text gets on OLED black.</li>
+        <li><b>One job per surface step.</b> Radix: ground, subtle background, element, hover, selected, borders, then text. Today's ladder has a ground, a surface and a tile that do overlapping jobs.</li>
+        <li><b>Fewer colours, each with a meaning.</b> NN/g: "Limit your palette to three colors", about 60/30/10. A neutral or brand-tinted ground leaves the lime, amber and red as the only strong colours, so they read as scores.</li>
+        <li><b>Decoration should carry information.</b> Glass on content cards and atmospheric gradients are tells of a generated look (#637); Apple: "Don't use Liquid Glass in the content layer."</li>
+        <li><b>Sunlight is about size and contrast,</b> not darkness: polarity made no difference in daylight (Dobres et al. 2017). That is why every option keeps text above 4.5:1 rather than chasing the darkest ground.</li>
+      </ul>
+    </div>
+  </div>
+</main>
+<script>
+(() => {
+  const lum = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255)
+    .map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+    .reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0)
+  const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05) }
+  const root = document.documentElement
+  const read = (name) => getComputedStyle(root).getPropertyValue(name).trim()
+  const fill = () => {
+    const bg = read('--bg'), tile = read('--raised')
+    const pairs = { txt1: '--txt1', muted: '--muted', good: '--good', poor: '--poor', tab: '--tab' }
+    for (const [k, v] of Object.entries(pairs)) {
+      for (const [suffix, ground] of [['', bg], ['t', tile]]) {
+        const el = document.querySelector(`[data-r="${k}${suffix}"]`)
+        const r = ratio(read(v), ground)
+        el.textContent = r.toFixed(1)
+        el.className = r < 4.5 ? 'lo' : ''
+      }
+    }
+  }
+  const buttons = document.querySelectorAll('.switch button')
+  const choose = (v) => {
+    if (v === 'A') root.removeAttribute('data-bg'); else root.setAttribute('data-bg', v)
+    buttons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === v)))
+    document.querySelectorAll('.notes [data-v]').forEach((n) => { n.hidden = n.dataset.v !== v })
+    fill()
+  }
+  buttons.forEach((b) => b.addEventListener('click', () => choose(b.dataset.v)))
+  fill()
+})()
+</script>
+</body></html>

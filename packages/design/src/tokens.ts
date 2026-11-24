@@ -94,9 +94,11 @@ export const colors = {
  * The v2 surface palette — **dark only**, from the WT6 Figma file's "V2" page
  * (2026-09). The light variant on the same page lands in its own pass.
  *
- * **Opaque layers instead of the gradient and its translucent cards.** v2 asked
- * for more contrast in dark: a near-black ground, one step up for bands and
- * wells, one more for cards, and a visible hairline. The status hues are
+ * **Tonal steps on a dark grey ground** (owner's pick G, 2026-11-24,
+ * `docs/handoffs/design-mockups/background-variants.html`): a neutral
+ * `#121416` instead of near-black, and each level a fixed step lighter (bands
+ * and wells, cards, tiles), so surfaces separate by tone and the hairline stays
+ * quiet. The ground is flat; the teal glow above it was removed. The status hues are
  * `colors.good`/`fair`/`poor` unchanged; what v2 adds is an *ink* for each —
  * a lighter tone for text set on that hue's own tint, where the base hue reads
  * dim.
@@ -107,13 +109,13 @@ export const colors = {
  */
 export const colorsV2 = {
   /** Screen ground. */
-  bg: '#07090c',
+  bg: '#121416',
   /** Header band, legend strip, and the wells chips sit in. */
-  surface: '#10161d',
+  surface: '#1a1d1f',
   /** Card fill. */
-  card: '#171f28',
-  /** Hairline on cards, chips and controls. */
-  line: '#2a3644',
+  card: '#1d2022',
+  /** Hairline on cards, chips and controls: quiet, since tone does the grouping. */
+  line: '#26292c',
   /** Primary text. */
   txt1: '#f4f7fa',
   /** Secondary text — meta, legend, the card chevron. The hybrid mockup's `--muted`. */
@@ -125,11 +127,11 @@ export const colorsV2 = {
   /** Text on a `poor` tint. */
   poorInk: '#ff8b91',
   /** A well inside a card: the hour cells of the Overview's Today strip. */
-  raised: '#1f2833',
+  raised: '#282b2e',
   /** Secondary text on a tinted surface: the hero's high/low and weather line. The hybrid mockup's `--txt2`. */
   txt2: '#d3e1e4',
-  /** An unselected tab. */
-  txtTab: '#7d8997',
+  /** An unselected tab: 4.5:1 or better on every surface, `raised` included. */
+  txtTab: '#959ca3',
   /**
    * The hybrid look's accent (owner, 2026-10-19, the mockup's aqua): what is
    * chosen — a tab's pill, the lit app-bar tab, the crag switcher's underline —
@@ -1863,18 +1865,16 @@ export const motion = {
  * final `.phone`, `.gc`, `.slim`, `.tabs` and `.appbar` rules.
  */
 export const glass = {
-  /** The ground: a dark teal glow at the top of the screen falling to near-black. */
-  groundGlow: '#10252b',
-  groundMid: '#0a1215',
-  ground: '#06090b',
-  /** The pane's own colour under the blur. */
-  tint: '#0e161a',
+  /** The ground: flat `colorsV2.bg` since the tonal-steps pick (2026-11-24), which removed the teal glow. */
+  ground: colorsV2.bg,
+  /** The pane's own colour under the blur: one tonal step above the ground. */
+  tint: colorsV2.card,
   /** Light caught by a pane's edges, and the shadow it casts: the alphas below are of these. */
   light: '#ffffff',
   shade: '#000000',
   /**
    * Each pane: its fill (alpha of `tint`, or of `ground` for the header and
-   * `groundMid` for the bar), from top to bottom where it is a gradient, and
+   * the bar), from top to bottom where it is a gradient, and
    * the blur and saturation it applies to what is behind it.
    */
   card: { fillTop: 0.36, fillBottom: 0.52, blurPx: 30, saturatePct: 190 },
