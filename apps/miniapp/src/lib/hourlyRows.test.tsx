@@ -9,7 +9,7 @@ import {
   type ReadingsDay,
   type SunHour,
 } from '@weatherteam6/types'
-import { HourlyRows } from '../components/HourlyRows.js'
+import { HourlyRows, windNote } from '../components/HourlyRows.js'
 import { HOUR_MS } from '../components/charts/hourlySeries.js'
 import { compass, firstAhead, hourRows, rowInches, scaleTop } from './hourlyRows.js'
 
@@ -247,6 +247,20 @@ describe('HourlyRows — on screen', () => {
     expect(html).toContain('aria-expanded="true"')
     expect(html).toContain('Dew point')
     expect(html).toContain('from W')
+    // On a crag Score takes Gusts' tile, so gusts ride in Wind's note.
+    expect(html).toContain('from W, gusts')
+    expect(html).not.toContain('>Gusts<')
+    const city = render(scored(), false, Date.parse(at(30)))
+    expect(city).toContain('Gusts')
+    expect(city).not.toContain('from W, gusts')
+  })
+
+  it('writes Wind’s note with a dash for an unanswered gust, never dropping it', () => {
+    expect(windNote('SW', 9)).toBe('from SW, gusts\u00a09')
+    expect(windNote('SW', null)).toBe('from SW, gusts\u00a0—')
+    expect(windNote(null, null)).toBe('gusts\u00a0—')
+    expect(windNote('SW', undefined)).toBe('from SW')
+    expect(windNote(null, undefined)).toBeNull()
   })
 
   it('says when a scored day has no good hours, and nothing for a day the readings never reached', () => {
