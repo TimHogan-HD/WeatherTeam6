@@ -88,7 +88,9 @@ and `THE ROCK HERE` as tracked caps; `1 saved · updated just now` and the coord
 monospace; `Hourly ›` and `Daily ›` as links. Most of them came from the Figma file, which
 is a starting point rather than a decision. Each is worth asking about: does this label
 carry information? `THE ROCK HERE` and the `WEATHERTEAM6` above each section title did
-not, and were removed on 2026-10-01; the rest carry a time, a source or a rock.
+not, and were removed on 2026-10-01; the rest carry a time, a source or a rock. Since
+2026-11-24 (#653, the owner's #644 pick) no text is tracked caps: the labels that stayed
+are sentence case.
 
 `npx impeccable detect apps/miniapp/src` found one thing: the bottom bar pill's
 `cubic-bezier(.3, 1.25, .45, 1)` overshoot, which it calls bounce easing. The owner picked
