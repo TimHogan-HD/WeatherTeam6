@@ -64,7 +64,7 @@ button:focus-visible{outline:2px solid var(--brandInk);outline-offset:2px}
 .chip.sun b{color:var(--sun)}
 
 /* B: a stat row. Label over value, in fixed columns, so every day's figures line up down the card. */
-.stats{display:grid;grid-template-columns:1fr .8fr .7fr 1.7fr;gap:4px}
+.stats{display:grid;grid-template-columns:1fr .8fr 2fr;gap:4px}
 .stats div{min-width:0}
 .stats dt{font-size:11px;line-height:1.2;color:var(--tab)}
 .stats dd{margin:0;font-family:var(--display);font-weight:600;font-size:17px;line-height:1.15;color:var(--txt1);white-space:nowrap}
@@ -100,23 +100,23 @@ button:focus-visible{outline:2px solid var(--brandInk);outline-offset:2px}
     <ul><li>"good 1p–3p · Dry · 0 in · peak wind 6 mph", the sun line under it, and the model dots above it on days that have them. Every figure is the same grey, so nothing leads.</li></ul>
     <h2>A · chips</h2>
     <ul>
-      <li>Each reading is a small pill with its label: <b>Good 1p–3p</b>, <b>Rock Dry</b>, <b>Rain 0 in</b>, then Sun in yellow.</li>
-      <li>Matches the view chips on Hourly. Sun wraps to a second line on most days.</li>
+      <li>Each reading is a small pill with its label: <b>Good 1p–3p</b>, <b>Rock Dry</b>, then Sun in yellow.</li>
+      <li>Matches the view chips on Hourly. Fits one line on most days.</li>
     </ul>
     <h2>B · stat row</h2>
     <ul>
-      <li>Four fixed columns, label over value: Good, Rock, Rain, Sun. Every day's figures line up down the card, so you compare days by reading one column.</li>
+      <li>Three fixed columns, label over value: Good, Rock, Sun. Every day's figures line up down the card, so you compare days by reading one column.</li>
       <li>Sun's hours lead, its times in small type beside them.</li>
       <li>Most like the new Hourly tiles, without the boxes.</li>
     </ul>
     <h2>C · labelled</h2>
     <ul>
-      <li>The same two lines as now, but each figure gets a muted label and a bright value, with space instead of " · ".</li>
+      <li>One line: each figure gets a muted label and a bright value, with space instead of " · ".</li>
       <li>Smallest change; reads as text, not a grid.</li>
     </ul>
     <h2>Same in all</h2>
     <ul>
-      <li><b>No wind and no model dots</b> (owner, 2026-11-24). Wind stays on Hourly; the dots leave Daily.</li>
+      <li><b>No wind, rain amount or model dots</b> (owner, 2026-11-24). Wind and rain amounts stay on Hourly; the chance of rain stays in the top row; the dots leave Daily.</li>
       <li>"Dry" gets its label, <b>Rock</b>, so it reads as a reading, not a forecast word.</li>
       <li>"Sun 5–8 h · forecasts differ" stays as the sun's value when the models disagree.</li>
     </ul>
@@ -140,12 +140,11 @@ const head=d=>`<span class="sky ${d.sky}"></span><span class="name"><b>${d.n}</b
   <span class="chance">${d.ch}%</span>`;
 const V={
   now:d=>`<div class="sub now">${d.dots?`<p>${dots(d.dots)} ${d.dots[1]-d.dots[0]} of ${d.dots[1]} dry</p>`:''}<p>good ${d.good} · ${d.rock} · ${d.rain} · peak wind ${d.wind} mph</p><p class="sunl">Sun ${sunText(d)}</p></div>`,
-  A:d=>`<div class="sub chips"><span class="chip">Good <b>${d.good}</b></span><span class="chip">Rock <b>${d.rock}</b></span><span class="chip">Rain <b>${d.rain}</b></span><span class="chip sun">Sun <b>${sunText(d)}</b></span></div>`,
+  A:d=>`<div class="sub chips"><span class="chip">Good <b>${d.good}</b></span><span class="chip">Rock <b>${d.rock}</b></span><span class="chip sun">Sun <b>${sunText(d)}</b></span></div>`,
   B:d=>`<dl class="sub stats" style="margin:0">
-    <div><dt>Good</dt><dd>${d.good}</dd></div><div><dt>Rock</dt><dd>${d.rock}</dd></div><div><dt>Rain</dt><dd>${d.rain}</dd></div>
+    <div><dt>Good</dt><dd>${d.good}</dd></div><div><dt>Rock</dt><dd>${d.rock}</dd></div>
     <div class="s"><dt>Sun</dt><dd>${d.sunH}<small>${d.differ?' · forecasts differ':` · ${d.sunT}`}</small></dd></div></dl>`,
-  C:d=>`<div class="sub lab"><p><span>Good<b>${d.good}</b></span><span>Rock<b>${d.rock}</b></span><span>Rain<b>${d.rain}</b></span></p>
-    <p><span class="sunv">Sun<b>${sunText(d)}</b></span></p></div>`,
+  C:d=>`<div class="sub lab"><p><span>Good<b>${d.good}</b></span><span>Rock<b>${d.rock}</b></span><span class="sunv">Sun<b>${sunText(d)}</b></span></p></div>`,
 };
 const box=document.getElementById('days');
 function set(v){
