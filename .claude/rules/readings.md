@@ -48,7 +48,7 @@ What a reading may say, where it comes from, and what the client may assume of t
   empty. A dew point or air figure prints only when `HourlySeries.model` is the readings'
   model. Condensation names no figure and says the rock temperature is modelled (#436).
 - **The reader orders a tab's cards, on this device** (owner, 2026-11-03; `CardStack.tsx`,
-  `lib/cardOrder.ts`, `wt6.cardOrder`). Overview, Hourly, Precip and Rock each keep one order
+  `lib/cardOrder.ts`, `wt6.cardOrder`). Overview, Precip and Rock each keep one order
   for every crag. It is a mode with up and down arrows, never a drag on a card, because a drag
   on a chart reads an hour. The Overview's hero, the Rock tab's hero and its facts card stay
   put. A saved order only arranges: no card is hidden, and what a card says never depends on
@@ -62,7 +62,7 @@ What a reading may say, where it comes from, and what the client may assume of t
   filled dot means a model that leaves the rock wet on both screens.
 - **Sun is minutes of bright sunshine, from `THERMAL_MODEL`** (#469–#472;
   `lib/runs/skySeries.ts`, `packages/types/src/sky.ts`; layout in `sunDayLine` and Hourly's
-  Sun card). "Forecasts differ" compares GFS, ECMWF and ICON (`SUN_DIFFER_MIN`,
+  Sun view). "Forecasts differ" compares GFS, ECMWF and ICON (`SUN_DIFFER_MIN`,
   `compare:sky`), never GEM. **A gap is `Sun —` or a dashed mark, never "No sun" or an
   empty bar.** Flat ground only, said on the card. The Sources footer names the model only
   once an hour of sunshine was answered.
@@ -110,17 +110,17 @@ What a reading may say, where it comes from, and what the client may assume of t
   chart below it, one hourly chart starting at now (owner, 2026-10-20: the score bars
   repeated it and were removed). **The day's score is only in Next days' Today column**
   (owner, 2026-10-29), never in the hero or Today's aside. Hourly's slim header follows
-  the hour being read (`Today 7 PM`). **Hourly's header is the crag's name as its headline
-  and that score, with no line of figures** (owner, 2026-10-20): each chart names the read
-  hour's figures in its own chip.
-- **A figure printed beside a chart is the series the chart draws.** The Hourly charts draw
+  the hour opened (`Today 7 PM`). **Hourly's header is the crag's name as its headline
+  and that score, with no line of figures** (owner, 2026-10-20): the opened row lists the
+  hour's figures, each labelled.
+- **A figure printed beside a chart is the series the chart draws.** Hourly's rows print
   the ensemble medians (`temp_c_p50`, `wind_kmh_p50`; gusts as `max(wind_gust_kmh, p50)`),
-  so each chart's read-hour chip, and a city's figure in Hourly's slim header, use those too. On
+  so a city's figure in Hourly's slim header uses those too. On
   2026-10-20 the header printed deterministic `temp_c` (47°) over a chart reading 50°.
   Before adding a figure near a chart, grep which field the chart plots.
 - **An axis is checked on the screenshot, not the test.** `niceTicks` (`lib/chartTicks.ts`)
   once drew 20–80° for a 37–67° day. A tick change gets a test on the real range and a
-  look at Hourly at 480×1000.
+  look at the chart at 480×1000.
 - **`ReadingsSummary.score === null` means only "no reading"**, and no surface reaches past
   it. Alerts never withhold it (`architecture.md` § Background jobs).
 - **Two sentinels:** `NOT_A_CRAG_READINGS` (`not_a_climbing_location`, the reader's choice)

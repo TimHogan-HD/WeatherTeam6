@@ -1,14 +1,14 @@
 /**
  * The order of a crag tab's cards, chosen by the reader and remembered on this
  * device (owner, 2026-11-03). One order per tab, for every crag: a card moved on
- * Hourly stays moved at the next crag.
+ * Precip stays moved at the next crag.
  *
  * What is saved may hold cards this screen is not showing (a card only some
  * crags have), and may lack cards that did not exist when it was saved. Neither
  * is an error: `arrange` keeps the ids it was given and nothing else, and
  * `moveCard` keeps an absent card's place for the crag that has it.
  */
-export type CardTab = 'overview' | 'hourly' | 'precip' | 'rock'
+export type CardTab = 'overview' | 'precip' | 'rock'
 
 export type CardMove = -1 | 1
 

@@ -138,7 +138,7 @@ only tool. What still holds:
 - Motion answers something: a person's action, or data arriving. The behaviours shipped
   (owner picks, 2026-10-01) — the bottom bar's sliding pill (no overshoot); the press,
   which dims at once so a tap shows before a slow screen arrives and shrinks to 97% over
-  160 ms; the location tabs' underline and the Hourly day chips' fill sliding to the
+  160 ms; the location tabs' underline and the Hourly day strip's underline sliding to the
   choice; Measurements growing open; a score that a new run changes rolling to its new
   value with "was 64" beside it; pull-to-refresh on the list and a location's forecast tabs, which says how fresh the
   scores are; the smooth scroll-to-top on the lit tab; `FadeIn` on a card's late weather —

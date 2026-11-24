@@ -196,18 +196,19 @@ describe('DetailView — tabs', () => {
     expect(html).toContain('id="panel" role="tabpanel"')
   })
 
-  it('shows the daily rows on Daily and the day charts on Hourly', () => {
+  it('shows the daily rows on Daily and the hours as rows on Hourly', () => {
     const daily = render({ active: 'daily' })
     expect(daily).toMatch(/<span>Seven days</)
     // The seven-day strip was removed from Daily on 2026-09-28 (owner): the
-    // V2 rows carry the figures, and the Hourly tab carries the charts.
+    // V2 rows carry the figures, and the Hourly tab carries the hours.
     expect(daily).not.toContain('Hour by hour')
 
     const hourly = render({ active: 'hourly' })
     expect(hourly).not.toMatch(/<span>Seven days</)
-    // The day picker, then the hybrid look's three cards.
+    // The day strip, the view chips, then a row per hour (owner, 2026-11-24).
     expect(hourly).toMatch(/aria-pressed="true" aria-label="Today, /)
-    for (const title of ['Temperature and humidity', 'Rain', 'Wind']) expect(hourly).toMatch(new RegExp(`<h2[^>]*><span>${title}<`))
+    expect(hourly).toMatch(/role="group" aria-label="Show"/)
+    expect(hourly).toContain('aria-expanded=')
   })
 
   it('makes only the days the ensemble reached tappable', () => {

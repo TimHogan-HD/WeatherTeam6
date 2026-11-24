@@ -187,11 +187,15 @@ good hours, Dryness, rain amount and peak wind under it.
   `rain_split` shows one dot per weather model, filled for each that leaves the rock wet,
   and `N of M dry`. The footnote defines the dots once.
 
-**Hourly** (`charts/DayCharts.tsx`, mockup `hourlyCharts`): a week strip of days, then
-cards that read one hour together under one scrub — temperature and humidity, sun, rain,
-wind. The hybrid transition doc holds the chart decisions (scales, the read-hour chip, "Dry
-all day"); `readings.md` and `weather.md` hold which series a figure may come from and how
-rain is blocked. There is no seven-day chart here.
+**Hourly** (`HourlyRows.tsx`, decisions in `lib/hourlyRows.ts`; owner 2026-11-24, mockup
+`design-mockups/hourly-rows.html`, variant B): the days, five view chips (All, Temp, Rain,
+Wind, Sun) and the column heads stick under the slim header; then one row per hour. Hour,
+sky and score stand still when the view changes. Each single view draws a bar on a scale
+printed in its column head. The good hours are shaded and named once above the list; hours
+already over today fold behind "Show earlier hours". Tapping a row opens every figure for
+it, labelled, and the slim header reads that hour. The view is remembered on the device
+(`wt6.hourlyView`). `readings.md` and `weather.md` hold which series a figure may come
+from and which stamp a row reads. There is no seven-day chart here, and no scrub.
 
 **Precip** (`PrecipTab.tsx`, mockup `precipTab`): the drying clock beside the last rain,
 today, this week and when the rock is dry again; every hour of the past week as a grid;
