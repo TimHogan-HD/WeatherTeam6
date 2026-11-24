@@ -353,28 +353,39 @@ export function HourlyRows({ series, selectedDate, onSelectDate, readMs, onRead,
 }
 
 function Detail({ row: r, scored, hourLabel }: { row: HourRow; scored: boolean; hourLabel: (ms: number) => string }) {
-  const item = (dt: string, dd: ReactNode) => (
-    <div key={dt} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-      <dt style={typeV2.daySmall}>{dt}</dt>
-      <dd style={{ ...typeV2.hourFigure, margin: 0, color: colorsV2.txt1 }}>{dd}</dd>
+  const or = (v: number | string | null, unit = '') => (v === null ? EM_DASH : `${v}${unit}`)
+  const dir = compass(r.windFromDeg)
+  /**
+   * One figure as a tile: a dot in its chart's colour, the label, the figure, and a
+   * note under it where the figure needs one. Tiles in threes break the hour into
+   * readable groups (owner, 2026-11-24: two long columns read as one block).
+   */
+  const tile = (label: string, value: ReactNode, opts: { dot?: string; note?: string | null; valueColor?: string } = {}) => (
+    <div key={label} style={{ background: colorsV2.raised, borderRadius: radius.rowV2, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+      <dt style={{ ...typeV2.daySmall, color: colorsV2.txtTab, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        {opts.dot === undefined ? null : <i aria-hidden="true" style={{ width: 6, height: 6, borderRadius: radius.full, background: opts.dot, flex: 'none' }} />}
+        {label}
+      </dt>
+      <dd style={{ margin: 0, display: 'flex', flexDirection: 'column' }}>
+        <span style={{ ...typeV2.hourFigure, color: opts.valueColor ?? colorsV2.txt1 }}>{value}</span>
+        {opts.note == null ? null : <small style={{ ...typeV2.daySmall, color: colorsV2.txtTab }}>{opts.note}</small>}
+      </dd>
     </div>
   )
-  const small = (s: string) => <small style={{ ...typeV2.daySmall, marginLeft: 4 }}>{s}</small>
-  const or = (v: number | string | null, s = '') => (v === null ? EM_DASH : `${v}${s}`)
-  const dir = compass(r.windFromDeg)
   return (
     <dl
       className="wt6-header-swap"
-      style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: '8px 16px', margin: 0, padding: '4px 2px 14px 54px' }}
+      style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 6, margin: '0 0 12px', padding: 8, background: colorsV2.surface, border: `1px solid ${colorsV2.line}`, borderRadius: radius.cardV2 }}
     >
-      {item('Temperature', <>{or(r.tempF, '°')}{r.lowF === null || r.highF === null ? null : small(`likely ${r.lowF}–${r.highF}°`)}</>)}
-      {item('Humidity · dew point', `${or(r.humidityPct, '%')} · ${or(r.dewF, '°')}`)}
-      {item('Chance of rain', or(r.chancePct, '%'))}
-      {item('Rain', r.rainIn === null ? EM_DASH : `${rowInches(r.rainIn)} in`)}
-      {item('Wind', <>{or(r.windMph, ' mph')}{r.windMph === null || dir === null ? null : small(`from ${dir}`)}</>)}
-      {item('Gusts', or(r.gustMph, ' mph'))}
-      {item(`Sun ${hourLabel(r.ms)}–${hourLabel(r.ms + HOUR_MS)}`, r.daylight === false ? 'dark' : or(r.sunMin, ' min'))}
-      {scored ? item('Score', <span style={{ color: r.score === null ? colorsV2.txtMuted : scoreColor(r.score) }}>{or(r.score)}</span>) : null}
+      {tile('Temperature', or(r.tempF, '°'), { dot: chartColorsV2.air, note: r.lowF === null || r.highF === null ? null : `likely ${r.lowF}–${r.highF}°` })}
+      {tile('Humidity', or(r.humidityPct, '%'), { dot: chartColorsV2.humidity })}
+      {tile('Dew point', or(r.dewF, '°'))}
+      {tile('Chance of rain', or(r.chancePct, '%'), { dot: colorsV2.rain })}
+      {tile('Rain', r.rainIn === null ? EM_DASH : `${rowInches(r.rainIn)} in`, { dot: colorsV2.rainAmount })}
+      {tile('Sun', r.daylight === false ? 'dark' : or(r.sunMin, ' min'), { dot: colorsV2.sun, note: `${hourLabel(r.ms)}–${hourLabel(r.ms + HOUR_MS)}` })}
+      {tile('Wind', or(r.windMph, ' mph'), { dot: colorsV2.wind, note: r.windMph === null || dir === null ? null : `from ${dir}` })}
+      {tile('Gusts', or(r.gustMph, ' mph'), { dot: colorsV2.gust })}
+      {scored ? tile('Score', or(r.score), { valueColor: r.score === null ? colorsV2.txtMuted : scoreColor(r.score) }) : null}
     </dl>
   )
 }

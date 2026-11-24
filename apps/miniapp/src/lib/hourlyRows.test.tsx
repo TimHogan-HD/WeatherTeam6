@@ -245,7 +245,7 @@ describe('HourlyRows — on screen', () => {
   it('opens the hour the header reads, with every figure labelled', () => {
     const html = render(scored(), true, Date.parse(at(30)))
     expect(html).toContain('aria-expanded="true"')
-    expect(html).toContain('Humidity · dew point')
+    expect(html).toContain('Dew point')
     expect(html).toContain('from W')
   })
 
