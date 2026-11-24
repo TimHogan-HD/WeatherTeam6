@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react'
 import { colors, colorsV2, spacing } from '@weatherteam6/design/tokens'
 import { EM_DASH } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
@@ -44,8 +45,24 @@ export function SlimHeader({
   crags: CragChoice | null
   feedbackLocationId: string | null
 }) {
+  const ref = useRef<HTMLElement>(null)
+  // Its height, as `--slim-header-h`, so a block that sticks under it (Hourly's day strip and view chips) sits flush below it.
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (el === null) return
+    const root = document.documentElement
+    const set = () => root.style.setProperty('--slim-header-h', `${el.offsetHeight}px`)
+    set()
+    const observer = new ResizeObserver(set)
+    observer.observe(el)
+    return () => {
+      observer.disconnect()
+      root.style.removeProperty('--slim-header-h')
+    }
+  }, [])
   return (
     <header
+      ref={ref}
       style={{
         ...glassHeader,
         ...stack(spacing.tight),
@@ -69,7 +86,7 @@ export function SlimHeader({
       <div style={{ ...row(spacing.listGapLg), justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div style={{ ...stack(spacing.micro), flex: '1 1 auto', minWidth: 0 }}>
           {name === null ? null : tab === 'hourly' ? (
-            // Hourly's charts carry the hour's figures, so the name is the headline (owner, 2026-10-20).
+            // Hourly's opened row carries the hour's figures, so the name is the headline (owner, 2026-10-20).
             <h1 {...{ [CRAG_FLY_ATTR]: 'name' }} style={{ ...typeV2.slimHeadline, margin: 0 }}>{name}</h1>
           ) : (
             // Only the name flies to the list: this figure can be another hour's, not the row's now.

@@ -42,13 +42,18 @@ Upstream fetches, ensemble statistics, and how runs are stored, read and pruned.
   step, day or header total; the mean often sits outside them, and that is not a fault.
 - **Hourly precipitation is stamped at the end of its hour**, so a bar owns the hour before
   its timestamp; an instantaneous reading is centred. The charts place each mark inline,
-  `valid_at - HOUR_MS` for an hour's span (`DayCharts.tsx`'s sky row, `TodayChart.tsx`).
-- **The rain charts read in blocks** (owner, 2026-10-30, mockup version 1; `RainChart`,
-  `charts/rainBlocks.ts`): Hourly's day in threes, Precip's 48 hours in sixes. Each block
+  `valid_at - HOUR_MS` for an hour's span (`TodayChart.tsx`). Hourly's rows are the hour that
+  starts at their label, so a row's chance, rain, sun and sky come from the stamp at its end
+  (`lib/hourlyRows.ts`).
+- **The rain chart reads in blocks** (owner, 2026-10-30, mockup version 1; `RainChart`,
+  `charts/rainBlocks.ts`): Precip's 48 hours in sixes. Each block
   is a column of total inches (the sum of `precip_mm_mean`) on a printed inch scale with
   its figure on top, and a pill under it with the **likeliest hour's** chance, never a
   combined one. Any unread hour withholds that block's figure. The old chart's hidden
   amount scale made a trace look like a downpour; a rain amount on screen has a scale.
+  **Hourly prints rain per hour** (owner, 2026-11-24, superseding 2026-10-30's threes there;
+  mockup `hourly-rows.html`): each row prints its inches, and the Rain view's bar runs on a
+  scale printed in its column head (0 to 0.10 in, growing to hold the wettest hour).
 - **A deterministic multi-model response labels its columns only while more than one model
   has coverage.** `parseDeterministicHourly` trusts a bare column only when exactly one model
   was requested; otherwise it reports `ambiguous` and `fetchDeterministicHourly` re-asks one

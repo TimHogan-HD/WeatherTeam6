@@ -35,7 +35,7 @@ import type { HeaderTab } from './DetailHeader.js'
 import { OverviewTab } from './OverviewTab.js'
 import { PrecipTab } from './PrecipTab.js'
 import type { GaugeQuery } from './GaugesCard.js'
-import { DayCharts } from './charts/DayCharts.js'
+import { HourlyRows } from './HourlyRows.js'
 import { dayIsDrawable } from './charts/hourlySeries.js'
 import { TEMP_VIEW_H } from './charts/chartStyle.js'
 
@@ -48,8 +48,8 @@ import { TEMP_VIEW_H } from './charts/chartStyle.js'
  * - **Overview** — the crag's name and the hour's score, then a card per
  *   section (`OverviewTab`), built to the hybrid mockup (owner, 2026-10-19).
  * - **Daily** — the seven days as tinted rows, built to its V2 frame.
- * - **Hourly** — a chip per day, the open day's readings and good hours,
- *   then its charts. Built to its V2 frame.
+ * - **Hourly** — the open day's hours as rows, one reading at a time
+ *   (`HourlyRows`, owner 2026-11-24).
  * - **Precip** — the past week's precipitation: its total, its events and a
  *   bar per day, from the Figma "Precipitation history" frame. Every saved
  *   location has one; a city had rain too.
@@ -129,7 +129,7 @@ export type DetailViewProps = {
       /** `null` until a day is picked, and when no day in the window is drawable. */
       selectedDate: string | null
       onSelectDate: (localDate: string) => void
-      /** The hour Hourly's charts read together, epoch ms, and the slim header with them. */
+      /** The hour Hourly has open, epoch ms, and the slim header with it. */
       readMs: number | null
       onRead: (ms: number) => void
       /** The id the header's tabs point `aria-controls` at. */
@@ -393,15 +393,13 @@ export function DetailView({
         // days — distinct from a failed request, which is the branch above.
         <p style={type.bodyMd}>No hour-by-hour forecast for this location yet.</p>
       ) : (
-        <DayCharts
+        <HourlyRows
           series={hourly.data}
           selectedDate={tabs.selectedDate}
           onSelectDate={tabs.onSelectDate}
           readMs={tabs.readMs}
           onRead={tabs.onRead}
-          {...(!showScore
-            ? {}
-            : { score: { showScore } })}
+          showScore={showScore}
         />
       )
   } else if (active === 'precip') {

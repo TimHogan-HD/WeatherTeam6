@@ -13,6 +13,7 @@ import {
   IconPlayerPause,
   IconPlayerPlay,
   IconMap,
+  IconMoon,
   IconPlus,
   IconRipple,
   IconStack2,
@@ -109,6 +110,8 @@ export const HelpIcon = ({ color }: IconProps) => <IconHelpCircle {...props(colo
 /** The Rock tab's section glyphs: rain, sun, the fun fact, and the do/don't marks. 16px — they head a line rather than sit inside one. */
 export const RainIcon = ({ color }: IconProps) => <IconCloudRain {...props(color)} size={16} />
 export const SunIcon = ({ color }: IconProps) => <IconSun {...props(color)} size={16} />
+/** Hourly's row for a night hour, where the sky glyph would sit: the cloud colour, since it says when, not how. */
+export const NightIcon = () => <IconMoon size={16} stroke={1.75} color={colorsV2.txtMuted} aria-hidden={true} />
 export const CheckIcon = ({ color }: IconProps) => <IconCheck {...props(color)} size={14} stroke={2.25} />
 export const CrossIcon = ({ color }: IconProps) => <IconX {...props(color)} size={14} stroke={2.25} />
 

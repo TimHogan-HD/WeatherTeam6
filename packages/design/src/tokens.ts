@@ -1103,6 +1103,24 @@ export const typeV2 = {
     fontSize: 15,
     fontWeight: '600' as const,
   },
+  /**
+   * Hourly's rows (owner, 2026-11-24, hourly-rows mockup): a row's hour, a
+   * day's word and a view chip — "9 AM", "Thu", "Wind": Barlow Condensed 16/600.
+   * Colour is its state.
+   */
+  hourPick: {
+    fontFamily: fonts.display,
+    fontSize: 16,
+    fontWeight: '600' as const,
+    lineHeight: 18,
+  },
+  /** A figure in an Hourly row or an opened hour — "12%", "8": Barlow Condensed 18/600. Colour is its series'. */
+  hourFigure: {
+    fontFamily: fonts.display,
+    fontSize: 18,
+    fontWeight: '600' as const,
+    lineHeight: 20,
+  },
   /** Hourly's open day over the week strip — "Wednesday": Barlow Condensed 26/700. */
   dayHeadline: {
     fontFamily: fonts.display,

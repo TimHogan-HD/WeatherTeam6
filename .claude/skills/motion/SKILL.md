@@ -39,7 +39,7 @@ What is built:
 - **Press:** a pressed control dims at once to `press.opacity` and shrinks to `press.scale`
   over `motion.pressMs` (one `:active` rule in `globals.css`); the dim never waits.
 - **Selection:** the bottom bar pill slides leading edge first on `motion.easeOut` with no
-  overshoot (`TabBar.tsx`); the location tabs' underline and the Hourly day chips' fill slide
+  overshoot (`TabBar.tsx`); the location tabs' underline and the Hourly day strip's underline slide
   (`SelectionIndicator.tsx`).
 - **Data:** a changed score rolls (`RollingFigure.tsx`); charts stream in behind a bead
   (`charts/StreamIn.tsx`); a crag's cards pour in, opacity and position only, because a card

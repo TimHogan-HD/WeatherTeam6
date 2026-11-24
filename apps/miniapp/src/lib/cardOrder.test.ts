@@ -78,12 +78,12 @@ describe('the saved order', () => {
 
   it('remembers each tab apart, and an empty order forgets only that tab', () => {
     vi.stubGlobal('window', { localStorage: memory() })
-    saveOrder('hourly', ['wind', 'rain'])
+    saveOrder('precip', ['wind', 'rain'])
     saveOrder('rock', ['care'])
-    expect(savedOrder('hourly')).toEqual(['wind', 'rain'])
+    expect(savedOrder('precip')).toEqual(['wind', 'rain'])
     expect(savedOrder('rock')).toEqual(['care'])
-    saveOrder('hourly', [])
-    expect(savedOrder('hourly')).toEqual([])
+    saveOrder('precip', [])
+    expect(savedOrder('precip')).toEqual([])
     expect(savedOrder('rock')).toEqual(['care'])
   })
 
@@ -92,17 +92,17 @@ describe('the saved order', () => {
       throw new Error('denied')
     }
     vi.stubGlobal('window', { localStorage: { getItem: denied, setItem: denied } })
-    expect(() => saveOrder('hourly', ['wind'])).not.toThrow()
-    expect(savedOrder('hourly')).toEqual([])
+    expect(() => saveOrder('precip', ['wind'])).not.toThrow()
+    expect(savedOrder('precip')).toEqual([])
   })
 
-  it.each(['not json', '[]', 'null', '"hourly"', '{"hourly":"wind"}'])('reads %s as nothing saved', (raw) => {
+  it.each(['not json', '[]', 'null', '"precip"', '{"precip":"wind"}'])('reads %s as nothing saved', (raw) => {
     vi.stubGlobal('window', { localStorage: memory({ 'wt6.cardOrder': raw }) })
-    expect(savedOrder('hourly')).toEqual([])
+    expect(savedOrder('precip')).toEqual([])
   })
 
   it('keeps only the strings of a saved order', () => {
-    vi.stubGlobal('window', { localStorage: memory({ 'wt6.cardOrder': '{"hourly":["wind",3,null,"rain"]}' }) })
-    expect(savedOrder('hourly')).toEqual(['wind', 'rain'])
+    vi.stubGlobal('window', { localStorage: memory({ 'wt6.cardOrder': '{"precip":["wind",3,null,"rain"]}' }) })
+    expect(savedOrder('precip')).toEqual(['wind', 'rain'])
   })
 })
