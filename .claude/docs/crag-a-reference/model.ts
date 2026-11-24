@@ -262,8 +262,10 @@ function view(c: Case, spec: ViewSpec) {
   const base = { rockType: c.rock, cliffAngleDeg: 0, priorEffectiveHours: c.dryHistory ? 1e4 : 0 }
   let series: HourlyConditions[]
   if (spec.kind === 'flat') {
-    const hours = built.hours.map((h) => ({ ...h, shortwave_wm2: h.shortwave_wm2 === null ? null : h.shortwave_wm2 * spec.f }))
-    series = evaluateHourlyConditions(hours, spec.f === 0 ? { ...base, includeSun: false } : base)
+    // "No sun" is 0 W/m² in every hour, past the shortwave horizon too; this replaced the
+    // `includeSun: false` option when the app deleted it (2026-11-24) and gives the same T_surface.
+    const hours = built.hours.map((h) => ({ ...h, shortwave_wm2: spec.f === 0 ? 0 : h.shortwave_wm2 === null ? null : h.shortwave_wm2 * spec.f }))
+    series = evaluateHourlyConditions(hours, base)
   } else {
     series = evaluateHourlyConditions(built.hours, { ...base, cliffAngleDeg: spec.angle, wall: { lat: c.lat ?? LAT, lon: c.lon ?? LON, aspectDeg: spec.aspect, cliffAngleDeg: spec.angle } })
   }

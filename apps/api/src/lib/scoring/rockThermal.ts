@@ -530,12 +530,6 @@ export type SurfaceTemperatureInput = {
   wall?: { orientation: WallOrientation; at: Date } | null
   /** Defaults to `SOLAR_ABSORPTANCE`. Varied only by the sensitivity report. */
   absorptance?: number
-  /**
-   * The `user_preferences.include_sun` escape hatch. `false` drops the solar
-   * term entirely, which also means `T_surface` is computable past the model's
-   * shortwave horizon.
-   */
-  includeSun?: boolean
 }
 
 export type SurfaceTemperature = {
@@ -590,23 +584,11 @@ const WITHHELD: SurfaceTemperature = {
 export function surfaceTemperature(input: SurfaceTemperatureInput): SurfaceTemperature {
   const { airTempC, shortwaveWm2, windKmh, cloudPct, cliffAngleDeg } = input
   const absorptance = input.absorptance ?? SOLAR_ABSORPTANCE
-  const includeSun = input.includeSun ?? true
 
   if (airTempC === null || !Number.isFinite(airTempC)) return WITHHELD
 
   const skyCooling = skyCoolingC(cliffAngleDeg, cloudPct)
   if (skyCooling === null) return WITHHELD
-
-  // Sun off: the solar term is not missing, it is excluded. The hour is
-  // qualified because aspect cannot change an answer that does not read the sun.
-  if (!includeSun) {
-    return {
-      t_surface_c: airTempC - skyCooling,
-      solar_gain_c: 0,
-      sky_cooling_c: skyCooling,
-      qualified: true,
-    }
-  }
 
   // 0 is midnight and survives; null is an hour past the model's shortwave
   // horizon and withholds; over the ceiling is issue #155 and also withholds.

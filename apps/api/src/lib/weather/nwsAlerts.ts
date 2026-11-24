@@ -76,8 +76,8 @@ export async function fetchNwsAlerts(lat: number, lon: number): Promise<NwsAlert
   // a confirmation that nothing is active — an NWS error object, a maintenance
   // page, or a schema change all land here. Returning [] would tell the caller
   // "NWS says no alerts", and `runAlertsCheck` would delete every stored row for
-  // the location. That destroys `notified_at` along with them, so when the same
-  // alert reappears it is re-inserted unnotified and sent to the user again.
+  // the location — so a warning still in force would vanish from every screen
+  // that shows that crag.
   if (!Array.isArray(data.features)) {
     logger.warn({ lat, lon }, '[nwsAlerts] 200 response was not a FeatureCollection')
     return null

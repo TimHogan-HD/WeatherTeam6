@@ -31,7 +31,7 @@ function asF(c: number): number {
 
 /**
  * Validate the body. **An unknown key is refused, not ignored** — a client
- * sending `ideal_temp_min_c` (the Phase 0 column, which nothing reads) would
+ * sending `ideal_temp_min_c` (a Phase 0 column, since dropped) would
  * otherwise get a 200 and no change, which reads as success.
  */
 export function parsePreferencesUpdate(body: unknown): UpdatePreferencesInput | { error: string } {

@@ -12,10 +12,10 @@ import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto'
  * invalidate an existing row: `verifyPassword` derives with the parameters the
  * row was written with, not the ones this file currently declares.
  *
- * **Honest limit, per the handoff:** there is no rate limiting on the login
- * route. There is no Redis and no store for counters, so scrypt's cost plus the
- * fixed failure delay in `routes/auth.ts` is the whole defence against guessing.
- * **Passphrase strength is the real control** — say that to whoever you add.
+ * Guessing is slowed by scrypt's cost, the fixed failure delay in
+ * `routes/auth.ts`, and the per-username cap in `lib/auth/loginThrottle.ts`
+ * (`LOGIN_ATTEMPT_LIMIT` per window, counted in Postgres). **Passphrase strength
+ * is still the real control** — say that to whoever you add.
  */
 
 /** ~16 MB of memory per derivation (128 · N · r). Interactive-login scale. */

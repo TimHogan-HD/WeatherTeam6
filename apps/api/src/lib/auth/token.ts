@@ -40,12 +40,17 @@ function sign(payload: string, secret: string): string {
 }
 
 /**
- * Fixed-length digest comparison. The computed signature is a known length but
- * the provided one is attacker-controlled and may be any length, and
- * `timingSafeEqual` throws rather than returning false on a length mismatch —
- * which would turn a malformed credential into a 500.
+ * Constant-time comparison of a provided credential against the expected one,
+ * through fixed-length digests: a bare `===` leaks the secret via response
+ * timing, and the provided value is attacker-controlled and may be any length,
+ * while `timingSafeEqual` throws rather than returning false on a length
+ * mismatch — which would turn a malformed credential into a 500.
+ *
+ * The one implementation, shared by the session signature check here, the
+ * `Bearer` scheme in `middleware/apiAuth.ts` and the cron gate in
+ * `routes/cron.ts`.
  */
-function signaturesMatch(provided: string, expected: string): boolean {
+export function secretsMatch(provided: string, expected: string): boolean {
   const a = createHash('sha256').update(provided).digest()
   const b = createHash('sha256').update(expected).digest()
   return timingSafeEqual(a, b)
@@ -114,7 +119,7 @@ export function verifyToken(
   // JSON.stringify of a parsed object does not reproduce the bytes that were
   // signed (key order, whitespace, number formatting), so a re-serialising
   // verifier rejects its own valid tokens.
-  if (!signaturesMatch(signature, sign(payload, secret))) {
+  if (!secretsMatch(signature, sign(payload, secret))) {
     return { ok: false, reason: 'signature mismatch' }
   }
 
