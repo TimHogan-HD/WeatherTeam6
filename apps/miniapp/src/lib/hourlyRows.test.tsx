@@ -154,6 +154,8 @@ describe('hourRows — score and good hours', () => {
     expect(hourRows(scored(twoDays, [none]), DAY_1, CRAG, label).noGood).toBe(true)
     // A day the readings never reached is a gap, not a day without good hours.
     expect(hourRows(scored(twoDays, []), DAY_1, CRAG, label).noGood).toBe(false)
+    // The server sends every date; one it never scored has no window and no best hour.
+    expect(hourRows(scored(twoDays, [{ ...none, best: null }]), DAY_1, CRAG, label).noGood).toBe(false)
     const unavailable = scored(twoDays, [none])
     expect(hourRows({ ...unavailable, readings: { ...unavailable.readings!, unavailable_reason: 'model_unavailable' } }, DAY_1, CRAG, label).noGood).toBe(false)
     expect(hourRows(scored(twoDays, [none]), DAY_1, CITY, label).noGood).toBe(false)

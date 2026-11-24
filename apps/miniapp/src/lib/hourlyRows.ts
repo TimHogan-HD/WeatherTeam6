@@ -72,7 +72,8 @@ export type HourRows = {
   /** The day's good hours, by row stamp, `to` the last good hour's (inclusive); null when no summary would name them. */
   good: { from: number; to: number; label: string } | null
   /**
-   * True only when the readings scored this day and found no window: the one case
+   * True only when the readings scored this day (its representative hour has a
+   * score) and found no window: the one case
    * "No good hours" may be said. A day the readings never reached, or a model that
    * did not answer, is a gap, not a day without good hours (defect class 2).
    */
@@ -187,7 +188,9 @@ export function hourRows(
     if (summary.window !== null && w !== null && Number.isFinite(from) && Number.isFinite(to)) {
       good = { from, to, label: goodLabel(w) }
     }
-    noGood = day !== null && w === null && series.readings?.unavailable_reason == null
+    // The server sends a day for every date, read or not, so an unread day arrives
+    // as `window: null` too. Only a day with a scored representative hour was read.
+    noGood = w === null && summary.score !== null
   }
 
   return {
