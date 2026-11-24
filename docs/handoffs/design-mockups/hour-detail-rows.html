@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Hour Detail Rows</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: one phone screen showing an opened hour on Hourly (All view), its figures in two full-width rows; a notes column beside it on wide screens. Same palette and faces as hourly-rows.html. */
+:root{
+  color-scheme:dark;
+  --ground:#0b0c0d; --bg:#121416; --surface:#1a1d1f; --raised:#282b2e; --line:#26292c;
+  --txt1:#f4f7fa; --txt2:#d3e1e4; --muted:#bccad0; --tab:#959ca3;
+  --brand:#1DC5D2; --brandInk:#6fe3ec; --brandWash:rgba(29,197,210,.16);
+  --good:#b8f542; --fair:#f6ad55; --goodWash:rgba(29,197,210,.08);
+  --rain:#bcc7fd; --rainAmount:#7fd1f0; --wind:#7fd1c4; --gust:#e8fbf7; --sun:#f3e08a;
+  --air:#dfe6ec; --humidity:#ee9fe0;
+  --display:'Barlow Condensed','Arial Narrow',sans-serif; --body:'Barlow','Segoe UI',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--txt1);font-family:var(--body);font-variant-numeric:tabular-nums;padding-block:24px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:2px solid var(--brandInk);outline-offset:2px}
+.wrap{max-width:1000px;margin:0 auto;display:flex;flex-wrap:wrap;gap:32px;justify-content:center;align-items:flex-start}
+.phone{width:390px;max-width:100%;border-radius:40px;overflow:clip;box-shadow:0 0 0 8px #040506,0 30px 80px #000c;background:var(--bg);padding:18px 16px 28px}
+.notes{flex:1 1 300px;min-width:0;max-width:440px;display:flex;flex-direction:column;gap:12px}
+.notes h1{margin:0;font-family:var(--display);font-weight:700;font-size:34px;line-height:1;text-wrap:balance}
+.notes h2{margin:8px 0 0;font-family:var(--display);font-weight:700;font-size:22px;line-height:1.1}
+.notes p,.notes li{margin:0;color:var(--muted);line-height:1.55;font-size:15px}
+.notes ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.notes b{color:var(--txt1);font-weight:600}
+.switch{display:flex;gap:6px;flex-wrap:wrap}
+.switch button{min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-family:var(--display);font-weight:600;font-size:16px;color:var(--txt2)}
+.switch button[aria-pressed="true"]{border-color:var(--brand);color:var(--brandInk);background:var(--brandWash)}
+
+/* ---------- screen chrome ---------- */
+.head{display:flex;align-items:flex-end;justify-content:space-between;padding:4px 0 10px;border-bottom:1px solid var(--line)}
+.head h2{margin:0;font-family:var(--display);font-weight:700;font-size:28px;line-height:1}
+.head .at{text-align:right;line-height:1}
+.head .at b{display:block;font-family:var(--display);font-weight:700;font-size:40px;color:var(--fair)}
+.head .at small{font-size:12px;color:var(--txt2)}
+.views{display:flex;gap:4px;margin:12px 0 8px}
+.views span{flex:1;text-align:center;padding:7px 0;border-radius:999px;background:var(--surface);border:1px solid var(--line);font-family:var(--display);font-weight:600;font-size:15px}
+.views span:first-child{border-color:var(--brand);background:var(--brandWash)}
+.cols,.row{display:grid;grid-template-columns:44px 22px 30px 40px minmax(0,1fr) 36px;align-items:center;column-gap:6px}
+.cols{font-size:11px;color:var(--txt2);padding:4px 0 8px;border-bottom:1px solid var(--line)}
+.cols .c{text-align:center}.cols .r{text-align:right}
+.lede{font-size:13px;color:var(--txt2);margin:10px 0 2px}
+.lede b{font-family:var(--display);font-size:17px;color:var(--txt1)}
+.row{min-height:42px;border-bottom:1px solid var(--line);font-family:var(--display);font-weight:700;font-size:18px}
+.row .h{font-size:15px;font-weight:600;line-height:1}
+.row .h small{display:block;font-family:var(--body);font-weight:500;font-size:11px;color:var(--brandInk);margin-top:2px}
+.row .pct{text-align:center;color:var(--rain)}.row .pct small{font-size:11px;font-weight:500}
+.row .w{text-align:right}
+.row.good{background:var(--goodWash)}
+.sun{width:14px;height:14px;border-radius:50%;background:var(--sun);box-shadow:0 0 0 3px rgba(243,224,138,.22)}
+.moon{width:12px;height:12px;border-radius:50%;box-shadow:inset -4px -1px 0 0 var(--tab)}
+.open{border-bottom:1px solid var(--line);padding-bottom:8px}
+.open .row{border-bottom:0}
+
+/* ---------- the detail, three treatments ---------- */
+/* Every variant spans the full row width: left edge under the hour label to the right edge under mph. */
+.detail{display:grid;gap:4px}
+.t{background:var(--raised);border-radius:10px;padding:6px 4px 7px;text-align:center;min-width:0;display:flex;flex-direction:column;justify-content:center}
+.t .l{font-size:11px;line-height:1.2;color:var(--tab);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t .l i{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:4px;vertical-align:1px}
+.t .v{font-family:var(--display);font-weight:700;font-size:21px;line-height:1.1}
+.t .n{font-size:11px;line-height:1.2;color:var(--tab);white-space:nowrap}
+
+/* A: 4 + 4 equal tiles. Gusts and direction fold into Wind. */
+.vA{grid-template-columns:repeat(4,minmax(0,1fr))}
+/* B: 5 + 4, Score spans two so row 2 fills. All nine figures keep their own tile. */
+.vB{grid-template-columns:repeat(5,minmax(0,1fr))}
+.vB .t .v{font-size:19px}
+.vB .span2{grid-column:span 2}
+/* C: two bands, no separate boxes: one raised strip per row, cells split by hairlines. */
+.vC{grid-template-columns:repeat(4,minmax(0,1fr));gap:0;background:var(--raised);border-radius:12px;overflow:hidden}
+.vC .t{background:none;border-radius:0;padding:8px 2px}
+.vC .t:not(:nth-child(4n+1)){box-shadow:inset 1px 0 0 rgba(255,255,255,.08)}
+.vC .t:nth-child(n+5){box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+.vC .t:nth-child(n+6){box-shadow:inset 1px 1px 0 rgba(255,255,255,.08)}
+[data-v] .only{display:none}
+[data-v="A"] .onlyA,[data-v="B"] .onlyB,[data-v="C"] .onlyA{display:flex}
+</style>
+</head><body>
+
+<div class="wrap">
+  <div class="phone" id="phone" data-v="A">
+    <div class="head"><h2>Sandstone</h2><div class="at"><b>57</b><small>Today 12 PM</small></div></div>
+    <div class="views" aria-hidden="true"><span>All</span><span>Temp</span><span>Rain</span><span>Wind</span><span>Sun</span></div>
+    <div class="cols"><span>Hour</span><span></span><span>Score</span><span>°F</span><span class="c">Chance of rain</span><span class="r">mph</span></div>
+    <p class="lede">Good hours <b>1pm–3pm</b></p>
+    <p class="lede">Dry all day: no ensemble member has measurable rain in any hour.</p>
+
+    <div class="open">
+      <div class="row"><span class="h">12 PM<small>Now</small></span><span class="sun"></span><span style="color:var(--fair)">57</span><span>27°</span><span class="pct">0<small>%</small></span><span class="w" style="color:var(--wind)">↗ 5</span></div>
+      <dl class="detail" id="detail" style="margin:0"></dl>
+    </div>
+
+    <div class="row good"><span class="h">1 PM</span><span class="sun"></span><span style="color:var(--good)">60</span><span>28°</span><span class="pct">0<small>%</small></span><span class="w">↗ 6</span></div>
+    <div class="row good"><span class="h">2 PM</span><span class="sun"></span><span style="color:var(--good)">64</span><span>29°</span><span class="pct">0<small>%</small></span><span class="w">↗ 6</span></div>
+    <div class="row good"><span class="h">3 PM</span><span></span><span style="color:var(--good)">65</span><span>29°</span><span class="pct">0<small>%</small></span><span class="w">↗ 6</span></div>
+    <div class="row"><span class="h">4 PM</span><span></span><span style="color:var(--fair)">59</span><span>28°</span><span class="pct">0<small>%</small></span><span class="w">↗ 5</span></div>
+    <div class="row"><span class="h">5 PM</span><span class="moon"></span><span style="color:var(--fair)">53</span><span>26°</span><span class="pct">0<small>%</small></span><span class="w">↗ 5</span></div>
+  </div>
+
+  <div class="notes">
+    <h1>Opened hour, two rows</h1>
+    <p>An opened hour's figures span the whole row, edge to edge, in two rows. Pick one.</p>
+    <div class="switch" role="group" aria-label="Variant">
+      <button id="bA" aria-pressed="true" data-set="A">A · 4 + 4 tiles</button>
+      <button id="bB" aria-pressed="false" data-set="B">B · 5 + 4 tiles</button>
+      <button id="bC" aria-pressed="false" data-set="C">C · two bands</button>
+    </div>
+    <h2>A · 4 + 4 tiles</h2>
+    <ul>
+      <li>Row 1: <b>Temperature, Humidity, Dew point, Score</b>. Row 2: <b>Chance, Rain, Sun, Wind</b>.</li>
+      <li>Gusts and direction move into the Wind tile's note ("gusts 9 · SW"), so eight tiles fill two rows of four exactly.</li>
+      <li>Each tile about 85 px wide on this phone; figures at 21 px.</li>
+    </ul>
+    <h2>B · 5 + 4 tiles</h2>
+    <ul>
+      <li>All nine figures keep their own tile; Score spans two cells so row 2 fills.</li>
+      <li>Tiles are about 67 px wide, so "Chance of rain" becomes "Chance" and figures drop to 19 px. Tightest of the three.</li>
+    </ul>
+    <h2>C · two bands</h2>
+    <ul>
+      <li>Same eight figures as A, but one raised strip per row split by hairlines instead of eight boxes.</li>
+      <li>Least visual noise: reads as one block under the hour rather than a grid of buttons.</li>
+    </ul>
+    <h2>Same in all three</h2>
+    <ul>
+      <li>The detail starts at the row's left edge (under "12 PM"), not indented under the score column.</li>
+      <li>Likely range under Temperature, the sun's hour under Sun. Score only on a crag.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const T=(l,v,n,dot,col,cls)=>`<div class="t ${cls||''}"><dt class="l">${dot?`<i style="background:var(--${dot})"></i>`:''}${l}</dt><dd style="margin:0"><div class="v"${col?` style="color:var(--${col})"`:''}>${v}</div>${n?`<div class="n">${n}</div>`:''}</dd></div>`;
+const eight=[
+  T('Temperature','27°','likely 23–29°','air'),T('Humidity','58%','','humidity'),T('Dew point','15°'),T('Score','57','',null,'fair'),
+  T('Chance','0%','','rain'),T('Rain','0 in','','rainAmount'),T('Sun','60 min','12–1 PM','sun'),T('Wind','5 mph','gusts 9 · SW','wind')
+].join('');
+const nine=[
+  T('Temp','27°','23–29°','air'),T('Humidity','58%','','humidity'),T('Dew pt','15°'),T('Chance','0%','','rain'),T('Rain','0 in','','rainAmount'),
+  T('Sun','60 min','12–1 PM','sun'),T('Wind','5 mph','from SW','wind'),T('Gusts','9 mph','','gust'),T('Score','57','',null,'fair','span2')
+].join('');
+const d=document.getElementById('detail'),p=document.getElementById('phone');
+function set(v){
+  p.dataset.v=v;d.className='detail v'+v;d.innerHTML=v==='B'?nine:eight;
+  document.querySelectorAll('[data-set]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.set===v)));
+  try{localStorage.setItem('hdr-v',v)}catch(e){}
+}
+document.querySelectorAll('[data-set]').forEach(b=>b.addEventListener('click',()=>set(b.dataset.set)));
+let start='A';try{start=localStorage.getItem('hdr-v')||'A'}catch(e){}
+set(['A','B','C'].includes(start)?start:'A');
+</script>
+</body></html>
