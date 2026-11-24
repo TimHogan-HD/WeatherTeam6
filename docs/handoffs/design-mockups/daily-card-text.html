@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Daily Card Text</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: the Daily tab's Seven days card on one phone, its small text under each day drawn four ways; a notes column beside it. Same palette and faces as the app (look-variants-644 C). */
+:root{
+  color-scheme:dark;
+  --ground:#0b0c0d; --bg:#121416; --surface:#1a1d1f; --raised:#282b2e; --line:#26292c;
+  --txt1:#f4f7fa; --txt2:#d3e1e4; --muted:#bccad0; --tab:#959ca3;
+  --brand:#1DC5D2; --brandInk:#6fe3ec; --brandWash:rgba(29,197,210,.16);
+  --good:#b8f542; --mid:#d9dc4c; --rain:#bcc7fd; --sun:#f3e08a; --sunWash:rgba(243,224,138,.12);
+  --track:#2a2e31; --cool:#7fd1c4; --warm:#f3e08a;
+  --display:'Barlow Condensed','Arial Narrow',sans-serif; --body:'Barlow','Segoe UI',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--txt1);font-family:var(--body);font-variant-numeric:tabular-nums;padding-block:24px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:2px solid var(--brandInk);outline-offset:2px}
+.wrap{max-width:1000px;margin:0 auto;display:flex;flex-wrap:wrap;gap:32px;justify-content:center;align-items:flex-start}
+.phone{width:390px;max-width:100%;border-radius:40px;overflow:clip;box-shadow:0 0 0 8px #040506,0 30px 80px #000c;background:var(--bg);padding:20px 16px 28px}
+.notes{flex:1 1 300px;min-width:0;max-width:440px;display:flex;flex-direction:column;gap:12px}
+.notes h1{margin:0;font-family:var(--display);font-weight:700;font-size:34px;line-height:1;text-wrap:balance}
+.notes h2{margin:8px 0 0;font-family:var(--display);font-weight:700;font-size:22px;line-height:1.1}
+.notes p,.notes li{margin:0;color:var(--muted);line-height:1.55;font-size:15px}
+.notes ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.notes b{color:var(--txt1);font-weight:600}
+.switch{display:flex;gap:6px;flex-wrap:wrap}
+.switch button{min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-family:var(--display);font-weight:600;font-size:16px;color:var(--txt2)}
+.switch button[aria-pressed="true"]{border-color:var(--brand);color:var(--brandInk);background:var(--brandWash)}
+
+.sect{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
+.sect h3{margin:0;font-family:var(--display);font-weight:700;font-size:22px}
+.sect small{font-size:12px;color:var(--muted)}
+.day{display:grid;grid-template-columns:26px minmax(0,1fr) 50px 112px 38px;column-gap:8px;row-gap:8px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
+.day:last-child{border-bottom:0}
+.sky{width:22px;height:22px;border-radius:50%;background:var(--sun);box-shadow:0 0 0 4px rgba(243,224,138,.18);justify-self:center}
+.sky.part{background:linear-gradient(135deg,var(--sun) 45%,var(--tab) 46%)}
+.name b{display:block;font-family:var(--display);font-weight:700;font-size:21px;line-height:1}
+.name small{font-size:13px;color:var(--muted)}
+.score{font-family:var(--display);font-weight:700;font-size:34px;line-height:1;text-align:center}
+.temps{display:flex;align-items:center;gap:5px;font-size:15px}
+.temps .lo{width:26px;text-align:right;color:var(--muted)}
+.temps .bar{position:relative;flex:1;height:6px;border-radius:3px;background:var(--track)}
+.temps .bar i{position:absolute;top:0;bottom:0;border-radius:3px;background:linear-gradient(90deg,var(--cool),var(--warm))}
+.chance{font-family:var(--display);font-weight:600;font-size:21px;color:var(--rain);text-align:right}
+.sub{grid-column:2 / -1;min-width:0}
+.dots{display:inline-flex;gap:3px;vertical-align:middle}
+.dots i{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--rain)}
+.dots i.wet{background:var(--rain)}
+
+/* Now: what is built. One run-on grey line, the sun line under it. */
+.now p{margin:0;font-size:14px;line-height:1.45;color:var(--muted)}
+.now p + p{margin-top:4px}
+.now .sunl{color:var(--sun);font-weight:600}
+
+/* A: chips. Each reading its own small pill, label muted, value bright; they wrap. */
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font-size:13px;line-height:1.3;color:var(--tab);white-space:nowrap}
+.chip b{color:var(--txt1);font-weight:600}
+.chip.sun{background:var(--sunWash);border-color:transparent;color:var(--sun)}
+.chip.sun b{color:var(--sun)}
+
+/* B: a stat row. Label over value, in fixed columns, so every day's figures line up down the card. */
+.stats{display:grid;grid-template-columns:1.25fr .8fr .7fr .8fr 1.25fr;gap:4px}
+.stats div{min-width:0}
+.stats dt{font-size:11px;line-height:1.2;color:var(--tab)}
+.stats dd{margin:0;font-family:var(--display);font-weight:600;font-size:17px;line-height:1.15;color:var(--txt1);white-space:nowrap}
+.stats dd small{font-family:var(--body);font-size:11px;font-weight:500;color:var(--tab)}
+.stats .s dd{color:var(--sun)}
+.models{grid-column:3;justify-self:center;margin-top:-4px;font-size:11px;color:var(--tab);text-align:center;line-height:1.2}
+.models .dots{display:flex;justify-content:center;margin-bottom:2px}
+
+/* C: labelled text. Same two lines as now, but each figure is a label and a value, with space between instead of dots. */
+.lab p{margin:0;font-size:14px;line-height:1.5;color:var(--tab);display:flex;flex-wrap:wrap;column-gap:14px}
+.lab p + p{margin-top:2px}
+.lab span{white-space:nowrap}
+.lab b{color:var(--txt1);font-weight:600;margin-left:4px}
+.lab .sunv b{color:var(--sun)}
+</style>
+</head><body>
+<div class="wrap">
+  <div class="phone">
+    <div class="sect"><h3>Seven days</h3><small>score · low–high · chance of rain</small></div>
+    <div id="days"></div>
+  </div>
+
+  <div class="notes">
+    <h1>Daily card, the small text</h1>
+    <p>The line under each day today reads as one grey run-on sentence. The same figures are drawn four ways below. Each one leaves the top row (sky, day, score, low–high, chance) alone.</p>
+    <div class="switch" role="group" aria-label="Variant">
+      <button data-set="now" aria-pressed="false">Now</button>
+      <button data-set="A" aria-pressed="true">A · chips</button>
+      <button data-set="B" aria-pressed="false">B · stat row</button>
+      <button data-set="C" aria-pressed="false">C · labelled</button>
+    </div>
+    <h2>Now</h2>
+    <ul><li>"good 1p–3p · Dry · 0 in · peak wind 6 mph", the sun line under it, and the model dots above it on days that have them. Every figure is the same grey, so nothing leads.</li></ul>
+    <h2>A · chips</h2>
+    <ul>
+      <li>Each reading is a small pill with its label: <b>Good 1p–3p</b>, <b>Rock Dry</b>, <b>Rain 0 in</b>, <b>Wind 6</b>, then Sun in yellow and the model dots.</li>
+      <li>Matches the view chips on Hourly. Busiest of the three; pills wrap to a second line on a long day.</li>
+    </ul>
+    <h2>B · stat row</h2>
+    <ul>
+      <li>Five fixed columns, label over value: Good, Rock, Rain, Wind, Sun. Every day's figures line up down the card, so you compare days by reading one column.</li>
+      <li>The model dots move under the score, where they belong (they qualify it).</li>
+      <li>Most like the new Hourly tiles, without the boxes. Sun shows only its hours here; the times stay on Hourly.</li>
+    </ul>
+    <h2>C · labelled</h2>
+    <ul>
+      <li>The same two lines as now, but each figure gets a muted label and a bright value, with space instead of " · ".</li>
+      <li>Smallest change; reads as text, not a grid.</li>
+    </ul>
+    <h2>Same in all</h2>
+    <ul>
+      <li>"Dry" gets its label, <b>Rock</b>, so it reads as a reading, not a forecast word. "peak wind" becomes <b>Wind</b>; the foot note says it is the day's peak.</li>
+      <li>"Sun 5–8 h · forecasts differ" stays as the sun's value when the models disagree.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const DAYS=[
+  {n:'Today',d:'Nov 24',s:60,c:'mid',lo:15,hi:30,ch:0,good:'1p–3p',rock:'Dry',rain:'0 in',wind:6,sunT:'9a–4p',sunH:'7 h',dots:null,sky:''},
+  {n:'Wednesday',d:'Nov 25',s:71,c:'good',lo:22,hi:36,ch:0,good:'12p–4p',rock:'Dry',rain:'0 in',wind:5,sunT:'8a–4p',sunH:'8 h',dots:[0,4],sky:''},
+  {n:'Thursday',d:'Nov 26',s:85,c:'good',lo:22,hi:38,ch:0,good:'9a–8p',rock:'Dry',rain:'0 in',wind:4,sunT:'8a–4p',sunH:'8 h',dots:[0,4],sky:''},
+  {n:'Friday',d:'Nov 27',s:100,c:'good',lo:23,hi:39,ch:21,good:'9a–8p',rock:'Dry',rain:'0 in',wind:8,sunT:null,sunH:'5–8 h',differ:true,dots:[0,4],sky:''},
+  {n:'Saturday',d:'Nov 28',s:69,c:'good',lo:29,hi:40,ch:15,good:'6p–11p',rock:'Dry',rain:'0 in',wind:9,sunT:'9a–1p, 3–4p',sunH:'5 h',dots:null,sky:'part'},
+];
+const LO=15,SPAN=25,pct=c=>((c-LO)/SPAN*100).toFixed(1);
+const dots=([w,m])=>`<span class="dots" aria-hidden="true">${Array.from({length:m},(_,i)=>`<i class="${i<w?'wet':''}"></i>`).join('')}</span>`;
+const sunText=d=>d.differ?`${d.sunH} · forecasts differ`:`${d.sunT} · ${d.sunH}`;
+const head=d=>`<span class="sky ${d.sky}"></span><span class="name"><b>${d.n}</b><small>${d.d}</small></span>
+  <span class="score" style="color:var(--${d.c})">${d.s}</span>
+  <span class="temps"><span class="lo">${d.lo}°</span><span class="bar"><i style="left:${pct(d.lo)}%;right:${100-pct(d.hi)}%"></i></span><span>${d.hi}°</span></span>
+  <span class="chance">${d.ch}%</span>`;
+const V={
+  now:d=>`<div class="sub now">${d.dots?`<p>${dots(d.dots)} ${d.dots[1]-d.dots[0]} of ${d.dots[1]} dry</p>`:''}<p>good ${d.good} · ${d.rock} · ${d.rain} · peak wind ${d.wind} mph</p><p class="sunl">Sun ${sunText(d)}</p></div>`,
+  A:d=>`<div class="sub chips"><span class="chip">Good <b>${d.good}</b></span><span class="chip">Rock <b>${d.rock}</b></span><span class="chip">Rain <b>${d.rain}</b></span><span class="chip">Wind <b>${d.wind} mph</b></span><span class="chip sun">Sun <b>${sunText(d)}</b></span>${d.dots?`<span class="chip">${dots(d.dots)} <b>${d.dots[1]-d.dots[0]} of ${d.dots[1]} dry</b></span>`:''}</div>`,
+  B:d=>`${d.dots?`<div class="models">${dots(d.dots)}${d.dots[1]-d.dots[0]} of ${d.dots[1]} dry</div>`:''}<dl class="sub stats" style="margin:0">
+    <div><dt>Good</dt><dd>${d.good}</dd></div><div><dt>Rock</dt><dd>${d.rock}</dd></div><div><dt>Rain</dt><dd>${d.rain}</dd></div>
+    <div><dt>Wind</dt><dd>${d.wind}<small> mph</small></dd></div><div class="s"><dt>Sun${d.differ?' · differ':''}</dt><dd>${d.sunH}</dd></div></dl>`,
+  C:d=>`<div class="sub lab"><p><span>Good<b>${d.good}</b></span><span>Rock<b>${d.rock}</b></span><span>Rain<b>${d.rain}</b></span><span>Wind<b>${d.wind} mph</b></span></p>
+    <p><span class="sunv">Sun<b>${sunText(d)}</b></span>${d.dots?`<span>Models<b>${dots(d.dots)} ${d.dots[1]-d.dots[0]} of ${d.dots[1]} dry</b></span>`:''}</p></div>`,
+};
+const box=document.getElementById('days');
+function set(v){
+  box.innerHTML=DAYS.map(d=>`<div class="day">${head(d)}${V[v](d)}</div>`).join('');
+  document.querySelectorAll('[data-set]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.set===v)));
+  try{localStorage.setItem('dct-v',v)}catch(e){}
+}
+document.querySelectorAll('[data-set]').forEach(b=>b.addEventListener('click',()=>set(b.dataset.set)));
+let s='A';try{s=localStorage.getItem('dct-v')||'A'}catch(e){}
+set(V[s]?s:'A');
+</script>
+</body></html>

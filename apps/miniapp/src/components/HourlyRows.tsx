@@ -322,13 +322,13 @@ export function HourlyRows({ series, selectedDate, onSelectDate, readMs, onRead,
             const inGood = good !== null && r.ms >= good.from && r.ms <= good.to
             const isNow = r.ms === nowMs
             return (
-              <li key={r.ms} style={{ borderBottom: `1px solid ${colorsV2.line}`, background: inGood ? chartColorsV2.goodHours : undefined }}>
+              <li key={r.ms} style={{ borderBottom: `1px solid ${colorsV2.line}` }}>
                 <button
                   type="button"
                   aria-expanded={open}
                   aria-label={`${hourLabel(r.ms)}${isNow ? ', now' : ''}`}
                   onClick={() => tap(r.ms)}
-                  style={{ ...bareButton, ...grid, width: '100%', minHeight: 46, textAlign: 'left' }}
+                  style={{ ...bareButton, ...grid, width: '100%', minHeight: 46, textAlign: 'left', background: inGood ? chartColorsV2.goodHours : undefined }}
                 >
                   <span style={{ ...typeV2.hourPick, whiteSpace: 'nowrap', paddingLeft: 2, color: open || isNow ? colorsV2.txt1 : colorsV2.txt2 }}>
                     {hourLabel(r.ms)}

@@ -11,6 +11,7 @@ import {
 } from '@weatherteam6/types'
 import { HourlyRows, windNote } from '../components/HourlyRows.js'
 import { HOUR_MS } from '../components/charts/hourlySeries.js'
+import { chartColorsV2 } from '../components/charts/chartStyle.js'
 import { compass, firstAhead, hourRows, rowInches, scaleTop } from './hourlyRows.js'
 
 /**
@@ -253,6 +254,14 @@ describe('HourlyRows — on screen', () => {
     const city = render(scored(), false, Date.parse(at(30)))
     expect(city).toContain('Gusts')
     expect(city).not.toContain('from W, gusts')
+  })
+
+  it('shades a good hour’s row, never the figures opened under it', () => {
+    // 13:00 sits inside the fixture's good window (13:00–16:00).
+    const html = render(scored(twoDays, [readingsDay(DAY_2, 80)]), true, Date.parse(at(37)))
+    const shade = chartColorsV2.goodHours
+    expect(html).toMatch(new RegExp(`<button[^>]*aria-expanded="true"[^>]*background:${shade.replace(/[()]/g, '\\$&')}`))
+    expect(html).not.toMatch(/<li[^>]*background/)
   })
 
   it('writes Wind’s note with a dash for an unanswered gust, never dropping it', () => {
