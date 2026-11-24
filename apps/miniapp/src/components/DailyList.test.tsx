@@ -157,6 +157,21 @@ describe('DailyList — rows', () => {
     expect(html).toMatch(/>Rock<\/span><span data-day-rock=""[^>]*>Wet</)
   })
 
+  it('speaks a scored day with no good hours as "no good hours", not "good None"', () => {
+    const html = render(
+      <DailyList
+        days={[day(DATES[0])]}
+        readings={readings([readingsDay(DATES[0], 30, 'wet')])}
+        hours={[]}
+        sky={[]}
+        onSelectDay={() => {}}
+        drawableDates={new Set([DATES[0]])}
+      />,
+    )
+    expect(html).toContain('no good hours, rock Wet')
+    expect(html).not.toContain('good None')
+  })
+
   it('dashes Good and Rock for a day the model could not read, and drops them for a city', () => {
     const crag = render(
       <DailyList days={[day(DATES[0])]} readings={readings([readingsDay(DATES[0], null)])} hours={[]} sky={[]} />,

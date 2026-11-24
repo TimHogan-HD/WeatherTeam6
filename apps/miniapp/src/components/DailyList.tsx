@@ -215,7 +215,7 @@ export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDat
               )}
             </>
           )
-          const spoken = `${[name, date].filter((s) => s !== '').join(' ')}: ${!crag ? '' : d.score === null ? 'no score, ' : `score ${d.score}, `}low ${formatTempDeg(day.temp_c_min)}, high ${formatTempDeg(day.temp_c_max)}, ${chance === null ? 'chance of rain unknown' : `${chance}% chance of rain`}${!crag || d.score === null || d.span === null ? '' : `, good ${d.span}`}${!crag || d.dryness === null ? '' : `, rock ${d.dryness}`}${sun === null ? '' : sun.gap ? ', sun unknown' : `, sun ${sun.value}`}`
+          const spoken = `${[name, date].filter((s) => s !== '').join(' ')}: ${!crag ? '' : d.score === null ? 'no score, ' : `score ${d.score}, `}low ${formatTempDeg(day.temp_c_min)}, high ${formatTempDeg(day.temp_c_max)}, ${chance === null ? 'chance of rain unknown' : `${chance}% chance of rain`}${!crag || d.score === null || d.span === null ? '' : d.span === 'None' ? ', no good hours' : `, good ${d.span}`}${!crag || d.dryness === null ? '' : `, rock ${d.dryness}`}${sun === null ? '' : sun.gap ? ', sun unknown' : `, sun ${sun.value}`}`
           const style = { ...step, ...(i === rows.length - 1 ? { ...rowGrid, borderBottom: 'none' } : rowGrid) }
           return open === null ? (
             <div key={day.forecast_date} className="wt6-rise" style={style}>
