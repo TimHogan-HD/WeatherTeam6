@@ -34,7 +34,7 @@ import {
   type GuidebookWall,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, brandButton, cardV2, choicePill, fieldV2, quietButton, row, stack } from '../theme/styles.js'
+import { bareButton, brandButton, sectionV2, choicePill, fieldV2, quietButton, row, stack } from '../theme/styles.js'
 import { backTarget } from '../lib/backTarget.js'
 import {
   CLEARED_PLACE,
@@ -247,7 +247,7 @@ function ForecastCheckForm({
 
   return (
     <>
-      <section style={{ ...cardV2, ...stack(spacing.sectionGap) }} aria-label="Where you climbed">
+      <section style={{ ...sectionV2, ...stack(spacing.sectionGap) }} aria-label="Where you climbed">
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 3fr) minmax(0, 2fr)', gap: `${spacing.listGapSm}px` }}>
           <Field label="Crag">
             <select value={locationId ?? ''} onChange={(e) => pickCrag(e.target.value)} style={fieldV2} aria-label="Crag">
@@ -295,7 +295,7 @@ function ForecastCheckForm({
         </div>
       </section>
 
-      <section style={{ ...cardV2, ...stack(spacing.sectionGap) }} aria-label="The app’s forecast">
+      <section style={{ ...sectionV2, ...stack(spacing.sectionGap) }} aria-label="The app’s forecast">
         <Field label="The app said">
           {!readingSettled ? (
             <span style={typeV2.body}>Loading the app’s reading…</span>
@@ -693,7 +693,7 @@ function AppFeedbackForm({ initialMessage, onSaved }: { initialMessage: string; 
   }
 
   return (
-    <section style={{ ...cardV2, ...stack(spacing.listGapLg) }}>
+    <section style={{ ...sectionV2, ...stack(spacing.listGapLg) }}>
       <MessageField label="What’s working, what isn’t" value={message} onChange={setMessage} />
       {create.isError ? <InlineError message="Couldn't send this feedback." /> : null}
       <SubmitButton disabled={!ready || create.isPending} pending={create.isPending} onClick={submit}>
@@ -714,7 +714,7 @@ function History() {
   if (list.isError) return <InlineError message="Couldn't load your feedback." onRetry={() => void list.refetch()} />
   if (list.data.length === 0) return null
   return (
-    <section style={{ ...cardV2, ...stack(spacing.listGapLg) }} aria-label="Open feedback">
+    <section style={{ ...sectionV2, ...stack(spacing.listGapLg) }} aria-label="Open feedback">
       <Sect title="Open feedback" aside={`${list.data.length} open`} />
       {resolve.isError ? <InlineError message="Couldn't mark that done." /> : null}
       {list.data.map((f, i) => (

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import { inviteStatus, type InviteCreated } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, brandButton, cardV2, quietButton, row, stack, wellV2 } from '../theme/styles.js'
+import { bareButton, brandButton, sectionV2, quietButton, row, stack, wellV2 } from '../theme/styles.js'
 import { Sect } from './charts/liquid.js'
 import { useAccount, useCancelInvite, useCreateInvite, useInvites } from '../hooks/useAccount.js'
 import { useNow } from '../hooks/useNow.js'
@@ -40,7 +40,7 @@ export function InviteCard() {
   const pill = { ...quietButton, minHeight: '44px' }
 
   return (
-    <section style={{ ...cardV2, ...stack(spacing.listGapLg) }}>
+    <section style={{ ...sectionV2, ...stack(spacing.listGapLg) }}>
       <div>
         <Sect title="Invite someone" />
         <p style={typeV2.body}>

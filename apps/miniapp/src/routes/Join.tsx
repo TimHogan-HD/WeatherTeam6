@@ -4,7 +4,7 @@ import { useNavigate } from '../hooks/useNavigate.js'
 import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import { isValidUsername, MIN_PASSPHRASE_LENGTH, passphraseProblem } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { brandButton, cardV2, fieldV2, stack } from '../theme/styles.js'
+import { brandButton, sectionV2, fieldV2, stack } from '../theme/styles.js'
 import { apiRedeemInvite, ApiError } from '../lib/api.js'
 import { setToken } from '../lib/authToken.js'
 import { Screen } from '../components/Screen.js'
@@ -78,7 +78,7 @@ export function Join() {
 
   return (
     <Screen title="WeatherTeam6">
-      <form onSubmit={onSubmit} style={{ ...cardV2, ...stack(spacing.listGapLg), marginTop: `${spacing.sectionTop}px` }}>
+      <form onSubmit={onSubmit} style={{ ...sectionV2, ...stack(spacing.listGapLg), marginTop: `${spacing.sectionTop}px` }}>
         <p style={{ ...typeV2.body, fontSize: '15px' }}>You’ve been invited. Pick a username and passphrase.</p>
 
         <label style={stack(spacing.tight)}>

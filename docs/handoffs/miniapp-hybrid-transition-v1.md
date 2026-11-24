@@ -18,7 +18,11 @@ the mockup are sample data. Only the crag names are real.
 
 - **Look:** a clean, dark liquid-glass style on a still background. There is no
   time-of-day sky and no weather drawn behind the content. Each section is a frosted
-  glass card. Motion is only in front, and only when a reading changes.
+  glass card. Motion is only in front, and only when a reading changes. **Superseded for
+  sections on 2026-11-23** (owner, #644 variant C "Open list"): every in-flow section is
+  now open (`sectionV2`: space and one hairline, no card). Glass stays only on panes that
+  float over content (`surfaceV2`: the save bar, the map's overlays), the dock, the bottom
+  bar and the headers. Where the phases below say "glass card", read "section".
 - **Chart glow: Soft.** The line charts keep a soft glow and a thin highlight, well
   short of the old neon. In the mockup this is `GL.soft` (`{sd:1.6, a:.4, w:.55}`): blur
   std-dev 1.6, glow alpha 0.4, stroke widths at 0.55×. Put the numbers into tokens in

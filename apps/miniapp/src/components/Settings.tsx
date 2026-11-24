@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import { CLIMB_HOURS_DEFAULT, TEMP_RANGE_DEFAULT_F, climbHoursLabel, type Preferences } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, brandButton, cardV2, choicePill, row, stack } from '../theme/styles.js'
+import { bareButton, brandButton, sectionV2, choicePill, row, stack } from '../theme/styles.js'
 import { Sect } from './charts/liquid.js'
 import { usePreferences, useUpdatePreferences } from '../hooks/usePreferences.js'
 import {
@@ -131,7 +131,7 @@ function SettingsForm({ saved }: { saved: Preferences }) {
 
 function Card({ title, note, children }: { title: string; note: string; children: ReactNode }) {
   return (
-    <section style={{ ...cardV2, ...stack(spacing.listGapLg) }}>
+    <section style={{ ...sectionV2, ...stack(spacing.listGapLg) }}>
       <div>
         <Sect title={title} />
         <p style={typeV2.body}>{note}</p>

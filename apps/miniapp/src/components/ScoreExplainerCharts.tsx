@@ -94,7 +94,7 @@ export function DryingChart({ rockType }: { rockType: RockType | null }) {
       {DRYING_TICKS.map(([h, text]) => (
         <g key={h}>
           <line x1={x(h)} x2={x(h)} y1={top - 6} y2={height} stroke="rgba(255,255,255,0.08)" />
-          <text x={x(h)} y={top - 10} textAnchor={h === 0 ? 'start' : h === DRYING_MAX_H ? 'end' : 'middle'} fontFamily={MONO} fontSize={11} fill={colorsV2.txtMuted}>
+          <text x={x(h)} y={top - 10} textAnchor={h === 0 ? 'start' : h === DRYING_MAX_H ? 'end' : 'middle'} fontFamily={MONO} fontSize={12} fill={colorsV2.txtMuted}>
             {text}
           </text>
         </g>
@@ -187,7 +187,7 @@ export function GripBand({ rangeF }: { rangeF: { low: number; high: number } }) 
       {[0, 20, 40, 80, 100]
         .filter((f) => Math.abs(f - rangeF.low) > 9 && Math.abs(f - rangeF.high) > 9)
         .map((f) => (
-          <text key={f} x={x(f)} y={bandY + bandH + 18} textAnchor={f === 0 ? 'start' : f === 100 ? 'end' : 'middle'} fontFamily={MONO} fontSize={11} fill={colorsV2.txtMuted}>
+          <text key={f} x={x(f)} y={bandY + bandH + 18} textAnchor={f === 0 ? 'start' : f === 100 ? 'end' : 'middle'} fontFamily={MONO} fontSize={12} fill={colorsV2.txtMuted}>
             {`${f}°`}
           </text>
         ))}
@@ -250,7 +250,7 @@ export function DayScoreExample() {
               {s}
             </text>
             {i % 2 === 0 ? (
-              <text x={cx} y={base + 16} textAnchor="middle" fontFamily={MONO} fontSize={11} fill={colorsV2.txtMuted}>
+              <text x={cx} y={base + 16} textAnchor="middle" fontFamily={MONO} fontSize={12} fill={colorsV2.txtMuted}>
                 {clock12(f.dayFirstHour + i, 'tick')}
               </text>
             ) : null}

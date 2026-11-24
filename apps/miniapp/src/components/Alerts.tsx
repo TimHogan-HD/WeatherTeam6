@@ -1,6 +1,6 @@
 import { colors, colorsV2, spacing } from '@weatherteam6/design/tokens'
 import type { WeatherAlert } from '@weatherteam6/types'
-import { type } from '../theme/tokens.css.js'
+import { type, typeV2 } from '../theme/tokens.css.js'
 import { alertSurface, stack } from '../theme/styles.js'
 import { ALERTS_UNCHECKED_LINE, alertParagraphs, alertUntil, sortBySeverity } from '../lib/forecast.js'
 
@@ -58,7 +58,7 @@ function AlertCard({ alert, utcOffsetSeconds, now }: { alert: WeatherAlert; utcO
 
   const head = (
     <div style={{ flex: 1, minWidth: 0 }}>
-      <p style={{ ...type.labelSm, color: colors.poor }}>
+      <p style={{ ...typeV2.statLabel, color: colors.poor }}>
         {alert.event} · {alert.severity}
       </p>
       {alert.headline !== null && alert.headline !== '' ? (
@@ -83,7 +83,7 @@ function AlertCard({ alert, utcOffsetSeconds, now }: { alert: WeatherAlert; utcO
         ))}
         {instruction.length > 0 ? (
           <>
-            <p style={{ ...type.labelSm, color: colors.poor, marginTop: `${spacing.micro}px` }}>What to do</p>
+            <p style={{ ...typeV2.statLabel, color: colors.poor, marginTop: `${spacing.micro}px` }}>What to do</p>
             {instruction.map((p, i) => (
               <p key={`i${i}`} style={type.bodySm}>
                 {p}

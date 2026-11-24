@@ -4,7 +4,7 @@ import { useNavigate } from '../hooks/useNavigate.js'
 import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import { ROCK_TYPE_GROUPS, isRockType, rockTypeLabel, type Location } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { brandButton, cardV2, fieldV2, stack } from '../theme/styles.js'
+import { brandButton, sectionV2, fieldV2, stack } from '../theme/styles.js'
 import { Sect } from '../components/charts/liquid.js'
 import { backTarget, detailTabPath } from '../lib/backTarget.js'
 import { ApiError } from '../lib/api.js'
@@ -127,7 +127,7 @@ function saveErrorLine(error: unknown): string {
 
 function Section({ title, note, children }: { title: string; note: string; children: ReactNode }) {
   return (
-    <section style={{ ...cardV2, ...stack(spacing.listGapLg) }}>
+    <section style={{ ...sectionV2, ...stack(spacing.listGapLg) }}>
       <div>
         <Sect title={title} />
         <p style={typeV2.body}>{note}</p>

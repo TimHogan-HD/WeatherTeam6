@@ -1,5 +1,5 @@
 import { useState, type CSSProperties, type ReactNode } from 'react'
-import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
+import { colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import {
   TICK_NOTE_MAX,
   TICK_STYLES,
@@ -9,8 +9,8 @@ import {
   type RouteTick,
   type TickStyle,
 } from '@weatherteam6/types'
-import { typeV2, withOpacity } from '../../theme/tokens.css.js'
-import { bareButton, btnPrimary, btnPrimaryText, row, stack, wellV2 } from '../../theme/styles.js'
+import { typeV2 } from '../../theme/tokens.css.js'
+import { bareButton, brandButton, row, stack, wellV2 } from '../../theme/styles.js'
 import { formatTickDate, localDateString } from '../../lib/logbook.js'
 import { useCreateTick, useDeleteTick, useLogbook, useSetTodo } from '../../hooks/useLogbook.js'
 import { useNow } from '../../hooks/useNow.js'
@@ -47,7 +47,7 @@ export function PrimaryButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      style={{ ...bareButton, ...btnPrimary, ...btnPrimaryText, width: 'auto', textAlign: 'center', opacity: disabled ? 0.5 : 1 }}
+      style={{ ...brandButton, opacity: disabled ? 0.5 : 1 }}
     >
       {children}
     </button>
@@ -185,8 +185,9 @@ function LogbookBody({ route, logbook }: { route: GuidebookRoute; logbook: Logbo
           padding: `${spacing.listGap}px ${spacing.cellPad}px`,
           borderRadius: `${radius.rowV2}px`,
           backgroundColor: colorsV2.surface,
-          border: `1px solid ${onTodo ? withOpacity(colors.good, 0.5) : colorsV2.line}`,
-          color: onTodo ? colorsV2.goodInk : colorsV2.txt1,
+          // Off lime: lime is for scores only (owner, 2026-11-23, #644); the tick says it is on the list.
+          border: `1px solid ${colorsV2.line}`,
+          color: colorsV2.txt1,
         }}
       >
         {onTodo ? '✓ On to-do list' : '+ Add to to-do list'}
@@ -195,7 +196,7 @@ function LogbookBody({ route, logbook }: { route: GuidebookRoute; logbook: Logbo
         <button
           type="button"
           onClick={() => setTicking(true)}
-          style={{ ...bareButton, ...btnPrimary, ...btnPrimaryText, textAlign: 'center', minHeight: '44px' }}
+          style={{ ...brandButton, width: '100%' }}
         >
           Tick it
         </button>

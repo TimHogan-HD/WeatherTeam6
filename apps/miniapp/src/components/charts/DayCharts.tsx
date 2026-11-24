@@ -16,7 +16,7 @@ import {
   sunStrength,
 } from '@weatherteam6/types'
 import { typeV2 } from '../../theme/tokens.css.js'
-import { bareButton, cardV2 } from '../../theme/styles.js'
+import { bareButton, sectionV2 } from '../../theme/styles.js'
 import { selection } from '../../theme/glass.js'
 import { CardStack } from '../CardStack.js'
 import { SkyIcon } from '../Icons.js'
@@ -117,10 +117,14 @@ export function rainScaleUnit(hours: readonly HourlySample[]): string {
 /** Air with no score beside it is neutral ink: a tint with no number would claim a score nobody can read. */
 const AIR_NEUTRAL = chartColorsV2.air
 
-export const sectCard: CSSProperties = { ...cardV2, padding: `${spacing.sectionGap}px 14px 14px` }
-/** The chart runs past the card's padding by the mockup's 22px, so its hour labels line up with the card's text. */
-export const bleed: CSSProperties = { margin: '0 -22px' }
-export const keyInset: CSSProperties = { padding: '0 22px' }
+export const sectCard: CSSProperties = sectionV2
+/**
+ * The chart runs 14px past the section's edge, as the Today chart does, so its plot
+ * uses the screen's width without leaving it: the screen's gutter is 16px and an open
+ * section's padding 2px (#644 variant C). It was 22px past a glass card's padding.
+ */
+export const bleed: CSSProperties = { margin: '0 -14px' }
+export const keyInset: CSSProperties = { padding: '0 14px' }
 
 export function DayCharts({ series, selectedDate, onSelectDate, readMs, onRead, score }: DayChartsProps) {
   const now = useNow()

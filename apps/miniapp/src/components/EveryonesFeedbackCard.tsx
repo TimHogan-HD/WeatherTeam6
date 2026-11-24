@@ -1,6 +1,6 @@
 import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import { typeV2 } from '../theme/tokens.css.js'
-import { cardV2, quietButton, row, stack } from '../theme/styles.js'
+import { sectionV2, quietButton, row, stack } from '../theme/styles.js'
 import { Sect } from './charts/liquid.js'
 import { useAccount } from '../hooks/useAccount.js'
 import { useAllFeedback, useResolveFeedback } from '../hooks/useFeedback.js'
@@ -25,7 +25,7 @@ function EveryonesFeedback() {
   const resolve = useResolveFeedback()
 
   return (
-    <section style={{ ...cardV2, ...stack(spacing.listGapLg) }}>
+    <section style={{ ...sectionV2, ...stack(spacing.listGapLg) }}>
       <div>
         <Sect title="Everyone’s feedback" />
         <p style={typeV2.body}>

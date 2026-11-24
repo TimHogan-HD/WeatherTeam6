@@ -14,7 +14,7 @@ import {
   bareButton,
   bottomClearance,
   brandButton,
-  cardV2,
+  sectionV2,
   choicePill,
   fieldV2,
   headerBand,
@@ -143,7 +143,7 @@ function TripCard({ trip, today, onOpen }: { trip: Trip; today: string; onOpen: 
     <button
       type="button"
       onClick={onOpen}
-      style={{ ...bareButton, ...cardV2, ...stack(spacing.micro), padding: `${spacing.sectionGap}px 18px` }}
+      style={{ ...bareButton, ...sectionV2, ...stack(spacing.micro), padding: `${spacing.listGapLg}px 2px`, textAlign: 'left' }}
     >
       <span style={typeV2.listName}>{trip.name}</span>
       <span style={{ ...typeV2.rowSmall, fontSize: '13px' }}>{meta}</span>
@@ -369,7 +369,7 @@ function TripForm({ title, backLabel, path, initial, onBack, pending, failed, su
   return (
     <FormScreen title={title} backLabel={backLabel} onBack={onBack}>
       <form
-        style={{ ...cardV2, ...stack(spacing.cellPad), padding: `${spacing.sectionGap}px ${spacing.sectionGap}px 18px` }}
+        style={{ ...sectionV2, ...stack(spacing.cellPad) }}
         onSubmit={(e) => {
           e.preventDefault()
           submit()

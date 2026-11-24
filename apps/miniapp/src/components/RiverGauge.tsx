@@ -1,7 +1,7 @@
 import { colors, colorsV2, spacing } from '@weatherteam6/design/tokens'
 import { riverState, type RiverGaugeReading } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { alertSurface, cardV2, stack } from '../theme/styles.js'
+import { alertSurface, sectionV2, stack } from '../theme/styles.js'
 import { overviewLine, overviewShows } from '../lib/riverGauge.js'
 
 /**
@@ -27,7 +27,7 @@ export function RiverOverviewLines({
         const { label, value } = overviewLine(r, nowMs, utcOffsetSeconds)
         const high = riverState(r, nowMs).kind === 'high'
         return (
-          <div key={r.site + r.spot} style={high ? alertSurface : { ...cardV2 }}>
+          <div key={r.site + r.spot} style={high ? alertSurface : { ...sectionV2 }}>
             <p style={{ ...typeV2.gaugeLabel, color: high ? colors.poor : colorsV2.txtMuted }}>{label}</p>
             <p style={{ ...typeV2.body, marginTop: `${spacing.micro}px` }}>{value}</p>
           </div>

@@ -9,7 +9,7 @@ import {
   type RockType,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { cardV2, stack } from '../theme/styles.js'
+import { sectionV2, stack } from '../theme/styles.js'
 import { Sect } from './charts/liquid.js'
 import { DayScoreExample, DryingChart, GripBand, ScoreEquation } from './ScoreExplainerCharts.js'
 
@@ -31,7 +31,7 @@ export function ScoreExplainer({ rangeF }: { rangeF: RangeF }) {
   }, [])
 
   return (
-    <section id={SCORE_EXPLAINER_ID} ref={ref} style={{ ...cardV2, ...stack(spacing.listGap) }}>
+    <section id={SCORE_EXPLAINER_ID} ref={ref} style={{ ...sectionV2, ...stack(spacing.listGap) }}>
       <Sect title="How the score works" />
       <ScoreExplainerParts rangeF={rangeF} />
     </section>

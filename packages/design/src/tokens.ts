@@ -675,14 +675,15 @@ export const type = {
  * eyebrow, and IBM Plex Mono for every figure.
  */
 export const typeV2 = {
-  /** A line above a location's title, its rock and elevation: Barlow Condensed 12/600, uppercase, tracking 0.12em. */
+  /**
+   * A line above a location's title, its rock and elevation: Barlow 13/500, sentence
+   * case, muted (owner, 2026-11-23, #644: no tracked caps, lime only on scores).
+   */
   eyebrow: {
-    fontFamily: fonts.display,
-    fontSize: 12,
-    fontWeight: '600' as const,
-    letterSpacing: 1.44,
-    textTransform: 'uppercase' as const,
-    color: colors.good,
+    fontFamily: fonts.body,
+    fontSize: 13,
+    fontWeight: '500' as const,
+    color: colorsV2.txtMuted,
   },
   /** Screen title: Barlow 30/600. */
   screenTitle: {
@@ -695,7 +696,7 @@ export const typeV2 = {
   /** Line under a title — count, freshness: Plex Mono 11/400. */
   meta: {
     fontFamily: fonts.mono,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '400' as const,
     color: colorsV2.txtMuted,
   },
@@ -731,7 +732,7 @@ export const typeV2 = {
   /** Figure in a chip, and the legend's key: Plex Mono 10/500. */
   chip: {
     fontFamily: fonts.mono,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '500' as const,
     color: colorsV2.txt1,
   },
@@ -750,13 +751,13 @@ export const typeV2 = {
   /** A reading pill's label — "Dryness": Barlow 11/500. */
   pill: {
     fontFamily: fonts.body,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '500' as const,
   },
-  /** A reading pill's value — "Dry": Barlow 11/600. */
+  /** A reading pill's value — "Dry": Barlow 12/600. */
   pillValue: {
     fontFamily: fonts.body,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600' as const,
   },
 
@@ -775,12 +776,11 @@ export const typeV2 = {
    * and what that figure is, in Barlow 11/500 under it. Colour is the figure's.
    */
   slimName: {
+    // Sentence case since #644 variant C (owner, 2026-11-23); it was tracked caps at 14.
     fontFamily: fonts.display,
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600' as const,
-    letterSpacing: 1.4,
-    textTransform: 'uppercase' as const,
-    lineHeight: 17,
+    lineHeight: 19,
     color: colorsV2.txt1,
   },
   /** Hourly's slim header names the crag as its headline (owner, 2026-10-20): Barlow Condensed 28/700. */
@@ -799,7 +799,7 @@ export const typeV2 = {
   },
   slimFigureLabel: {
     fontFamily: fonts.body,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '500' as const,
     color: colorsV2.txtMuted,
   },
@@ -1108,13 +1108,11 @@ export const typeV2 = {
     fontWeight: '700' as const,
     lineHeight: 30,
   },
-  /** A week-strip tile's word — "WED", "TODAY": Barlow 13/600, uppercase, tracking 0.06em. Colour is its state. */
+  /** A week-strip tile's word — "Wed", "Today": Barlow 13/600, as written (#644: no tracked caps). Colour is its state. */
   dayTileWord: {
     fontFamily: fonts.body,
     fontSize: 13,
     fontWeight: '600' as const,
-    letterSpacing: 0.78,
-    textTransform: 'uppercase' as const,
   },
   /** A week-strip tile's date — "21": Barlow Condensed 26/700. Colour is its state. */
   dayTileDate: {
@@ -1135,13 +1133,11 @@ export const typeV2 = {
     fontSize: 14,
     fontWeight: '600' as const,
   },
-  /** A card's uppercase kicker — "Conditions now · 13:00": Barlow Condensed 12/600, tracking 0.1em. */
+  /** A small line over a figure — "Conditions now · 13:00": Barlow 13/500, as written (#644: no tracked caps). */
   kicker: {
-    fontFamily: fonts.display,
-    fontSize: 12,
-    fontWeight: '600' as const,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase' as const,
+    fontFamily: fonts.body,
+    fontSize: 13,
+    fontWeight: '500' as const,
   },
   /** The hero's present temperature: Plex Mono 46/500. */
   heroTemp: {
@@ -1216,9 +1212,11 @@ export const typeV2 = {
   },
   /** A card's title — "Today": Barlow 17/600. */
   cardTitle: {
-    fontFamily: fonts.body,
-    fontSize: 17,
+    // The same heading as `sect` (#644 variant C), so every section on every tab reads alike.
+    fontFamily: fonts.display,
+    fontSize: 20,
     fontWeight: '600' as const,
+    lineHeight: 24,
     color: colorsV2.txt1,
   },
   /** A link inside a card — "Reset", "Create another link": Barlow 14/600, in the hybrid's aqua ink. */
@@ -1231,7 +1229,7 @@ export const typeV2 = {
   /** An hour cell's clock label: Plex Mono 11/400. */
   cellHour: {
     fontFamily: fonts.mono,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '400' as const,
     color: colorsV2.txtMuted,
   },
@@ -1322,7 +1320,7 @@ export const typeV2 = {
   /** A reading tile's label — "Dryness": Barlow 11/500. */
   tileLabel: {
     fontFamily: fonts.body,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '500' as const,
     color: colorsV2.txtMuted,
   },
@@ -1364,7 +1362,7 @@ export const typeV2 = {
   /** An axis tick — "06", "70°": Plex Mono 10/400. */
   axisTick: {
     fontFamily: fonts.mono,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '400' as const,
     color: colorsV2.txtMuted,
   },
@@ -1381,7 +1379,7 @@ export const typeV2 = {
   /** A compact legend key — "Dry", "Snow": Barlow 11/400. */
   legendSm: {
     fontFamily: fonts.body,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '400' as const,
     color: colorsV2.txtMuted,
   },

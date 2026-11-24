@@ -5,7 +5,7 @@ import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import { matchKnownCrag, placeSubtitle, type GeocodeResult, type RockType } from '@weatherteam6/types'
 import type { RockLock } from '../components/SaveBar.js'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, brandButton, cardV2, fieldV2, quietButton, row, stack } from '../theme/styles.js'
+import { bareButton, brandButton, sectionV2, fieldV2, quietButton, row, stack } from '../theme/styles.js'
 import { ChevronRightIcon, LocateIcon } from '../components/Icons.js'
 import { backTarget } from '../lib/backTarget.js'
 import { fromFix, fromGeocode, fromMapPoint, mapPointFromSearch, type Candidate } from '../lib/addCandidate.js'
@@ -270,7 +270,7 @@ function CurrentLocation({
       return (
         <button
           type="button"
-          style={{ ...bareButton, ...cardV2, ...row(spacing.listGapLg), padding: `${spacing.sectionGap}px 18px` }}
+          style={{ ...bareButton, ...sectionV2, ...row(spacing.listGapLg), padding: `${spacing.sectionGap}px 2px`, minHeight: '44px' }}
           onClick={onLocate}
         >
           <LocateIcon color={colorsV2.brandInk} />
@@ -281,7 +281,7 @@ function CurrentLocation({
       return <Working line="Reading location…" onCancel={onCancel} />
     case 'failed':
       return (
-        <div style={{ ...cardV2, ...stack(spacing.listGapLg) }}>
+        <div style={{ ...sectionV2, ...stack(spacing.listGapLg) }}>
           <span role="status" style={{ ...typeV2.body, fontSize: '15px', color: colorsV2.txt1 }}>
             {reading.message}
           </span>
@@ -300,7 +300,7 @@ function CurrentLocation({
 
 function Working({ line, onCancel }: { line: string; onCancel: () => void }) {
   return (
-    <div style={{ ...cardV2, ...row(spacing.listGap), justifyContent: 'space-between' }}>
+    <div style={{ ...sectionV2, ...row(spacing.listGap), justifyContent: 'space-between' }}>
       <span role="status" style={{ ...typeV2.body, fontSize: '15px', color: colorsV2.txt1 }}>
         {line}
       </span>
@@ -333,7 +333,7 @@ function SearchResults({
   if (results.length === 0) return <p style={typeV2.body}>No places match that name.</p>
 
   return (
-    <div style={{ ...cardV2, paddingBlock: `${spacing.tight}px` }}>
+    <div style={{ ...sectionV2, paddingBlock: `${spacing.tight}px` }}>
       {results.map((result, i) => (
         <button
           key={result.id}
@@ -384,7 +384,7 @@ function CoordinateEntry({ onChoose }: { onChoose: (candidate: Candidate) => voi
   }, [name, lat, lon])
 
   return (
-    <div style={{ ...cardV2, ...stack(spacing.listGapLg) }}>
+    <div style={{ ...sectionV2, ...stack(spacing.listGapLg) }}>
       {[
         { label: 'Name', value: name, set: setName, mode: 'text' as const },
         { label: 'Latitude', value: lat, set: setLat, mode: 'decimal' as const },

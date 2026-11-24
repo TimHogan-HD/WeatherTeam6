@@ -161,10 +161,7 @@ function Pin() {
     <span
       style={{
         ...typeV2.keyRow,
-        fontSize: '10px',
         fontWeight: 600,
-        letterSpacing: '0.05em',
-        textTransform: 'uppercase',
         color: colorsV2.surface,
         background: colorsV2.brandInk,
         borderRadius: '999px',

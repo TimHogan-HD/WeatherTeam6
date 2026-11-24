@@ -179,7 +179,7 @@ export function Label({
   children: ReactNode
 }) {
   return (
-    <text x={x} y={y} fontFamily={MONO} fontSize={9} fill={color} textAnchor={anchor}>
+    <text x={x} y={y} fontFamily={MONO} fontSize={LABEL_SIZE} fill={color} textAnchor={anchor}>
       {children}
     </text>
   )
@@ -193,8 +193,14 @@ export function Label({
  */
 const SCALE_EDGE = 10
 const SCALE_GAP = 4
-/** IBM Plex Mono's advance at a `Label`'s 9 units. */
-const LABEL_CHAR_W = 5.4
+/**
+ * A `Label`'s size in viewBox units: 11, which draws at 12 px or more wherever the
+ * chart is 425 px wide or wider (the owner's phone draws it at about 13). It was
+ * 9 until the 12 px floor (#644).
+ */
+export const LABEL_SIZE = 11
+/** IBM Plex Mono's advance, 0.6 em, at `LABEL_SIZE`. */
+const LABEL_CHAR_W = LABEL_SIZE * 0.6
 
 /** The longest scale figure at each side, in characters; 0 for a side with none. */
 export type ScaleChars = { left: number; right: number }
@@ -222,7 +228,7 @@ export function ScaleFigure({
   children: ReactNode
 }) {
   return (
-    <Label x={side === 'start' ? SCALE_EDGE : LIQUID_W - SCALE_EDGE} y={y + 3} anchor={side} color={color}>
+    <Label x={side === 'start' ? SCALE_EDGE : LIQUID_W - SCALE_EDGE} y={y + 4} anchor={side} color={color}>
       {children}
     </Label>
   )

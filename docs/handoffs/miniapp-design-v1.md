@@ -166,8 +166,8 @@ dots; sun and shade walls under the hero (#445). **Open sections, not cards** (o
 2026-11-23, #644 variant C, `look-variants-644.html`): the hero sits on the ground and each
 section below is set off by space and one hairline; Next days is a list, one day per row
 (day, sky, high/low, chance of rain, score); Right now is label and value rows, each still
-opening its tab. Hourly, Precip and Rock keep their cards until the owner has seen the
-Overview.
+opening its tab. Every other screen has the same open sections since 2026-11-24 (owner:
+"make this update to all other pages").
 
 **Daily** (`DailyList.tsx`, mockup `dailyTab`): one card, **Seven days**, a row per day —
 sky, day, score, the low and high on a bar shared by the week, the chance of rain — with
@@ -412,7 +412,7 @@ constants and copy rules. Its React Native library choices are replaced:
 
 | `design-system-v1.md` says | The web app uses |
 | --- | --- |
-| `LinearGradient` | CSS gradients from the tokens; the hybrid look is a still background with frosted glass cards |
+| `LinearGradient` | CSS gradients from the tokens; the hybrid look is a still background; sections are open (`sectionV2`), and only panes floating over content are frosted glass (`surfaceV2`) |
 | `react-native-svg` | Inline SVG, no chart library |
 | `@tabler/icons-react-native` | `@tabler/icons-react`, same names (`Icons.tsx`) |
 | "no CSS vars, no className" | CSS custom properties at `:root` from the tokens (§0a) |

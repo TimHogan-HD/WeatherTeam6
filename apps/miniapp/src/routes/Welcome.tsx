@@ -3,7 +3,7 @@ import { useLocation as useRouterLocation } from 'react-router-dom'
 import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import { CLIMB_HOURS_DEFAULT, TEMP_RANGE_DEFAULT_F, hourLabel, type Preferences, type SetupPreviewDay } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, bottomClearance, brandButton, cardV2, choicePill, row, stack } from '../theme/styles.js'
+import { bareButton, bottomClearance, brandButton, sectionV2, choicePill, row, stack } from '../theme/styles.js'
 import { scoreColor } from '../components/charts/chartStyle.js'
 import { RangeSlider } from '../components/RangeSlider.js'
 import { InlineError, Skeleton } from '../components/States.js'
@@ -213,10 +213,7 @@ function WelcomeForm({ saved }: { saved: Preferences }) {
 /** The Feedback button's look, inert, so the reader knows what to look for. Same tokens as `FeedbackButton`. */
 const feedbackLook = {
   ...typeV2.controlValue,
-  color: colors.good,
-  border: `1px solid ${colors.good}`,
-  borderRadius: `${radius.full}px`,
-  padding: `${spacing.tight}px ${spacing.cardPadSm}px`,
+  color: colorsV2.txtMuted,
   flexShrink: 0,
 }
 
@@ -272,7 +269,7 @@ function ExampleWeek({
   const day = days[chosen] ?? null
   const names = preview.data?.days.map((d) => weekday(d.date)) ?? ['Thu', 'Fri', 'Sat', 'Sun', 'Mon']
   return (
-    <div style={{ ...cardV2, ...stack(spacing.cellPad), padding: `${spacing.cardPadSm}px` }} aria-busy={preview.data === null}>
+    <div style={{ ...sectionV2, ...stack(spacing.cellPad) }} aria-busy={preview.data === null}>
       <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ ...typeV2.cardName, color: colorsV2.txt1 }}>{preview.data?.crag_name ?? 'Red Wing'}</span>
         <span style={{ ...typeV2.eyebrow, color: colorsV2.txtMuted }}>Example · sample week</span>

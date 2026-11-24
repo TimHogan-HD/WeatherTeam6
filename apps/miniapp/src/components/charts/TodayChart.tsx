@@ -15,6 +15,7 @@ import {
   MONO,
   ReadChip,
   ScaleFigure,
+  LABEL_SIZE,
   Tube,
   XGradient,
   clearTapped,
@@ -223,7 +224,7 @@ export function TodayChart({
               x={x(p.ms)}
               y={SCORE_Y - 14}
               fontFamily={MONO}
-              fontSize={9}
+              fontSize={LABEL_SIZE}
               fill={colorsV2.txtMuted}
               textAnchor="middle"
             >
