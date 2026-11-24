@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Overview and Hourly Variants</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: two decisions (Overview, Hourly), each one phone at 390 px with a variant switcher above and a notes column beside it; stacks on a phone. Look is #644 variant C on pick G's ground. */
+:root{
+  color-scheme:dark;
+  /* colorsV2, packages/design/src/tokens.ts */
+  --bg:#121416; --surface:#1a1d1f; --card:#1d2022; --raised:#282b2e; --line:#26292c;
+  --txt1:#f4f7fa; --txt2:#d3e1e4; --muted:#bccad0; --tab:#959ca3;
+  --brand:#1DC5D2; --brandInk:#6fe3ec; --brandWash:rgba(29,197,210,.16);
+  --good:#b8f542; --fair:#f6ad55; --poor:#fc8181;
+  --rain:#bcc7fd; --rainMark:#a5b4fc; --rainAmount:#7fd1f0; --rangeFrost:#cfe8ff;
+  --wind:#7fd1c4; --gust:#e8fbf7; --sun:#ffd76a; --air:#dfe6ec;
+  --ground:#0b0c0d; --goodInk:#c8f76a;
+  --display:'Barlow Condensed','Arial Narrow',sans-serif; --body:'Barlow','Segoe UI',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--txt1);font-family:var(--body);font-variant-numeric:tabular-nums;padding-block:24px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:2px solid var(--brandInk);outline-offset:2px}
+p{margin:0}
+code{font-size:.92em;color:var(--txt2)}
+
+/* page frame */
+.page{max-width:1000px;margin:0 auto;display:flex;flex-direction:column;gap:56px}
+.intro{display:flex;flex-direction:column;gap:8px;max-width:660px}
+.intro h1{margin:0;font-family:var(--display);font-weight:700;font-size:36px;line-height:1.05;text-wrap:balance}
+.intro p{color:var(--muted);font-size:15px;line-height:1.55}
+.decision{display:flex;flex-direction:column;gap:16px}
+.decision > h2{margin:0;font-family:var(--display);font-weight:700;font-size:28px;line-height:1.1}
+.switch{display:flex;gap:6px;flex-wrap:wrap}
+.switch button{min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-family:var(--display);font-weight:600;font-size:16px;color:var(--txt2)}
+.switch button[aria-pressed="true"]{border-color:var(--brand);color:var(--brandInk);background:var(--brandWash)}
+.wrap{display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start}
+.phone{width:390px;max-width:100%;border-radius:40px;overflow:hidden;box-shadow:0 0 0 8px #020304,0 30px 80px #000c;background:var(--bg);padding:18px 16px 28px}
+.notes{flex:1 1 300px;min-width:0;max-width:470px;display:flex;flex-direction:column;gap:12px}
+.notes h3{margin:0;font-family:var(--display);font-weight:700;font-size:24px;line-height:1.1}
+.notes p,.notes li{color:var(--muted);line-height:1.55;font-size:15px}
+.notes ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.notes b{color:var(--txt1);font-weight:600}
+.notes .data{border-left:2px solid var(--line);padding-left:12px}
+.notes .rule{border-left:2px solid var(--fair);padding-left:12px}
+.conflicts{display:flex;flex-direction:column;gap:12px;max-width:720px}
+.conflicts h2{margin:0;font-family:var(--display);font-weight:700;font-size:28px}
+.conflicts ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px}
+.conflicts li{color:var(--muted);line-height:1.55;font-size:15px}
+.conflicts b{color:var(--txt1);font-weight:600}
+
+/* phone parts: #644 variant C */
+.bar{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px}
+.back{min-width:44px;min-height:44px;border:0;background:none;color:var(--brandInk);font-size:22px;padding:0;text-align:left}
+.fb{border:0;background:none;color:var(--muted);min-height:44px;padding:0 4px;font-size:15px}
+.tabs{display:flex;gap:4px;overflow-x:auto;padding:2px 0 8px;scrollbar-width:none}
+.tabs span{flex:none;font-size:14px;color:var(--tab);padding:6px 10px;border-radius:999px}
+.tabs span.on{color:var(--brandInk);background:var(--brandWash)}
+.name{font-family:var(--display);font-weight:700;font-size:28px;line-height:1.1;padding:6px 2px 0}
+.fresh{font-size:13px;color:var(--muted);padding:2px 2px 0}
+.hero{display:flex;align-items:baseline;gap:12px;padding:6px 2px 4px}
+.big{font-family:var(--display);font-weight:700;font-size:88px;line-height:.9}
+.hero p{font-size:15px;color:var(--txt2);line-height:1.4}
+.hero p span{color:var(--muted)}
+.sec{padding:20px 2px 0}
+.sec h4{margin:0 0 4px;font-family:var(--display);font-weight:600;font-size:20px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.sec h4 small{font-family:var(--body);font-weight:400;font-size:13px;color:var(--muted)}
+.kv{display:flex;flex-direction:column}
+.kv div{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--line);font-size:15px}
+.kv div:first-child{border-top:0}
+.kv span{color:var(--muted)}
+.kv b{font-weight:600;text-align:right}
+.kv b small{display:block;font-weight:400;font-size:13px;color:var(--muted)}
+.src{font-size:12px;color:var(--muted);padding-top:8px;line-height:1.45}
+.days{display:flex;flex-direction:column}
+.day{display:grid;grid-template-columns:4.2em 1fr auto auto;gap:4px 10px;align-items:baseline;padding:9px 0;border-top:1px solid var(--line);font-size:15px}
+.day:first-child{border-top:0}
+.day .d{font-weight:600}
+.day .t{color:var(--txt2)}
+.day .c{color:var(--rain);text-align:right;min-width:2.6em}
+.day .s{font-family:var(--display);font-weight:700;font-size:22px;text-align:right;min-width:1.6em}
+.day .sub{grid-column:2/5;font-size:13px;color:var(--muted);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.day .sub .gh{color:var(--txt2)}
+.dots{display:inline-flex;gap:3px;vertical-align:middle}
+.dots i{width:7px;height:7px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--muted)}
+.dots i.w{background:var(--rainMark);box-shadow:none}
+.check{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:9px 0;border-top:1px solid var(--line);font-size:15px}
+.check:first-of-type{border-top:0}
+.check span{color:var(--muted);font-size:13px;grid-column:1/3}
+.match{font-size:13px;color:var(--goodInk,#c8f76a)}
+
+/* charts */
+.chart{display:block;width:100%;height:auto;touch-action:pan-y;cursor:crosshair}
+.chip{font-size:13px;color:var(--txt2);background:var(--raised);border-radius:999px;padding:2px 9px;white-space:nowrap}
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;padding:8px 0 2px}
+.week button{border:0;background:none;border-radius:12px;padding:6px 0;display:flex;flex-direction:column;align-items:center;gap:2px;min-height:44px}
+.week button span{font-size:12px;color:var(--muted)}
+.week button b{font-family:var(--display);font-weight:700;font-size:18px}
+.week button.on{background:var(--raised)}
+.week button.on span{color:var(--txt1)}
+.hhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:4px 2px 0}
+.hhead .name{padding:0}
+.hhead .hs{text-align:right}
+.hhead .hs small{display:block;font-size:13px;color:var(--muted)}
+.hhead .hs b{font-family:var(--display);font-weight:700;font-size:40px;line-height:1}
+.strip{display:grid;grid-template-columns:repeat(16,1fr);gap:2px;margin-top:6px}
+.strip i{height:22px;border-radius:3px}
+.strip i.read{outline:2px solid var(--txt1);outline-offset:1px}
+.rainrow{display:grid;grid-template-columns:repeat(16,1fr);gap:2px;margin-top:3px}
+.rainrow i{height:6px;border-radius:2px}
+.striplab{display:grid;grid-template-columns:repeat(16,1fr);gap:2px;font-size:12px;color:var(--muted);padding-top:3px}
+.seg{display:flex;gap:4px;padding:12px 0 4px;flex-wrap:wrap}
+.seg button{min-height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:none;font-size:14px;color:var(--txt2)}
+.seg button[aria-pressed="true"]{border-color:var(--brand);color:var(--brandInk);background:var(--brandWash)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted);padding-top:4px}
+.legend i{display:inline-block;width:14px;height:0;border-top:2px solid;vertical-align:middle;margin-right:4px}
+.sumrow{display:flex;flex-direction:column;gap:2px;padding-top:12px}
+.sumrow div{display:flex;justify-content:space-between;gap:12px;font-size:15px;padding:6px 0;border-top:1px solid var(--line)}
+.sumrow div:first-child{border-top:0}
+.sumrow span{color:var(--muted)}
+
+@media (prefers-reduced-motion:no-preference){.switch button,.seg button{transition:background .15s ease-out,border-color .15s ease-out}}
+</style>
+</head><body>
+<main class="page">
+  <header class="intro">
+    <h1>Overview and Hourly, from the weather app research</h1>
+    <p>Two screens, each with the current layout and two variants built from the research report (<code>docs/handoffs/weather-app-ui-research-v1.md</code>). Every variant keeps the copy rules: no word from the score, a reading is a label and a value, weather beside every score. The figures are an invented Thursday at Taylors Falls, where the day scores 85 on its dry morning while rain arrives at 2 PM. Drag across any Hourly chart to read an hour.</p>
+  </header>
+
+  <!-- ===================== Overview ===================== -->
+  <section class="decision" aria-labelledby="d1">
+    <h2 id="d1">1. Overview</h2>
+    <div class="switch" role="group" aria-label="Overview variant" data-group="ov">
+      <button type="button" aria-pressed="true" data-v="O0">Current</button>
+      <button type="button" aria-pressed="false" data-v="O1">A · Timing first</button>
+      <button type="button" aria-pressed="false" data-v="O2">B · How sure</button>
+    </div>
+    <div class="wrap">
+      <div class="phone" aria-label="Overview, phone width">
+        <div class="bar"><button class="back" type="button" aria-label="Back">‹</button><button class="fb" type="button">Feedback</button></div>
+        <div class="tabs"><span class="on">Overview</span><span>Daily</span><span>Hourly</span><span>Precip</span><span>Rock</span><span>Crag</span></div>
+        <div class="name">Taylors Falls</div>
+        <p class="fresh" data-ov="O1 O2">Forecast checked 10:05 AM · 4 models</p>
+        <div class="hero">
+          <div class="big" style="color:var(--good)">92</div>
+          <p>Score at 10 AM<br>Dry · 41°F · good 10 AM–6 PM<br><span>Basalt</span></p>
+        </div>
+
+        <!-- A/B: timing block -->
+        <section class="sec" data-ov="O1 O2">
+          <h4>Rain</h4>
+          <div class="kv">
+            <div><span>Next rain</span><b>Thu 2–6 PM<small>about 0.2 in · 3 of 4 models</small></b></div>
+            <div><span>Rock dry again</span><b>Fri about 1 PM</b></div>
+            <div><span>Last rain</span><b>Sun · 0.12 in</b></div>
+          </div>
+        </section>
+
+        <section class="sec" data-ov="O0">
+          <h4>Today</h4>
+          <svg class="chart" id="ovToday" viewBox="0 0 358 110" role="img" aria-label="Today's air temperature from 10 AM, coloured by score"></svg>
+        </section>
+
+        <section class="sec">
+          <h4>Next days</h4>
+          <div class="days" id="ovDays"></div>
+          <p class="src" data-ov="O2">One dot per weather model; a filled dot is a model that leaves the rock wet that day.</p>
+        </section>
+
+        <section class="sec" data-ov="O2">
+          <h4>Forecast checks here</h4>
+          <div class="check"><b>Sat Nov 21 · you</b><b class="match">Dry, as forecast</b><span>Score that morning 90 · 1 photo</span></div>
+          <div class="check"><b>Nov 14 · Sam</b><b style="color:var(--fair)">Damp in the cracks</b><span>Score that morning 72</span></div>
+        </section>
+
+        <section class="sec">
+          <h4>Right now</h4>
+          <div class="kv">
+            <div data-ov="O0"><span>Last rain</span><b>0.12 in, Sunday</b></div>
+            <div data-ov="O0"><span>Next rain</span><b>Thursday</b></div>
+            <div><span>Wind</span><b>9 mph, gusts 13</b></div>
+            <div><span>Humidity</span><b>58%</b></div>
+          </div>
+          <p class="src">Air: HRRR · rain: median of GFS, ECMWF, ICON, GEM<span data-ov="O0"> · checked 10:05 AM</span></p>
+        </section>
+      </div>
+
+      <div class="notes">
+        <div data-ov="O0">
+          <h3>Current</h3>
+          <ul>
+            <li>Thursday reads <b>85</b> in Next days, and nothing on this screen says the rain starts at 2 PM. The day score is the best three hours (the morning), which is right for "can I climb Thursday", and silent on "until when".</li>
+            <li>Next rain says <b>Thursday</b>. The time, amount and model agreement are two taps away on Precip.</li>
+            <li>Freshness sits at the foot of Right now.</li>
+          </ul>
+        </div>
+        <div data-ov="O1" hidden>
+          <h3>A · Timing first</h3>
+          <ul>
+            <li><b>A Rain section under the hero</b>: next rain with its hours, amount and model count; when the rock is dry again; the last rain. Three label and value rows, no sentence.</li>
+            <li><b>Good hours under each day</b> in Next days, so Thursday's 85 carries "good 8 AM–2 PM".</li>
+            <li><b>Freshness under the name</b>, from <code>checked_at</code>.</li>
+            <li>The Today chart moves down or goes: the Rain section answers its main question. Your call; it can stay below Next days.</li>
+          </ul>
+          <p class="data"><b>Research:</b> timing is the feature users remember from Dark Sky and praise in Hello Weather; "when it will rain" ranked first in the 2006 national survey; climbers ask for amounts and percentages, not an icon (report options 1, 6, 7).</p>
+          <p class="data"><b>Data:</b> all exists. The drying clock's forward run gives "dry again" (Precip already prints it); <code>rain_split</code> gives the count; <code>checked_at</code> is the freshness claim (<code>lib/format.ts</code>). Good hours per day are on <code>/hourly</code>.</p>
+        </div>
+        <div data-ov="O2" hidden>
+          <h3>B · How sure</h3>
+          <ul>
+            <li>Everything in A, plus <b>model dots on every scored day</b>, as Daily shows them since #644, with <code>N of 4 dry</code>. Sunday's 90 shows 2 of 4 dry; Tuesday's 92 shows 4 of 4.</li>
+            <li><b>Forecast checks here</b>: the last few Report entries at this crag, with the score that morning beside what was found. It is the one place the app can show its own track record.</li>
+          </ul>
+          <p class="data"><b>Research:</b> uncertainty shown as numbers improved decisions and softened lost trust after a miss (Met Office game n=8,220; Joslyn's lab). Acme's founder calls nearby reports the most reliable signal. No climbing app found shows its own hit rate (report options 5, 10).</p>
+          <p class="rule"><b>Decide:</b> partners' checks are per account today (<code>/visits</code> is the reader's own). Showing Sam's check to Tim is a new cross-account read and a privacy choice. Shown here with both, to judge.</p>
+          <p class="data"><b>Data:</b> dots exist (<code>rain_split</code>, days scored 70 or more; Friday at 64 has none). Own checks exist. Partners' checks need a new route.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== Hourly ===================== -->
+  <section class="decision" aria-labelledby="d2">
+    <h2 id="d2">2. Hourly</h2>
+    <div class="switch" role="group" aria-label="Hourly variant" data-group="hr">
+      <button type="button" aria-pressed="true" data-v="H0">Current</button>
+      <button type="button" aria-pressed="false" data-v="H1">A · Day strip, one chart</button>
+      <button type="button" aria-pressed="false" data-v="H2">B · Spread shown</button>
+    </div>
+    <div class="wrap">
+      <div class="phone" aria-label="Hourly, phone width">
+        <div class="bar"><button class="back" type="button" aria-label="Back">‹</button><button class="fb" type="button">Feedback</button></div>
+        <div class="tabs"><span>Overview</span><span>Daily</span><span class="on">Hourly</span><span>Precip</span><span>Rock</span><span>Crag</span></div>
+        <div class="hhead">
+          <div><div class="name">Taylors Falls</div><p class="fresh" data-hr="H2">Forecast checked 10:05 AM</p></div>
+          <div class="hs"><small id="hrWhen">Score at Thu 3 PM</small><b id="hrScore">12</b></div>
+        </div>
+        <div class="week" id="week"></div>
+
+        <!-- A: day strip + summary + one chart -->
+        <section class="sec" data-hr="H1">
+          <h4>Thursday<small>each block one hour, 6 AM–9 PM</small></h4>
+          <div class="strip" id="strip"></div>
+          <div class="rainrow" id="rainrow"></div>
+          <div class="striplab"><span style="grid-column:1/5">6 AM</span><span style="grid-column:7/11">12 PM</span><span style="grid-column:13/17">6 PM</span></div>
+          <p class="src">Hours outside your climbing hours (8 AM–6 PM) are dimmed.</p>
+          <div class="sumrow">
+            <div><span>Good hours</span><b>8 AM–2 PM</b></div>
+            <div><span>Rain</span><b>2–6 PM · about 0.2 in · 3 of 4 models</b></div>
+          </div>
+          <div class="seg" role="group" aria-label="Chart">
+            <button type="button" aria-pressed="true" data-m="score">Score</button>
+            <button type="button" aria-pressed="false" data-m="rain">Rain</button>
+            <button type="button" aria-pressed="false" data-m="temp">Temperature</button>
+            <button type="button" aria-pressed="false" data-m="wind">Wind</button>
+          </div>
+          <h4 style="font-size:17px"><span id="oneTitle">Score</span><span class="chip" id="oneChip"></span></h4>
+          <svg class="chart scrub" id="oneChart" viewBox="0 0 358 130" role="img" aria-label="One chart for the chosen measure"></svg>
+        </section>
+
+        <!-- Current and B: card stack -->
+        <section class="sec" data-hr="H0 H2">
+          <h4>Temperature<span class="chip" id="tChip"></span></h4>
+          <svg class="chart scrub" id="tChart" viewBox="0 0 358 130" role="img" aria-label="Air temperature by hour"></svg>
+          <div class="legend" data-hr="H2"><span><i style="border-color:var(--air)"></i>median</span><span><i style="border-top:8px solid rgba(207,232,255,.22);height:8px;border-top-width:8px"></i>8 in 10 runs fall inside</span></div>
+        </section>
+        <section class="sec" data-hr="H0 H2">
+          <h4>Rain<span class="chip" id="rChip"></span></h4>
+          <svg class="chart scrub" id="rChart" viewBox="0 0 358 130" role="img" aria-label="Rain by hour"></svg>
+          <div class="legend" data-hr="H2"><span><i style="border-color:var(--rainAmount);border-top-width:6px"></i>median of 4</span><span><i style="border-color:var(--rainMark);border-top-style:dashed"></i>GFS, ECMWF, ICON (wet)</span><span><i style="border-color:var(--muted);border-top-style:dotted"></i>GEM (dry)</span></div>
+        </section>
+        <section class="sec" data-hr="H0 H2">
+          <h4>Wind<span class="chip" id="wChip"></span></h4>
+          <svg class="chart scrub" id="wChart" viewBox="0 0 358 110" role="img" aria-label="Wind and gusts by hour"></svg>
+        </section>
+      </div>
+
+      <div class="notes">
+        <div data-hr="H0">
+          <h3>Current</h3>
+          <ul>
+            <li>Header: the crag and the score of the hour being read. The week strip picks the day.</li>
+            <li>One card per measure (temperature and humidity, sun, rain, wind; sun and humidity left out here for length), one scrub across all of them, each with its read-hour chip.</li>
+            <li>To find "until when is Thursday good", a reader scrubs the header score hour by hour. No line says it.</li>
+          </ul>
+        </div>
+        <div data-hr="H1" hidden>
+          <h3>A · Day strip, one chart</h3>
+          <ul>
+            <li><b>A day strip</b>: one block per hour coloured by that hour's score on the existing rungs, with rain hours marked under it. The whole day reads in one look, the way Dark Sky's timeline did.</li>
+            <li><b>Two rows under it</b>: good hours and the rain window. Labels and values.</li>
+            <li><b>One chart, a switch above it</b>: Score, Rain, Temperature, Wind. Shorter screen; the scrub reads the chosen measure. Acme ships this; Apple's iOS 27 beta has the same idea.</li>
+          </ul>
+          <p class="data"><b>Research:</b> glanceable first, depth one tap down (report option 8); a line chart beat a table and icons alone did worst (Met Office game).</p>
+          <p class="rule"><b>Decide:</b> an hourly score as a chart. The owner removed the score bars from Overview's Today chart (2026-10-20) because they repeated the hero; here the score is the day's shape, not a repeat. And the switch hides three of four charts, which the card reorder (<code>CardStack</code>) would no longer arrange.</p>
+          <p class="data"><b>Data:</b> all exists on <code>/hourly</code>.</p>
+        </div>
+        <div data-hr="H2" hidden>
+          <h3>B · Spread shown</h3>
+          <ul>
+            <li><b>Temperature with its band</b>: the p10–p90 range of the ensemble behind the median line, keyed in words ("8 in 10 runs fall inside").</li>
+            <li><b>Rain with each model's line</b> behind the median columns. GEM keeps Thursday dry; three models put the shower between 1 and 7 PM. A reader sees why the count is 3 of 4.</li>
+            <li><b>Freshness under the name.</b></li>
+          </ul>
+          <p class="data"><b>Research:</b> Acme's founding idea is alternate forecasts as faint lines; Windy shows predictability per day. Fan charts biased readers optimistic in one study, so the band is soft-edged and the median stays the brightest mark (report option 5).</p>
+          <p class="data"><b>Data:</b> the temperature band exists (<code>temp_c_p10</code>, <code>temp_c_p90</code>; <code>--rangeFrost</code> is already a token). <b>Per-model hourly rain is not on the response</b>: the server reads it for the median and the split, then drops it. It would be a new field on <code>/hourly</code>.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="conflicts" aria-labelledby="d3">
+    <h2 id="d3">Research options not drawn, because a rule says no</h2>
+    <ul>
+      <li><b>A word band beside the score</b> (Good, Caution, Poor), which every climbing app found uses. Copy rule 1: no word is mapped from the score. The Met Office game also found numbers beat low/medium/high at equal information, so the rule and the evidence agree here.</li>
+      <li><b>A verdict sentence</b> ("Dry until 2 PM, showers to 6 PM"). Copy rule 3: a reading is a label and a value. Variant A carries the same facts as rows; a sentence would need the rule changed.</li>
+      <li><b>Marking the score unvalidated</b>, or holding back the top of the scale until a check backs it. A product and safety call; variant B's Forecast checks is the softer version.</li>
+      <li><b>"Crag becomes climbable" alerts.</b> Parked: there is no notification channel.</li>
+    </ul>
+  </section>
+</main>
+
+<script>
+(function(){
+  // ---------- example data: Thursday at Taylors Falls, 6 AM to 9 PM ----------
+  var HRS=[6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21];
+  var TEMP=[34,35,37,39,41,43,44,44,43,41,40,39,38,37,36,35];
+  var SPREAD=[2,2,2,2.5,2.5,3,3,3,3.5,3.5,3.5,3.5,4,4,4,4];
+  var RAIN=[0,0,0,0,0,0,0,0,.02,.06,.07,.04,.01,0,0,0];
+  var MODELS={GFS:[0,0,0,0,0,0,0,0,.04,.08,.08,.05,.02,0,0,0],ECMWF:[0,0,0,0,0,0,0,.01,.03,.06,.06,.03,0,0,0,0],ICON:[0,0,0,0,0,0,0,0,0,.03,.07,.06,.03,.01,0,0],GEM:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]};
+  var SCORE=[70,72,85,86,88,90,88,72,30,12,8,8,10,12,14,16];
+  var WIND=[6,6,7,8,9,10,12,14,16,15,13,11,9,8,7,6];
+  var GUST=[9,9,11,12,13,15,18,21,24,23,20,17,14,12,11,10];
+  var WEEK=[["Tue",92],["Wed",95],["Thu",85],["Fri",64],["Sat",88],["Sun",90],["Mon",78]];
+  var DAYS=[
+    {d:"Today",t:"41° / 28°",c:"",s:92,gh:"10 AM–6 PM",dots:[0,0,0,0]},
+    {d:"Wed",t:"45° / 30°",c:"",s:95,gh:"9 AM–6 PM",dots:[0,0,0,0]},
+    {d:"Thu",t:"44° / 34°",c:"70%",s:85,gh:"8 AM–2 PM",dots:[1,1,1,0]},
+    {d:"Fri",t:"40° / 29°",c:"10%",s:64,gh:"1 PM–6 PM",dots:null},
+    {d:"Sat",t:"38° / 25°",c:"",s:88,gh:"10 AM–5 PM",dots:[0,0,0,0]},
+    {d:"Sun",t:"42° / 27°",c:"30%",s:90,gh:"9 AM–4 PM",dots:[1,1,0,0]}
+  ];
+  function col(s){return s>=60?"var(--good)":s>=40?"var(--fair)":"var(--poor)"}
+  function hl(h){return h===12?"12 PM":h>12?(h-12)+" PM":h+" AM"}
+  function shortH(h){return h===12?"12p":h>12?(h-12)+"p":h+"a"}
+
+  var state={ov:"O0",hr:"H0",read:9,metric:"score"};
+
+  // ---------- Overview ----------
+  function dotsHtml(a){var w=0,h='<span class="dots" aria-hidden="true">';a.forEach(function(x){h+='<i'+(x?' class="w"':'')+'></i>';if(!x)w++});return h+'</span> '+w+' of '+a.length+' dry'}
+  function renderDays(){
+    var h="";
+    DAYS.forEach(function(r){
+      var wet=r.dots?r.dots.filter(Boolean).length:0;
+      var showDots=r.dots&&(state.ov==="O2"||(r.s>=70&&wet>=2));
+      var sub=[];
+      if(state.ov!=="O0")sub.push('<span class="gh">good '+r.gh+'</span>');
+      if(showDots)sub.push(dotsHtml(r.dots));
+      h+='<div class="day"><span class="d">'+r.d+'</span><span class="t">'+r.t+'</span><span class="c">'+(r.c||"")+'</span><b class="s" style="color:'+col(r.s)+'">'+r.s+'</b>'+(sub.length?'<span class="sub">'+sub.join(' · ')+'</span>':'')+'</div>';
+    });
+    document.getElementById("ovDays").innerHTML=h;
+  }
+  function renderOvToday(){
+    var temps=[41,41,40,40,39,38,36,34,33,31,30,29], sc=[92,92,94,95,93,90,84,80,76,72,70,68];
+    var W=358,H=110,L=28,R=8,T=10,B=20,lo=25,hi=45;
+    var x=function(i){return L+i*(W-L-R)/(temps.length-1)},y=function(v){return T+(hi-v)/(hi-lo)*(H-T-B)};
+    var s="";
+    [30,40].forEach(function(v){s+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+y(v)+'" y2="'+y(v)+'" stroke="var(--line)" fill="none"/><text x="'+(L-6)+'" y="'+(y(v)+4)+'" fill="var(--muted)" font-size="12" text-anchor="end">'+v+'°</text>'});
+    for(var i=0;i<temps.length-1;i++)s+='<line x1="'+x(i)+'" y1="'+y(temps[i])+'" x2="'+x(i+1)+'" y2="'+y(temps[i+1])+'" stroke="'+col(sc[i])+'" stroke-width="2.5" stroke-linecap="round" fill="none"/>';
+    [0,3,6,9].forEach(function(i){s+='<text x="'+x(i)+'" y="'+(H-4)+'" fill="var(--muted)" font-size="12" text-anchor="middle">'+shortH(10+i)+'</text>'});
+    document.getElementById("ovToday").innerHTML=s;
+  }
+
+  // ---------- Hourly charts ----------
+  var W=358,L=30,R=8,T=10;
+  function xs(i){return L+i*(W-L-R)/(HRS.length-1)}
+  function frame(Hh,B,lo,hi,ticks,fmt){
+    var y=function(v){return T+(hi-v)/(hi-lo)*(Hh-T-B)};
+    var s="";
+    ticks.forEach(function(v){s+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+y(v)+'" y2="'+y(v)+'" stroke="var(--line)" fill="none"/><text x="'+(L-6)+'" y="'+(y(v)+4)+'" fill="var(--muted)" font-size="12" text-anchor="end">'+fmt(v)+'</text>'});
+    [0,3,6,9,12,15].forEach(function(i){s+='<text x="'+xs(i)+'" y="'+(Hh-4)+'" fill="var(--muted)" font-size="12" text-anchor="middle">'+shortH(HRS[i])+'</text>'});
+    return {y:y,s:s};
+  }
+  function cursor(Hh,B){var X=xs(state.read);return '<line x1="'+X+'" x2="'+X+'" y1="'+T+'" y2="'+(Hh-B)+'" stroke="var(--txt1)" stroke-opacity=".5" stroke-dasharray="2 3" fill="none"/>'}
+  function path(vals,y){return vals.map(function(v,i){return(i?"L":"M")+xs(i).toFixed(1)+" "+y(v).toFixed(1)}).join(" ")}
+  function tempSvg(band){
+    var f=frame(130,20,25,50,[30,40,50],function(v){return v+"°"}),s=f.s,y=f.y;
+    if(band){
+      var up=TEMP.map(function(t,i){return t+SPREAD[i]}),dn=TEMP.map(function(t,i){return t-SPREAD[i]});
+      s+='<path d="'+path(up,y)+' '+dn.map(function(v,i){return"L"+xs(dn.length-1-i).toFixed(1)+" "+y(dn[dn.length-1-i]).toFixed(1)}).join(" ")+' Z" fill="var(--rangeFrost)" fill-opacity=".16" stroke="none"/>';
+    }
+    s+='<path d="'+path(TEMP,y)+'" stroke="var(--air)" stroke-width="2.5" fill="none" stroke-linecap="round"/>';
+    s+=cursor(130,20)+'<circle cx="'+xs(state.read)+'" cy="'+y(TEMP[state.read])+'" r="4" fill="var(--air)"/>';
+    return s;
+  }
+  function rainSvg(models){
+    var f=frame(130,20,0,.1,[0,.05,.1],function(v){return v?v.toFixed(2).replace(/^0/,""):"0"}),s=f.s,y=f.y;
+    var bw=(W-L-R)/(HRS.length-1)*.62;
+    RAIN.forEach(function(v,i){if(v>0)s+='<rect x="'+(xs(i)-bw/2)+'" y="'+y(v)+'" width="'+bw+'" height="'+(y(0)-y(v))+'" rx="2" fill="var(--rainAmount)" fill-opacity="'+(i===state.read?1:.75)+'"/>'});
+    if(models){
+      ["GFS","ECMWF","ICON"].forEach(function(k){s+='<path d="'+path(MODELS[k],y)+'" stroke="var(--rainMark)" stroke-width="1.5" stroke-dasharray="4 3" fill="none"/>'});
+      s+='<path d="'+path(MODELS.GEM,y)+'" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="1 3" fill="none"/>';
+    }
+    return s+cursor(130,20);
+  }
+  function windSvg(){
+    var f=frame(110,20,0,30,[0,10,20,30],function(v){return v}),s=f.s,y=f.y;
+    s+='<path d="'+path(GUST,y)+'" stroke="var(--gust)" stroke-width="1.5" stroke-dasharray="5 4" fill="none"/>';
+    s+='<path d="'+path(WIND,y)+'" stroke="var(--wind)" stroke-width="2.5" fill="none"/>';
+    return s+cursor(110,20);
+  }
+  function scoreSvg(){
+    var f=frame(130,20,0,100,[0,50,100],function(v){return v}),s=f.s,y=f.y;
+    for(var i=0;i<SCORE.length-1;i++)s+='<line x1="'+xs(i)+'" y1="'+y(SCORE[i])+'" x2="'+xs(i+1)+'" y2="'+y(SCORE[i+1])+'" stroke="'+col(Math.min(SCORE[i],SCORE[i+1]))+'" stroke-width="2.5" stroke-linecap="round" fill="none"/>';
+    return s+cursor(130,20)+'<circle cx="'+xs(state.read)+'" cy="'+y(SCORE[state.read])+'" r="4" fill="'+col(SCORE[state.read])+'"/>';
+  }
+  function windSvg130(){var f=frame(130,20,0,30,[0,10,20,30],function(v){return v}),s=f.s,y=f.y;s+='<path d="'+path(GUST,y)+'" stroke="var(--gust)" stroke-width="1.5" stroke-dasharray="5 4" fill="none"/><path d="'+path(WIND,y)+'" stroke="var(--wind)" stroke-width="2.5" fill="none"/>';return s+cursor(130,20)}
+  function chips(){
+    var i=state.read,h=hl(HRS[i]);
+    return {
+      temp:h+" · "+TEMP[i]+"°F",
+      rain:h+" · "+(RAIN[i]?RAIN[i].toFixed(2)+" in":"none"),
+      wind:h+" · "+WIND[i]+" mph, gusts "+GUST[i],
+      score:h+" · "+SCORE[i]
+    };
+  }
+  function renderHourly(){
+    var c=chips(),i=state.read;
+    document.getElementById("hrWhen").textContent="Score at Thu "+hl(HRS[i]);
+    var hs=document.getElementById("hrScore");hs.textContent=SCORE[i];hs.style.color=col(SCORE[i]);
+    document.getElementById("tChart").innerHTML=tempSvg(state.hr==="H2");
+    document.getElementById("rChart").innerHTML=rainSvg(state.hr==="H2");
+    document.getElementById("wChart").innerHTML=windSvg();
+    document.getElementById("tChip").textContent=c.temp;
+    document.getElementById("rChip").textContent=c.rain;
+    document.getElementById("wChip").textContent=c.wind;
+    var m=state.metric,titles={score:"Score",rain:"Rain",temp:"Temperature",wind:"Wind"};
+    document.getElementById("oneTitle").textContent=titles[m];
+    document.getElementById("oneChip").textContent=c[m];
+    document.getElementById("oneChart").innerHTML=m==="score"?scoreSvg():m==="rain"?rainSvg(false):m==="temp"?tempSvg(false):windSvg130();
+    var st="";SCORE.forEach(function(v,k){st+='<i style="background:'+col(v)+';opacity:'+(HRS[k]>=8&&HRS[k]<18?1:.35)+'"class="'+(k===i?"read":"")+'" title="'+hl(HRS[k])+' · '+v+'"></i>'});
+    document.getElementById("strip").innerHTML=st;
+    var rr="";RAIN.forEach(function(v){rr+='<i style="background:'+(v>0?"var(--rainAmount)":"transparent")+';opacity:'+(v>0?Math.min(1,.35+v*9):0)+'"></i>'});
+    document.getElementById("rainrow").innerHTML=rr;
+  }
+  function renderWeek(){
+    var h="";WEEK.forEach(function(d){h+='<button type="button" class="'+(d[0]==="Thu"?"on":"")+'"><span>'+d[0]+'</span><b style="color:'+col(d[1])+'">'+d[1]+'</b></button>'});
+    document.getElementById("week").innerHTML=h;
+  }
+
+  // scrub: one read hour across every chart on the phone
+  document.querySelectorAll(".scrub").forEach(function(svg){
+    function set(e){var r=svg.getBoundingClientRect();var px=(e.clientX-r.left)/r.width*W;var k=Math.round((px-L)/((W-L-R)/(HRS.length-1)));k=Math.max(0,Math.min(HRS.length-1,k));if(k!==state.read){state.read=k;renderHourly()}}
+    svg.addEventListener("pointerdown",function(e){set(e);svg.setPointerCapture&&svg.setPointerCapture(e.pointerId)});
+    svg.addEventListener("pointermove",function(e){if(e.buttons||e.pointerType==="mouse")set(e)});
+    svg.setAttribute("tabindex","0");
+    svg.addEventListener("keydown",function(e){if(e.key==="ArrowLeft"||e.key==="ArrowRight"){e.preventDefault();state.read=Math.max(0,Math.min(HRS.length-1,state.read+(e.key==="ArrowRight"?1:-1)));renderHourly()}});
+  });
+  document.querySelectorAll(".seg button").forEach(function(b){b.addEventListener("click",function(){state.metric=b.dataset.m;document.querySelectorAll(".seg button").forEach(function(x){x.setAttribute("aria-pressed",x===b?"true":"false")});renderHourly()})});
+
+  // variant switchers
+  function applyVis(attr,v){document.querySelectorAll("["+attr+"]").forEach(function(el){el.hidden=el.getAttribute(attr).split(" ").indexOf(v)<0})}
+  document.querySelectorAll(".switch").forEach(function(g){
+    var key=g.dataset.group;
+    g.querySelectorAll("button").forEach(function(b){b.addEventListener("click",function(){
+      g.querySelectorAll("button").forEach(function(x){x.setAttribute("aria-pressed",x===b?"true":"false")});
+      state[key]=b.dataset.v;
+      applyVis("data-"+key,b.dataset.v);
+      if(key==="ov")renderDays(); else renderHourly();
+      try{localStorage.setItem("wt6-research-"+key,b.dataset.v)}catch(e){}
+    })});
+  });
+
+  renderOvToday();renderWeek();
+  ["ov","hr"].forEach(function(k){var v=null;try{v=localStorage.getItem("wt6-research-"+k)}catch(e){}if(v){var b=document.querySelector('.switch[data-group="'+k+'"] button[data-v="'+v+'"]');if(b){b.click();return}}applyVis("data-"+k,state[k]);});
+  renderDays();renderHourly();
+})();
+</script>
+</body></html>
