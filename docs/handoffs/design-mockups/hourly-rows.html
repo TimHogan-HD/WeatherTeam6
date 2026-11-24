@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Hourly Rows</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: one phone screen (the app's single dark look, tonal steps on #121416), the day strip and the metric picker sticky at the top of it, a notes column beside it on wide screens. */
+:root{
+  color-scheme:dark;
+  --ground:#0b0c0d; --bg:#121416; --surface:#1a1d1f; --card:#1d2022; --raised:#282b2e; --line:#26292c;
+  --txt1:#f4f7fa; --txt2:#d3e1e4; --muted:#bccad0; --tab:#959ca3;
+  --brand:#1DC5D2; --brandInk:#6fe3ec; --brandWash:rgba(29,197,210,.16);
+  --good:#b8f542; --fair:#f6ad55; --poor:#fc8181; --goodWash:rgba(184,245,66,.07);
+  --rain:#bcc7fd; --rainAmount:#7fd1f0; --wind:#7fd1c4; --gust:#e8fbf7; --sun:#f3e08a;
+  --air:#dfe6ec; --range:#cfe8ff; --humidity:#ee9fe0; --track:rgba(255,255,255,.08);
+  --display:'Barlow Condensed','Arial Narrow',sans-serif; --body:'Barlow','Segoe UI',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--txt1);font-family:var(--body);font-variant-numeric:tabular-nums;padding-block:24px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button,select{font:inherit;color:inherit}
+button{cursor:pointer}
+button:focus-visible,select:focus-visible{outline:2px solid var(--brandInk);outline-offset:2px}
+.wrap{max-width:1000px;margin:0 auto;display:flex;flex-wrap:wrap;gap:32px;justify-content:center;align-items:flex-start}
+/* overflow:clip, not hidden, so the sticky block can stick to the page scroll. */
+.phone{width:390px;max-width:100%;border-radius:40px;overflow:clip;box-shadow:0 0 0 8px #040506,0 30px 80px #000c;background:var(--bg);padding:18px 16px 28px}
+.notes{flex:1 1 300px;min-width:0;max-width:440px;display:flex;flex-direction:column;gap:12px}
+.notes h1{margin:0;font-family:var(--display);font-weight:700;font-size:34px;line-height:1;text-wrap:balance}
+.notes h2{margin:8px 0 0;font-family:var(--display);font-weight:700;font-size:22px;line-height:1.1}
+.notes p,.notes li{margin:0;color:var(--muted);line-height:1.55;font-size:15px}
+.notes ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.notes b{color:var(--txt1);font-weight:600}
+.notes code{font-size:13px;color:var(--txt2)}
+.switch{display:flex;gap:6px;flex-wrap:wrap}
+.switch button{min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-family:var(--display);font-weight:600;font-size:16px;color:var(--txt2)}
+.switch button[aria-pressed="true"]{border-color:var(--brand);color:var(--brandInk);background:var(--brandWash)}
+
+/* ---------- header and tabs ---------- */
+.head{display:flex;align-items:center;gap:8px;min-height:44px}
+.back{background:none;border:0;width:36px;height:44px;padding:0;color:var(--brandInk);display:grid;place-items:center}
+.head h2{margin:0;font-family:var(--display);font-weight:700;font-size:24px;line-height:1;flex:1}
+.head .at{text-align:right;line-height:1.1}
+.head .at small{display:block;font-size:12px;color:var(--muted)}
+.head .at b{font-family:var(--display);font-weight:700;font-size:26px}
+.tabs{display:flex;gap:2px;overflow-x:auto;margin:6px -16px 0;padding:0 16px;scrollbar-width:none}
+.tabs span{flex:none;padding:8px 10px;font-family:var(--display);font-weight:600;font-size:16px;color:var(--tab);border-radius:999px}
+.tabs span.on{background:var(--brandWash);color:var(--brandInk)}
+
+/* ---------- sticky: days, picker, column heads ---------- */
+.sticky{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);margin:0 -16px;padding:8px 16px 0;border-bottom:1px solid var(--line)}
+.days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));text-align:center}
+.days button{background:none;border:0;padding:6px 0 8px;display:flex;flex-direction:column;align-items:center;gap:1px;min-height:48px;position:relative}
+.days b{font-family:var(--display);font-weight:600;font-size:16px;color:var(--tab)}
+.days small{font-size:11px;font-weight:600;font-family:var(--display)}
+.days button[aria-pressed="true"] b{color:var(--txt1)}
+.days button[aria-pressed="true"]::after{content:"";position:absolute;left:22%;right:22%;bottom:2px;height:2px;border-radius:1px;background:var(--brand)}
+.pick{display:flex;align-items:center;gap:8px;padding:8px 0}
+/* Variant A: a native select, so a phone opens its own picker. */
+.sel{position:relative;display:inline-flex;align-items:center}
+.sel select{appearance:none;-webkit-appearance:none;min-height:40px;padding:0 34px 0 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-family:var(--display);font-weight:600;font-size:17px;color:var(--txt1)}
+.sel svg{position:absolute;right:12px;pointer-events:none;color:var(--muted)}
+.pick .lbl{font-size:13px;color:var(--muted)}
+/* Variant B: every view as a chip, one tap, the current one lit. */
+.chips{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;width:100%}
+.chips button{min-height:40px;padding:0 4px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-family:var(--display);font-weight:600;font-size:16px;color:var(--txt2)}
+.chips button[aria-pressed="true"]{border-color:var(--brand);color:var(--brandInk);background:var(--brandWash)}
+.cols{display:grid;align-items:end;gap:6px;padding:4px 0 6px;font-size:11px;color:var(--muted);line-height:1.2}
+.cols .r{text-align:right}
+.cols .scale{display:flex;justify-content:space-between}
+
+/* ---------- rows ---------- */
+.window{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:12px 0 6px;font-size:14px;color:var(--txt2)}
+.window b{font-family:var(--display);font-weight:700;font-size:18px;color:var(--good)}
+.window span{font-size:12px;color:var(--muted)}
+.more{width:100%;min-height:44px;background:none;border:0;border-bottom:1px solid var(--line);color:var(--brandInk);font-size:14px;text-align:left;padding:0}
+ol.hours{list-style:none;margin:0;padding:0}
+ol.hours li{border-bottom:1px solid var(--line)}
+ol.hours li.good{background:var(--goodWash)}
+.row{width:100%;background:none;border:0;padding:0;min-height:46px;display:grid;align-items:center;gap:6px;text-align:left}
+/* Every view shares the first three columns, so the hour, sky and score stand still when the view changes. */
+.g-all{grid-template-columns:48px 22px 34px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)}
+.g-temp{grid-template-columns:48px 22px 34px 36px minmax(0,1fr) 40px 34px}
+.g-rain{grid-template-columns:48px 22px 34px 36px minmax(0,1fr) 44px}
+.g-wind{grid-template-columns:48px 22px 34px 44px minmax(0,1fr) 34px}
+.g-sun{grid-template-columns:48px 22px 34px minmax(0,1fr) 52px}
+.t{font-family:var(--display);font-weight:600;font-size:16px;color:var(--txt2);padding-left:2px;line-height:1}
+.t small{display:block;font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--brandInk);margin-top:2px}
+.row.now .t{color:var(--txt1)}
+.sky{display:grid;place-items:center}
+.sc{font-family:var(--display);font-weight:700;font-size:20px;text-align:right;line-height:1}
+.v{font-family:var(--display);font-weight:600;font-size:18px;line-height:1;text-align:right}
+.v.big{font-size:20px;font-weight:700}
+.v.m{color:var(--muted);font-weight:500}
+.v small{font-size:12px;color:var(--muted);font-weight:500;margin-left:1px}
+.bar{position:relative;height:16px}
+.bar i{position:absolute;top:50%;display:block;border-radius:4px}
+.bar .tk{left:0;right:0;height:4px;margin-top:-2px;background:var(--track)}
+.unit{color:var(--muted);font-size:12px}
+.dir{display:inline-block;vertical-align:-2px;margin-right:2px;color:var(--wind)}
+.na{color:var(--muted)}
+/* The opened hour: every figure for it, labelled. */
+.detail{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 16px;padding:4px 2px 14px 54px}
+.detail div{display:flex;flex-direction:column;gap:1px}
+.detail dt{font-size:11.5px;color:var(--muted)}
+.detail dd{margin:0;font-family:var(--display);font-weight:600;font-size:17px}
+.detail dd small{font-family:var(--body);font-weight:400;font-size:12px;color:var(--muted)}
+.foot{margin:14px 0 0;font-size:12px;line-height:1.5;color:var(--muted)}
+.row[aria-expanded="true"] .t{color:var(--txt1)}
+@media (prefers-reduced-motion:no-preference){.detail{animation:open .18s ease-out}}
+@keyframes open{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+</style>
+</head><body>
+
+<div class="wrap">
+  <div class="phone" role="region" aria-label="Hourly tab mockup">
+    <div class="head">
+      <button type="button" class="back" aria-label="Back"><svg width="12" height="20" viewBox="0 0 12 20" fill="none"><path d="M10 2 2 10l8 8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <h2>Red Rock</h2>
+      <div class="at" id="at"></div>
+    </div>
+    <div class="tabs" aria-hidden="true"><span>Overview</span><span>Daily</span><span class="on">Hourly</span><span>Precip</span><span>Rock</span><span>Crag</span></div>
+
+    <div class="sticky">
+      <div class="days" id="days" role="group" aria-label="Day"></div>
+      <div class="pick" id="pick"></div>
+      <div class="cols" id="cols" aria-hidden="true"></div>
+    </div>
+
+    <div class="window" id="window"></div>
+    <div id="earlier"></div>
+    <ol class="hours" id="hours"></ol>
+    <p class="foot" id="foot"></p>
+  </div>
+
+  <aside class="notes">
+    <h1>Hourly as rows, one reading at a time</h1>
+    <p>The Hourly tab today stacks four charts: temperature and humidity, sun, rain, wind. This replaces them with one list of hours and a picker for which reading the rows show. Tap an hour to see every figure for it.</p>
+
+    <h2>Picker</h2>
+    <div class="switch" role="group" aria-label="Picker variant">
+      <button type="button" data-variant="chips" aria-pressed="true">B · Chips</button>
+      <button type="button" data-variant="select" aria-pressed="false">A · Dropdown</button>
+    </div>
+    <ul>
+      <li><b>A, the dropdown you described.</b> A native select, so the phone opens its own wheel. Two taps per change, and the other views are hidden until you open it.</li>
+      <li><b>B, chips (my recommendation).</b> The same five views, all visible, one tap each. They fit in one row at 390 px. With five options a dropdown hides choices that fit on screen anyway; it earns its place past about seven.</li>
+      <li>Either way the view is remembered on the device, like the card order is now.</li>
+    </ul>
+
+    <h2>What each row keeps</h2>
+    <ul>
+      <li><b>Hour, sky and score never move.</b> Changing the view swaps only the right-hand columns, so your eye stays on the same hour.</li>
+      <li><b>All</b> is the default: temperature, chance of rain, wind. That answers most looks without touching the picker.</li>
+      <li>Each single view adds a bar on a scale printed in the column head (the day's low to high, 0 to 0.10 in, 0 to 40 mph, 0 to 60 min of sun), so a row still reads as a chart when you scan down it.</li>
+      <li>Good hours carry a faint green band, named once above the list. Hours already gone today fold behind “Show earlier hours”.</li>
+      <li>A missing figure prints a dash (Fri 3 AM wind, Sat 11 PM score).</li>
+    </ul>
+
+    <h2>Decisions this needs from you</h2>
+    <ul>
+      <li><b>Rain per hour, not per three hours.</b> Your 2026-10-30 call put Hourly's rain in three-hour blocks because a hidden scale made a trace look like a downpour. Here every row prints its inches and the bar's scale is in the column head, so I think per-hour is safe. Say if you want threes kept: the Rain view would group rows by three with one figure each.</li>
+      <li><b>The scrub goes.</b> The slim header follows the hour you opened instead of the hour under your finger.</li>
+      <li><b>Daily stays as it is.</b> A Daily row still opens that day here.</li>
+    </ul>
+    <p>Example data for Red Rock, not a real forecast.</p>
+  </aside>
+</div>
+
+<script>
+(() => {
+  const DN = ['Today','Wed','Thu','Fri','Sat','Sun','Mon'];
+  const NOW_H = 9; // Today, 9 AM
+  const SUNRISE = 6.6, SUNSET = 16.5;
+  const base = [49,51,45,41,46,50,53], cloud = [.1,.25,.85,.55,.15,.05,.2], windBase = [6,9,15,19,10,5,7], dirs = [225,200,190,315,330,20,240];
+  const fmtH = h => h === 0 ? '12 AM' : h < 12 ? h + ' AM' : h === 12 ? '12 PM' : (h - 12) + ' PM';
+  const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+
+  // Example forecast: smooth daily curves, Thursday wet in the afternoon.
+  const days = DN.map((name, d) => {
+    const hours = [];
+    for (let h = 0; h < 24; h++) {
+      const diurnal = Math.cos((h - 15) / 24 * 2 * Math.PI);
+      const temp = base[d] + 9 * diurnal;
+      const spread = 1.5 + d * 0.7;
+      let chance = Math.round(clamp(cloud[d] * 12 + 3 * Math.sin(h + d), 0, 100));
+      if (d === 2 && h >= 12 && h <= 21) chance = Math.round(35 + 35 * Math.sin((h - 12) / 9 * Math.PI));
+      if (d === 3 && h <= 8) chance = 25 - h * 2;
+      const amount = chance >= 30 ? +(chance * 0.0011).toFixed(2) : chance >= 15 ? 0.01 : 0;
+      const rh = Math.round(clamp(62 - 18 * diurnal + (chance > 30 ? 25 : 0) + cloud[d] * 10, 12, 98));
+      const dew = temp - (100 - rh) / 5 * 1.8;
+      const wind = Math.round(windBase[d] + 4 * Math.max(0, diurnal) + 2 * Math.sin(h * 1.3 + d));
+      const gust = Math.round(wind * (1.45 + 0.1 * Math.sin(h)));
+      const light = clamp(Math.min(h + 1 - SUNRISE, SUNSET - h), 0, 1);
+      const sun = Math.round(60 * light * (1 - cloud[d]) * (chance > 40 ? 0.3 : 1));
+      const night = h + 1 <= SUNRISE || h >= SUNSET;
+      // A plausible Crag A score: dry and cool is good, rain and wind pull it down.
+      let score = 92 - Math.abs(temp - 52) * 1.6 - chance * 0.9 - Math.max(0, wind - 12) * 2 - Math.max(0, rh - 70) * 0.6;
+      if (d === 3) score -= 18; // the rock still drying after Thursday
+      score = Math.round(clamp(score, 3, 97));
+      hours.push({ h, temp: Math.round(temp), lo: Math.round(temp - spread), hi: Math.round(temp + spread), rh, dew: Math.round(dew), chance, amount,
+        wind: (d === 3 && h === 3) ? null : wind, gust: (d === 3 && h === 3) ? null : gust, dir: dirs[d], sun, night,
+        score: (d === 4 && h === 23) ? null : score });
+    }
+    return { name, hours };
+  });
+
+  const state = { day: 0, view: 'all', open: NOW_H, variant: 'chips', earlier: false };
+  try { const v = localStorage.getItem('wt6.hourlyView'); if (v) state.view = v; } catch (e) {}
+  const VIEWS = [['all','All'],['temp','Temp'],['rain','Rain'],['wind','Wind'],['sun','Sun']];
+
+  const scoreColor = s => s === null ? 'var(--muted)' : s >= 60 ? 'var(--good)' : s >= 40 ? 'var(--fair)' : 'var(--poor)';
+  const dash = '—';
+  const num = x => x === null || x === undefined ? dash : x;
+  const compass = deg => ['N','NE','E','SE','S','SW','W','NW'][Math.round(deg / 45) % 8];
+  const inch = a => a === 0 ? '0' : a.toFixed(2).replace(/^0/, '');
+
+  const skyIcon = hr => {
+    const c = cloud[state.day];
+    if (hr.chance >= 40) return '<svg width="20" height="20" viewBox="0 0 20 20" aria-label="Rain"><path d="M6 12h8a3 3 0 0 0 0-6 4.5 4.5 0 0 0-8.6 1A2.5 2.5 0 0 0 6 12Z" fill="var(--muted)"/><path d="M7 14.5l-1 2.5M10.5 14.5l-1 2.5M14 14.5l-1 2.5" stroke="var(--rain)" stroke-width="1.6" stroke-linecap="round"/></svg>';
+    if (hr.night) return c > .5
+      ? '<svg width="20" height="20" viewBox="0 0 20 20" aria-label="Cloudy night"><path d="M6 15h8a3 3 0 0 0 0-6 4.5 4.5 0 0 0-8.6 1A2.5 2.5 0 0 0 6 15Z" fill="var(--muted)"/></svg>'
+      : '<svg width="20" height="20" viewBox="0 0 20 20" aria-label="Clear night"><path d="M13.5 13.8A6 6 0 0 1 8.2 4a6 6 0 1 0 7.8 7.8 6 6 0 0 1-2.5 2Z" fill="var(--muted)"/></svg>';
+    if (c > .5) return '<svg width="20" height="20" viewBox="0 0 20 20" aria-label="Mostly cloudy"><circle cx="7" cy="7" r="3" fill="var(--sun)"/><path d="M6 15h8a3 3 0 0 0 0-6 4.5 4.5 0 0 0-8.6 1A2.5 2.5 0 0 0 6 15Z" fill="var(--muted)"/></svg>';
+    return '<svg width="20" height="20" viewBox="0 0 20 20" aria-label="Sunny"><circle cx="10" cy="10" r="4" fill="var(--sun)"/><g stroke="var(--sun)" stroke-width="1.6" stroke-linecap="round"><path d="M10 1.5v2M10 16.5v2M1.5 10h2M16.5 10h2M4 4l1.4 1.4M14.6 14.6 16 16M4 16l1.4-1.4M14.6 5.4 16 4"/></g></svg>';
+  };
+  const arrow = deg => `<svg class="dir" width="12" height="12" viewBox="0 0 12 12" style="transform:rotate(${deg + 180}deg)" aria-hidden="true"><path d="M6 1v10M2.5 4.5 6 1l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+  // The good hours: the longest run of 3+ daylight hours scoring 60 or more.
+  const goodRun = hours => {
+    let best = null, start = null;
+    for (let h = 7; h <= 18; h++) {
+      const ok = hours[h].score !== null && hours[h].score >= 60 && h <= 17;
+      if (ok && start === null) start = h;
+      if ((!ok || h === 17) && start !== null) {
+        const end = ok ? h : h - 1;
+        if (end - start + 1 >= 3 && (!best || end - start > best[1] - best[0])) best = [start, end];
+        start = null;
+      }
+    }
+    return best;
+  };
+
+  const cols = {
+    all: () => ['<span>Hour</span>','<span></span>','<span class="r">Score</span>','<span class="r">Temp °F</span>','<span class="r">Rain</span>','<span class="r">Wind mph</span>'],
+    temp: (lo, hi) => ['<span>Hour</span>','<span></span>','<span class="r">Score</span>','<span class="r">°F</span>',`<span class="scale"><span>${lo}°</span><span>range</span><span>${hi}°</span></span>`,'<span class="r">Humid</span>','<span class="r">Dew</span>'],
+    rain: () => ['<span>Hour</span>','<span></span>','<span class="r">Score</span>','<span class="r">Chance</span>','<span class="scale"><span>0</span><span>0.10 in</span></span>','<span class="r">in</span>'],
+    wind: () => ['<span>Hour</span>','<span></span>','<span class="r">Score</span>','<span class="r">mph</span>','<span class="scale"><span>0</span><span>40 mph</span></span>','<span class="r">Gust</span>'],
+    sun: () => ['<span>Hour</span>','<span></span>','<span class="r">Score</span>','<span class="scale"><span>0</span><span>sun in the hour</span><span>60 min</span></span>','<span class="r">min</span>'],
+  };
+
+  const cells = (hr, lo, hi) => {
+    const pct = (x, a, b) => clamp((x - a) / (b - a) * 100, 0, 100);
+    switch (state.view) {
+      case 'all': return `<span class="v big">${hr.temp}°</span><span class="v" style="color:var(--rain)">${hr.chance}<small>%</small></span><span class="v">${hr.wind === null ? '<span class="na">' + dash + '</span>' : arrow(hr.dir) + hr.wind}</span>`;
+      case 'temp': return `<span class="v big">${hr.temp}°</span><span class="bar"><i class="tk"></i><i style="left:${pct(hr.lo, lo, hi)}%;width:${pct(hr.hi, lo, hi) - pct(hr.lo, lo, hi)}%;height:6px;margin-top:-3px;background:var(--range);opacity:.35"></i><i style="left:calc(${pct(hr.temp, lo, hi)}% - 5px);width:10px;height:10px;margin-top:-5px;border-radius:50%;background:var(--air)"></i></span><span class="v" style="color:var(--humidity)">${hr.rh}<small>%</small></span><span class="v m">${hr.dew}°</span>`;
+      case 'rain': return `<span class="v" style="color:${hr.chance >= 20 ? 'var(--rain)' : 'var(--muted)'}">${hr.chance}<small>%</small></span><span class="bar"><i class="tk"></i>${hr.amount > 0 ? `<i style="left:0;width:${Math.max(3, pct(hr.amount, 0, 0.10))}%;height:8px;margin-top:-4px;background:var(--rainAmount)"></i>` : ''}</span><span class="v${hr.amount === 0 ? ' m' : ''}" style="${hr.amount > 0 ? 'color:var(--rainAmount)' : ''}">${inch(hr.amount)}</span>`;
+      case 'wind': return hr.wind === null
+        ? `<span class="v na">${dash}</span><span class="bar"><i class="tk"></i></span><span class="v na">${dash}</span>`
+        : `<span class="v">${arrow(hr.dir)}${hr.wind}</span><span class="bar"><i class="tk"></i><i style="left:0;width:${pct(hr.gust, 0, 40)}%;height:8px;margin-top:-4px;background:transparent;box-shadow:inset 0 0 0 1.5px var(--gust);opacity:.55"></i><i style="left:0;width:${pct(hr.wind, 0, 40)}%;height:8px;margin-top:-4px;background:var(--wind)"></i></span><span class="v m">${hr.gust}</span>`;
+      case 'sun': return hr.night
+        ? `<span class="bar"><i class="tk"></i></span><span class="v m">dark</span>`
+        : `<span class="bar"><i class="tk"></i>${hr.sun > 0 ? `<i style="left:0;width:${pct(hr.sun, 0, 60)}%;height:8px;margin-top:-4px;background:var(--sun)"></i>` : ''}</span><span class="v${hr.sun === 0 ? ' m' : ''}">${hr.sun}</span>`;
+    }
+  };
+
+  const detail = hr => `<dl class="detail">
+    <div><dt>Temperature</dt><dd>${hr.temp}° <small>likely ${hr.lo}–${hr.hi}°</small></dd></div>
+    <div><dt>Humidity · dew point</dt><dd>${hr.rh}% · ${hr.dew}°</dd></div>
+    <div><dt>Chance of rain</dt><dd>${hr.chance}%</dd></div>
+    <div><dt>Rain</dt><dd>${inch(hr.amount)} in</dd></div>
+    <div><dt>Wind</dt><dd>${hr.wind === null ? dash : `${hr.wind} mph <small>from ${compass(hr.dir)}</small>`}</dd></div>
+    <div><dt>Gusts</dt><dd>${hr.gust === null ? dash : hr.gust + ' mph'}</dd></div>
+    <div><dt>Sun in the hour</dt><dd>${hr.night ? 'dark' : hr.sun + ' min'}</dd></div>
+    <div><dt>Score</dt><dd style="color:${scoreColor(hr.score)}">${num(hr.score)}</dd></div>
+  </dl>`;
+
+  const $ = id => document.getElementById(id);
+
+  function render() {
+    const day = days[state.day];
+    const hrs = day.hours;
+    const lo = Math.min(...hrs.map(h => h.lo)), hi = Math.max(...hrs.map(h => h.hi));
+
+    $('days').innerHTML = days.map((d, i) => {
+      return `<button type="button" data-day="${i}" aria-pressed="${i === state.day}"><b>${d.name}</b><small style="color:var(--muted)">Nov ${24 + i}</small></button>`;
+    }).join('');
+
+    $('pick').innerHTML = state.variant === 'chips'
+      ? `<div class="chips" role="group" aria-label="Show">${VIEWS.map(([k, l]) => `<button type="button" data-view="${k}" aria-pressed="${k === state.view}">${l}</button>`).join('')}</div>`
+      : `<label class="lbl" for="viewSel">Show</label><span class="sel"><select id="viewSel">${VIEWS.map(([k, l]) => `<option value="${k}"${k === state.view ? ' selected' : ''}>${{all:'All readings',temp:'Temperature',rain:'Rain',wind:'Wind',sun:'Sun'}[k]}</option>`).join('')}</select><svg width="12" height="8" viewBox="0 0 12 8"><path d="M1 1.5 6 6.5l5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>`;
+
+    const g = 'g-' + state.view;
+    $('cols').className = 'cols ' + g;
+    $('cols').innerHTML = cols[state.view](lo, hi).join('');
+
+    const run = goodRun(hrs);
+    $('window').innerHTML = run
+      ? `<span>Good hours <b>${fmtH(run[0])} – ${fmtH(run[1] + 1)}</b></span><span>score 60 and up</span>`
+      : `<span>No good hours ${state.day === 0 ? 'today' : 'on ' + day.name}</span><span>no 3 hours in a row at 60+</span>`;
+
+    const first = state.day === 0 && !state.earlier ? NOW_H : 0;
+    $('earlier').innerHTML = first > 0 ? `<button type="button" class="more" data-earlier>Show earlier hours, 12 AM – ${fmtH(first - 1)}</button>` : '';
+
+    $('hours').innerHTML = hrs.slice(first).map(hr => {
+      const isNow = state.day === 0 && hr.h === NOW_H;
+      const good = run && hr.h >= run[0] && hr.h <= run[1];
+      const open = state.open === hr.h;
+      return `<li class="${good ? 'good' : ''}"><button type="button" class="row ${g}${isNow ? ' now' : ''}" data-hour="${hr.h}" aria-expanded="${open}">
+        <span class="t">${fmtH(hr.h)}${isNow ? '<small>Now</small>' : ''}</span>
+        <span class="sky">${skyIcon(hr)}</span>
+        <span class="sc" style="color:${scoreColor(hr.score)}">${num(hr.score)}</span>
+        ${cells(hr, lo, hi)}
+      </button>${open ? detail(hr) : ''}</li>`;
+    }).join('');
+
+    const openHr = state.open === null ? null : hrs[state.open];
+    $('at').innerHTML = openHr ? `<small>${day.name} ${fmtH(openHr.h)}</small><b style="color:${scoreColor(openHr.score)}">${num(openHr.score)}</b>` : '';
+
+    $('foot').textContent = 'Figures are the middle of the ensemble forecast (the likely range is in an opened hour). Chance of rain is the share of forecast members that are wet in that hour. Example data.';
+  }
+
+  document.addEventListener('click', e => {
+    const t = e.target.closest('button'); if (!t) return;
+    if (t.dataset.day !== undefined) { state.day = +t.dataset.day; state.open = state.day === 0 ? NOW_H : null; state.earlier = false; }
+    else if (t.dataset.view) { state.view = t.dataset.view; try { localStorage.setItem('wt6.hourlyView', state.view); } catch (err) {} }
+    else if (t.dataset.hour !== undefined) { const h = +t.dataset.hour; state.open = state.open === h ? null : h; }
+    else if (t.dataset.variant) { state.variant = t.dataset.variant; document.querySelectorAll('[data-variant]').forEach(b => b.setAttribute('aria-pressed', b === t)); }
+    else if (t.hasAttribute('data-earlier')) { state.earlier = true; }
+    else return;
+    render();
+  });
+  document.addEventListener('change', e => {
+    if (e.target.id === 'viewSel') { state.view = e.target.value; try { localStorage.setItem('wt6.hourlyView', state.view); } catch (err) {} render(); }
+  });
+  render();
+})();
+</script>
+</body></html>
