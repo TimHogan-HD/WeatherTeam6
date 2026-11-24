@@ -262,6 +262,8 @@ describe('HourlyRows — on screen', () => {
     const shade = chartColorsV2.goodHours
     expect(html).toMatch(new RegExp(`<button[^>]*aria-expanded="true"[^>]*background:${shade.replace(/[()]/g, '\\$&')}`))
     expect(html).not.toMatch(/<li[^>]*background/)
+    // A row outside the window keeps bareButton's none, not the browser's grey button face.
+    expect(html).toMatch(/aria-label="5 PM"[^>]*background:none/)
   })
 
   it('writes Wind’s note with a dash for an unanswered gust, never dropping it', () => {
