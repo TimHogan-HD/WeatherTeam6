@@ -359,20 +359,33 @@ export function HourlyRows({ series, selectedDate, onSelectDate, readMs, onRead,
   )
 }
 
+/**
+ * Wind's note: where it comes from, and on a crag the gusts too, since Score
+ * takes Gusts' tile there. `gust` undefined means gusts have their own tile;
+ * null is an unanswered gust and prints a dash, never nothing.
+ */
+export function windNote(dir: string | null, gust: number | null | undefined): string | null {
+  const from = dir === null ? null : `from ${dir}`
+  if (gust === undefined) return from
+  const gusts = `gusts\u00a0${gust ?? EM_DASH}`
+  return from === null ? gusts : `${from}, ${gusts}`
+}
+
 function Detail({ row: r, scored, hourLabel }: { row: HourRow; scored: boolean; hourLabel: (ms: number) => string }) {
   const or = (v: number | string | null, unit = '') => (v === null ? EM_DASH : `${v}${unit}`)
   const dir = compass(r.windFromDeg)
   /**
-   * One figure as a tile, in threes (owner, 2026-11-24): the label over the
-   * figure over its note, centred, with little padding, so the tile is the
-   * size of what it says (owner: "so much empty space").
+   * One figure as a tile, four across the full row in two rows (owner,
+   * 2026-11-24, variant A of `hour-detail-rows.html`): the label over the
+   * figure over its note, centred. Words wrap rather than clip (owner: "make
+   * sure words aren't cut off").
    */
   const tile = (label: string, value: ReactNode, opts: { dot?: string; note?: string | null; valueColor?: string } = {}) => (
     <div
       key={label}
-      style={{ background: colorsV2.raised, borderRadius: radius.rowV2, padding: '5px 10px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 0, minWidth: 0 }}
+      style={{ background: colorsV2.raised, borderRadius: radius.rowV2, padding: '6px 4px 7px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 0, minWidth: 0 }}
     >
-      <dt style={{ ...typeV2.daySmall, color: colorsV2.txtTab, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, whiteSpace: 'nowrap', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <dt style={{ ...typeV2.daySmall, color: colorsV2.txtTab, display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', columnGap: 4 }}>
         {opts.dot === undefined ? null : <i aria-hidden="true" style={{ width: 6, height: 6, borderRadius: radius.full, background: opts.dot, flex: 'none' }} />}
         {label}
       </dt>
@@ -385,18 +398,19 @@ function Detail({ row: r, scored, hourLabel }: { row: HourRow; scored: boolean; 
   return (
     <dl
       className="wt6-header-swap"
-      // Columns as wide as their widest tile, the block centred: a tile is never wider than what it says.
-      style={{ display: 'grid', gridTemplateColumns: 'repeat(3, max-content)', justifyContent: 'center', gap: 4, margin: 0, padding: '2px 0 10px' }}
+      style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 4, margin: 0, padding: '2px 0 10px' }}
     >
-      {tile('Temperature', or(r.tempF, '°'), { dot: chartColorsV2.air, note: r.lowF === null || r.highF === null ? null : `likely ${r.lowF}–${r.highF}°` })}
+      {/* Eight tiles fill two rows. On a crag Score takes the fourth slot and gusts move into Wind's note; elsewhere Gusts keeps its tile. */}
+      {tile('Temperature', or(r.tempF, '°'), { dot: chartColorsV2.air, note: r.lowF === null || r.highF === null ? null : `likely ${r.lowF}\u2060–\u2060${r.highF}°` })}
       {tile('Humidity', or(r.humidityPct, '%'), { dot: chartColorsV2.humidity })}
       {tile('Dew point', or(r.dewF, '°'))}
+      {scored
+        ? tile('Score', or(r.score), { valueColor: r.score === null ? colorsV2.txtMuted : scoreColor(r.score) })
+        : tile('Gusts', or(r.gustMph, ' mph'), { dot: colorsV2.gust })}
       {tile('Chance of rain', or(r.chancePct, '%'), { dot: colorsV2.rain })}
       {tile('Rain', r.rainIn === null ? EM_DASH : `${rowInches(r.rainIn)} in`, { dot: colorsV2.rainAmount })}
-      {tile('Sun', r.daylight === false ? 'dark' : or(r.sunMin, ' min'), { dot: colorsV2.sun, note: `${hourLabel(r.ms)}–${hourLabel(r.ms + HOUR_MS)}` })}
-      {tile('Wind', or(r.windMph, ' mph'), { dot: colorsV2.wind, note: r.windMph === null || dir === null ? null : `from ${dir}` })}
-      {tile('Gusts', or(r.gustMph, ' mph'), { dot: colorsV2.gust })}
-      {scored ? tile('Score', or(r.score), { valueColor: r.score === null ? colorsV2.txtMuted : scoreColor(r.score) }) : null}
+      {tile('Sun', r.daylight === false ? 'dark' : or(r.sunMin, ' min'), { dot: colorsV2.sun, note: `${hourLabel(r.ms).replace(' ', '\u00a0')}–${hourLabel(r.ms + HOUR_MS).replace(' ', '\u00a0')}` })}
+      {tile('Wind', or(r.windMph, ' mph'), { dot: colorsV2.wind, note: windNote(r.windMph === null ? null : dir, scored ? r.gustMph : undefined) })}
     </dl>
   )
 }
