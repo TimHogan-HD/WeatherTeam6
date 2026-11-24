@@ -282,7 +282,7 @@ function DayPicker({
   return (
     <div>
       {open === null ? null : (
-        <p style={{ ...typeV2.dayHeadline, color: colorsV2.txt1, margin: '0 0 10px' }}>
+        <p style={{ ...typeV2.dayHeadline, color: colorsV2.txt1, margin: '0 0 10px', paddingInline: `${spacing.textInset}px` }}>
           {open.name} <span style={{ fontWeight: 500, color: colorsV2.txt2 }}>{open.date}</span>
         </p>
       )}

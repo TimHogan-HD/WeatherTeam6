@@ -37,13 +37,15 @@ export function Screen({ title, onBack, action, feedback = false, children }: Sc
       }}
     >
       {feedback ? (
-        <div style={{ ...row(spacing.cellPad), justifyContent: onBack === undefined ? 'flex-end' : 'space-between' }}>
+        <div style={{ ...row(spacing.cellPad), justifyContent: onBack === undefined ? 'flex-end' : 'space-between', paddingInline: `${spacing.textInset}px` }}>
           {/* Centred on the button beside it, so the padding reaches out equally above and below. */}
           {onBack === undefined ? null : <BackControl onBack={onBack} centred />}
           <FeedbackButton />
         </div>
       ) : onBack === undefined ? null : (
-        <BackControl onBack={onBack} />
+        <div style={{ paddingInline: `${spacing.textInset}px` }}>
+          <BackControl onBack={onBack} />
+        </div>
       )}
       <div
         style={{
@@ -52,6 +54,7 @@ export function Screen({ title, onBack, action, feedback = false, children }: Sc
           alignItems: 'baseline',
           justifyContent: 'space-between',
           gap: `${spacing.inlineGap}px`,
+          paddingInline: `${spacing.textInset}px`,
         }}
       >
         <h1 style={{ ...typeV2.listTitle, minWidth: 0, overflowWrap: 'anywhere' }}>{title}</h1>

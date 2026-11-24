@@ -32,7 +32,7 @@ export function SourcesFooter({ sources }: { sources: readonly SourceEntry[] }) 
   if (named.length === 0) return null
 
   return (
-    <footer style={{ ...stack(spacing.tight), marginTop: `${spacing.tight}px` }}>
+    <footer style={{ ...stack(spacing.tight), marginTop: `${spacing.tight}px`, paddingInline: `${spacing.textInset}px` }}>
       <button
         type="button"
         aria-expanded={open}

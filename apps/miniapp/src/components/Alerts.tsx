@@ -46,7 +46,7 @@ export function AlertBanner({
       {sortBySeverity(alerts).map((alert) => (
         <AlertCard key={alert.id} alert={alert} utcOffsetSeconds={utcOffsetSeconds} now={now} />
       ))}
-      {unchecked ? <p style={{ ...type.bodySm, color: colorsV2.txtMuted }}>{ALERTS_UNCHECKED_LINE}</p> : null}
+      {unchecked ? <p style={{ ...type.bodySm, color: colorsV2.txtMuted, paddingInline: `${spacing.textInset}px` }}>{ALERTS_UNCHECKED_LINE}</p> : null}
     </div>
   )
 }

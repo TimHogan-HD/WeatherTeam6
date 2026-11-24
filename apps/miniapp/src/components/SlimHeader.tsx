@@ -1,7 +1,7 @@
 import { colors, colorsV2, spacing } from '@weatherteam6/design/tokens'
 import { EM_DASH } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { row, stack } from '../theme/styles.js'
+import { TEXT_EDGE, row, stack } from '../theme/styles.js'
 import { glassHeader } from '../theme/glass.js'
 import { FLIP_ATTR } from '../lib/flip.js'
 import { CRAG_FLY_ATTR } from '../lib/cragFly.js'
@@ -54,7 +54,7 @@ export function SlimHeader({
         zIndex: 5,
         marginTop: 'calc(-1 * env(safe-area-inset-top, 0px))',
         paddingTop: `calc(env(safe-area-inset-top, 0px) + ${spacing.topWeb}px)`,
-        paddingInline: `${spacing.screenH}px`,
+        paddingInline: `${TEXT_EDGE}px`,
         paddingBottom: `${spacing.cellPad}px`,
       }}
     >

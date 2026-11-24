@@ -55,7 +55,11 @@ scales in `packages/design` — `tempScale`, `windScale`, `chanceScale`, `uvScal
 
 ## Layout constants
 
-- Horizontal screen gutter: `spacing.screenH` (20px)
+- Horizontal screen gutter: `spacing.screenH` (16px), where hairlines, fields and filled
+  tiles start. **Text has one edge, 2px further in** (`spacing.textInset`; `TEXT_EDGE` = 18px
+  in `theme/styles.ts`), as in #644 variant C: headers pad to it, `sectionV2` insets to it,
+  and a line of text outside a section takes `textInset` (2026-11-24, after a measured
+  sweep found text at 16, 18, 20 and 22px on one screen).
 - Top safe area: `spacing.topSafe` (48px) on native; the web app uses `spacing.topWeb` (16px) on top of `env(safe-area-inset-top)`, which already clears the status bar (owner, 2026-09-29: 48 read as too much cushion)
 - Card padding: `spacing.cardPad` (14px)
 - Bottom inset: `spacing.bottomInset` (24px)
