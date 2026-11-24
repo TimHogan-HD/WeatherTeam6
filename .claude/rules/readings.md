@@ -59,7 +59,7 @@ What a reading may say, where it comes from, and what the client may assume of t
   the rock. **Daily shows no dots** (owner, 2026-11-24, superseding 2026-11-23's #644
   "Model dots"): its rows are Score, Good, Rock and Sun only.
 - **Sun is minutes of bright sunshine, from `THERMAL_MODEL`** (#469–#472;
-  `lib/runs/skySeries.ts`, `packages/types/src/sky.ts`; Daily's Sun stat is `sunDayHours`, hours only, and Hourly's
+  `lib/runs/skySeries.ts`, `packages/types/src/sky.ts`; Daily's Sun stat is `sunDayHours`, hours only, a range with "forecasts differ" under it, and Hourly's
   Sun view). "Forecasts differ" compares GFS, ECMWF and ICON (`SUN_DIFFER_MIN`,
   `compare:sky`), never GEM. **A gap is `Sun —` or a dashed mark, never "No sun", "None" or an
   empty bar.** Flat ground only, said on the card. The Sources footer names the model only

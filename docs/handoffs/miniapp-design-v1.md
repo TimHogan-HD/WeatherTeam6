@@ -188,6 +188,9 @@ dots.
 - A row opens that day on Hourly; a day the hourly response cannot draw is not tappable.
 - A day the model could not read prints a dash for Score, Good and Rock, never "None".
 - The footnote says what the bar is: each day from low to high, on one scale for the week.
+- Sized to read at arm's length (owner, 2026-11-24: 14 px read too small on a 450 px phone):
+  score 28, day 22, stat values 18, figures 17, labels and footnote 14. The stats span the
+  row's full width, Sun widest; a Sun range prints "forecasts differ" under it.
 
 **Hourly** (`HourlyRows.tsx`, decisions in `lib/hourlyRows.ts`; owner 2026-11-24, mockup
 `design-mockups/hourly-rows.html`, variant B): the days, five view chips (All, Temp, Rain,

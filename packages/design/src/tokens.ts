@@ -1092,55 +1092,56 @@ export const typeV2 = {
   },
   /**
    * The Daily list's rows (owner, 2026-11-24, mockup `daily-card-text.html` B with the stat
-   * row): three sizes on a row, the day's name 20, its score 20, everything else 14, the
-   * stat labels 12. The score is the only colour on a row.
+   * row): sized for reading at arm's length (owner, 2026-11-24: 14 px was too small on a
+   * 450 px phone): the score 28, the day 22, the stat values 18, the figures 17, the dates
+   * and labels 14–16. The score is the only colour on a row.
    */
-  /** A day's short name on Daily — "Wed": Barlow Condensed 20/700. */
+  /** A day's short name on Daily — "Wed": Barlow Condensed 22/700. */
   dailyDay: {
     fontFamily: fonts.display,
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700' as const,
+    lineHeight: 26,
+    color: colorsV2.txt1,
+  },
+  /** A day's date beside its name on Daily — "Nov 25": Barlow 16/500. */
+  dailyDate: {
+    fontFamily: fonts.body,
+    fontSize: 16,
+    fontWeight: '500' as const,
+    lineHeight: 20,
+    color: colorsV2.txtMuted,
+  },
+  /** A day's low, high and chance of rain on Daily: Barlow 17/600. */
+  dailyFigure: {
+    fontFamily: fonts.body,
+    fontSize: 17,
+    fontWeight: '600' as const,
+    lineHeight: 22,
+    color: colorsV2.txt2,
+  },
+  /** A stat's label on a Daily row — "Score", "Good", and "forecasts differ" under a Sun value: Barlow 14/400. */
+  dailyStatLabel: {
+    fontFamily: fonts.body,
+    fontSize: 14,
+    fontWeight: '400' as const,
+    lineHeight: 18,
+    color: colorsV2.txtTab,
+  },
+  /** A stat's value on a Daily row — "9a–8p", "Dry": Barlow 18/600. */
+  dailyStatValue: {
+    fontFamily: fonts.body,
+    fontSize: 18,
+    fontWeight: '600' as const,
     lineHeight: 24,
     color: colorsV2.txt1,
   },
-  /** A day's date beside its name on Daily — "Nov 25": Barlow 14/500. */
-  dailyDate: {
-    fontFamily: fonts.body,
-    fontSize: 14,
-    fontWeight: '500' as const,
-    lineHeight: 18,
-    color: colorsV2.txtMuted,
-  },
-  /** A day's low, high and chance of rain on Daily: Barlow 14/600. */
-  dailyFigure: {
-    fontFamily: fonts.body,
-    fontSize: 14,
-    fontWeight: '600' as const,
-    lineHeight: 18,
-    color: colorsV2.txt2,
-  },
-  /** A stat's label on a Daily row — "Score", "Good": Barlow 12/400. */
-  dailyStatLabel: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    fontWeight: '400' as const,
-    lineHeight: 16,
-    color: colorsV2.txtTab,
-  },
-  /** A stat's value on a Daily row — "9a–8p", "Dry": Barlow 14/600. */
-  dailyStatValue: {
-    fontFamily: fonts.body,
-    fontSize: 14,
-    fontWeight: '600' as const,
-    lineHeight: 20,
-    color: colorsV2.txt1,
-  },
-  /** A day's score in its stat on Daily: Barlow Condensed 20/700. Colour is the score's. */
+  /** A day's score in its stat on Daily: Barlow Condensed 28/700. Colour is the score's. */
   dailyStatScore: {
     fontFamily: fonts.display,
-    fontSize: 20,
+    fontSize: 28,
     fontWeight: '700' as const,
-    lineHeight: 20,
+    lineHeight: 30,
   },
   /** The list card's "now" under its score: Barlow 12/400, the readable floor (#644). */
   daySmall: {
