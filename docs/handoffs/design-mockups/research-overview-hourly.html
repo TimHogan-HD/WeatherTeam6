@@ -284,7 +284,7 @@ code{font-size:.92em;color:var(--txt2)}
           <h4 style="font-size:17px"><span id="oneTitle">Score</span><span class="chip" id="oneChip"></span></h4>
           <div class="mini" role="group" aria-label="How to show the forecasts" id="oneMini" data-hr="H3"><button type="button" aria-pressed="true" data-rm="lines">Each forecast</button><button type="button" aria-pressed="false" data-rm="range">Range</button></div>
           <svg class="chart scrub" id="oneChart" viewBox="0 0 358 130" role="img" aria-label="One chart for the chosen measure"></svg>
-          <div class="legend" id="oneLegend" data-hr="H3"></div>
+          <div class="legend" id="oneLegend" data-hr="H1 H3"></div>
         </section>
 
         <!-- Current and B: card stack -->
@@ -297,7 +297,7 @@ code{font-size:.92em;color:var(--txt2)}
           <h4>Rain<span class="chip" id="rChip"></span></h4>
           <div class="mini" role="group" aria-label="How to show the forecasts" data-hr="H2"><button type="button" aria-pressed="true" data-rm="lines">Each forecast</button><button type="button" aria-pressed="false" data-rm="range">Range</button></div>
           <svg class="chart scrub" id="rChart" viewBox="0 0 358 130" role="img" aria-label="Rain by hour"></svg>
-          <div class="legend" id="rKey" data-hr="H2"></div>
+          <div class="legend" id="rKey" data-hr="H0 H2"></div>
         </section>
         <section class="sec" data-hr="H0 H2">
           <h4>Wind<span class="chip" id="wChip"></span></h4>
@@ -342,6 +342,7 @@ code{font-size:.92em;color:var(--txt2)}
             <li><b>Temperature with its band</b>: the p10–p90 range of the ensemble behind the median line, keyed in words ("8 in 10 runs fall inside").</li>
             <li><b>Rain with each model's line</b> behind the median columns. GEM keeps Thursday dry; three models put the shower between 1 and 7 PM. A reader sees why the count is 3 of 4.</li>
             <li><b>Freshness under the name.</b></li>
+            <li><b>Rain shows chance and amount together</b>: bars are the amount in inches on the left scale; the white line is the chance of measurable rain on a 0–100% right scale, the share of ensemble members wet that hour (<code>precip_chance_pct</code>, already on <code>/hourly</code>). The read hour's chip gives both in words, chance first ("3 PM · 70% chance, 0.06 in"). Two scales on one chart is the cost; the key names which is which. <code>precip_chance_pct</code> is null when no ensemble member reached the hour: the line breaks there and the chip leaves the chance out, never drawn or written as 0%.</li>
             <li><b>Rain spread, two ways</b>, behind a small toggle: "Each forecast" draws every model as a dotted line in its own colour (violet, yellow, pink; GEM, dry all day, in grey), with the names in a key under the chart rather than on it; "Range" shades from the driest forecast to the wettest, the same reading as the temperature band. Pick one; the build ships one.</li>
             <li><b>Readable at a glance</b>: the temperature band is labelled "likely range", the read hour's chip gives the range in figures ("41°F, likely 38–45°"; "0.06 in, forecasts 0–.08"), and one plain line under each chart says how to read it.</li>
           </ul>
@@ -490,6 +491,8 @@ code{font-size:.92em;color:var(--txt2)}
   var TEMP=[34,35,37,39,41,43,44,44,43,41,40,39,38,37,36,35];
   var SPREAD=[2,2,2,2.5,2.5,3,3,3,3.5,3.5,3.5,3.5,4,4,4,4];
   var RAIN=[0,0,0,0,0,0,0,0,.02,.06,.07,.04,.01,0,0,0];
+  // chance of measurable rain: the share of ensemble members wet that hour (precip_chance_pct on /hourly)
+  var CHANCE=[0,0,0,5,5,10,15,30,55,70,70,60,40,20,10,5];
   var MODELS={GFS:[0,0,0,0,0,0,0,0,.04,.08,.08,.05,.02,0,0,0],ECMWF:[0,0,0,0,0,0,0,.01,.03,.06,.06,.03,0,0,0,0],ICON:[0,0,0,0,0,0,0,0,0,.03,.07,.06,.03,.01,0,0],GEM:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]};
   var SCORE=[70,72,85,86,88,90,88,72,30,12,8,8,10,12,14,16];
   var WIND=[6,6,7,8,9,10,12,14,16,15,13,11,9,8,7,6];
@@ -510,7 +513,12 @@ code{font-size:.92em;color:var(--txt2)}
   var state={ov:"O0",hr:"H0",read:9,metric:"score",rainMode:"lines"};
   // four hues clear of the score rungs (lime, amber, red) and of the rain bars' cyan; GEM, the dry one, in grey
   var MODEL_COL={GFS:"#c3a6ff",ECMWF:"#ffd36b",ICON:"#f29ac9",GEM:"#959ca3"};
-  function rainKey(){
+  function rainKey(models){
+    var base='<span><i style="border-top:8px solid var(--rainAmount);width:8px;border-radius:1px"></i>Amount, inches (left scale)</span><span><i style="border-color:var(--air)"></i>Chance of rain (right scale)</span>';
+    if(!models)return base;
+    return base+'<span style="flex-basis:100%;height:0"></span>'+rainSpreadKey();
+  }
+  function rainSpreadKey(){
     if(state.rainMode==="range")return '<span>Bars are the middle of four forecasts. The shading runs from the driest forecast to the wettest: the wider it gets, the less sure.</span>';
     return ["GFS","ECMWF","ICON","GEM"].map(function(k){return '<span><i class="k" style="border-top-color:'+MODEL_COL[k]+(k==="GEM"?';border-top-style:dotted':'')+'"></i>'+k+(k==="GEM"?" (no rain)":"")+'</span>'}).join("")+'<span style="flex-basis:100%">Bars are the middle of the four. Each dotted line is one forecast on its own.</span>';
   }
@@ -541,7 +549,7 @@ code{font-size:.92em;color:var(--txt2)}
   }
 
   // ---------- Hourly charts ----------
-  var W=358,L=30,R=8,T=10;
+  var W=358,L=30,R=32,T=10;
   function xs(i){return L+i*(W-L-R)/(HRS.length-1)}
   function frame(Hh,B,lo,hi,ticks,fmt){
     var y=function(v){return T+(hi-v)/(hi-lo)*(Hh-T-B)};
@@ -588,6 +596,11 @@ code{font-size:.92em;color:var(--txt2)}
       ["GFS","ECMWF","ICON","GEM"].forEach(function(k){s+='<path d="'+path(MODELS[k],y)+'" stroke="'+MODEL_COL[k]+'" stroke-width="2" stroke-dasharray="'+(k==="GEM"?"1 4":"4 3")+'" stroke-linecap="round" fill="none"/>'});
       ["GFS","ECMWF","ICON","GEM"].forEach(function(k){s+='<circle cx="'+xs(r2)+'" cy="'+y(MODELS[k][r2])+'" r="3" fill="'+MODEL_COL[k]+'" stroke="var(--bg)" stroke-width="1"/>'});
     }
+    // chance of rain on its own scale, read on the right: 0 to 100%
+    var yc=function(p){return T+(100-p)/100*(130-T-20)};
+    [50,100].forEach(function(p){s+='<text x="'+W+'" y="'+(yc(p)+4)+'" fill="var(--air)" font-size="12" text-anchor="end">'+p+'%</text>'});
+    s+='<path d="'+path(CHANCE,yc)+'" stroke="var(--air)" stroke-width="2" stroke-linejoin="round" fill="none"/>';
+    s+='<circle cx="'+xs(state.read)+'" cy="'+yc(CHANCE[state.read])+'" r="4" fill="var(--air)" stroke="var(--bg)" stroke-width="1"/>';
     return s;
   }
   function windSvg(){
@@ -608,7 +621,7 @@ code{font-size:.92em;color:var(--txt2)}
     function inch(v){return v?v.toFixed(2).replace(/^0/,""):"0"}
     return {
       temp:h+" · "+TEMP[i]+"°F"+(spread?", likely "+Math.round(TEMP[i]-SPREAD[i])+"–"+Math.round(TEMP[i]+SPREAD[i])+"°":""),
-      rain:h+" · "+(RAIN[i]?RAIN[i].toFixed(2)+" in":"none")+(spread&&hi>0?", forecasts "+inch(lo)+"–"+inch(hi):""),
+      rain:h+" · "+CHANCE[i]+"% chance, "+(RAIN[i]?RAIN[i].toFixed(2)+" in":"none")+(spread&&hi>0?", forecasts "+inch(lo)+"–"+inch(hi):""),
       wind:h+" · "+WIND[i]+" mph, gusts "+GUST[i],
       score:h+" · "+SCORE[i]
     };
@@ -630,12 +643,12 @@ code{font-size:.92em;color:var(--txt2)}
     document.getElementById("oneChart").innerHTML=m==="score"?scoreSvg():m==="rain"?rainSvg(both):m==="temp"?tempSvg(both):windSvg130();
     var legends={
       score:'<span>Hours scored 60 or more are lime; 40–59 amber; under 40 red.</span>',
-      rain:rainKey(),
-      temp:'<span>The line is the middle forecast. The shading is where 8 in 10 forecasts put the temperature: the wider it gets, the less sure.</span>',
+      rain:rainKey(both),
+      temp:both?'<span>The line is the middle forecast. The shading is where 8 in 10 forecasts put the temperature: the wider it gets, the less sure.</span>':'',
       wind:'<span><i style="border-color:var(--wind)"></i>wind</span><span><i style="border-color:var(--gust);border-top-style:dashed"></i>gusts</span>'
     };
     document.getElementById("oneLegend").innerHTML=legends[m];
-    document.getElementById("rKey").innerHTML=rainKey();
+    document.getElementById("rKey").innerHTML=rainKey(state.hr==="H2");
     document.getElementById("oneMini").style.display=m==="rain"?"":"none";
     var st="";SCORE.forEach(function(v,k){st+='<i style="background:'+col(v)+';opacity:'+(HRS[k]>=8&&HRS[k]<18?1:.35)+'"class="'+(k===i?"read":"")+'" title="'+hl(HRS[k])+' · '+v+'"></i>'});
     document.getElementById("strip").innerHTML=st;
