@@ -116,6 +116,7 @@ export function TripSections({
               gap: '10px',
               minHeight: '44px',
               cursor: 'pointer',
+              paddingInline: `${spacing.textInset}px`,
               ...typeV2.lineLabel,
             }}
           >
@@ -175,7 +176,10 @@ export function TripHead({
   return (
     <header style={{ ...headerBand, gap: `${spacing.listGap}px` }}>
       <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between', minHeight: '40px' }}>
-        <Crumb label={back.label} onClick={back.onBack} />
+        {/* Its own box, so the crumb (top-aligned for column use) centres on Feedback. */}
+        <div style={{ display: 'flex' }}>
+          <Crumb label={back.label} onClick={back.onBack} />
+        </div>
         {feedback ? <FeedbackButton locationId={feedbackLocationId} /> : null}
       </div>
       <div style={stack(spacing.tight)}>

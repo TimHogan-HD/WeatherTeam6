@@ -1,7 +1,7 @@
 import { useRef, type CSSProperties } from 'react'
 import { colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, row, stack } from '../theme/styles.js'
+import { TEXT_EDGE, bareButton, row, stack } from '../theme/styles.js'
 import { ChevronLeftIcon } from './Icons.js'
 import { FeedbackButton } from './FeedbackButton.js'
 import { SelectionIndicator, useSelectedRect } from './SelectionIndicator.js'
@@ -72,7 +72,7 @@ export function DetailHeader<T extends string>({
         ...stack(spacing.tight),
         marginTop: 'calc(-1 * env(safe-area-inset-top, 0px))',
         paddingTop: `calc(env(safe-area-inset-top, 0px) + ${spacing.topWeb}px)`,
-        paddingInline: `${spacing.screenH}px`,
+        paddingInline: `${TEXT_EDGE}px`,
         ...(tabs === null ? { paddingBottom: `${spacing.sectionGap}px` } : {}),
       }}
     >

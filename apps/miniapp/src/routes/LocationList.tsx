@@ -11,7 +11,7 @@ import {
   type RememberedCards,
 } from '../lib/rememberedCards.js'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, brandButton, sectionV2, navClearance, row, stack, wellV2 } from '../theme/styles.js'
+import { TEXT_EDGE, bareButton, brandButton, sectionV2, navClearance, row, stack, wellV2 } from '../theme/styles.js'
 import { formatUpdatedAt } from '../lib/format.js'
 import {
   SORT_OPTIONS,
@@ -145,7 +145,7 @@ export function LocationList() {
     <main style={{ display: 'flex', flexDirection: 'column', flex: 1, position: 'relative' }}>
       {splash ? <Splash /> : null}
       <PullToRefresh freshness={scoresFreshness(conditions.map((c) => c.data?.readings), now)} skip={skipOnRefresh}>
-      <header style={{ padding: `${spacing.sectionGap}px ${spacing.sectionGap}px 0` }}>
+      <header style={{ padding: `${spacing.sectionGap}px ${TEXT_EDGE}px 0` }}>
         <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div style={stack(spacing.tight)}>
             <h1 style={{ ...typeV2.listTitle, margin: 0 }}>Conditions</h1>

@@ -94,7 +94,7 @@ function SettingsForm({ saved }: { saved: Preferences }) {
 
       {update.isError ? <InlineError message="Couldn’t save. Check your connection and try again." /> : null}
       {done && changes === null ? (
-        <p role="status" style={{ ...typeV2.body, color: colorsV2.goodInk }}>
+        <p role="status" style={{ ...typeV2.body, color: colorsV2.goodInk, paddingInline: `${spacing.textInset}px` }}>
           Saved.
         </p>
       ) : null}

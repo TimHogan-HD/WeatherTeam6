@@ -314,7 +314,7 @@ export function TripAlerts({ crags, now }: { crags: readonly TripAlertsCrag[]; n
     <div style={stack(spacing.listGapSm)}>
       {shown.map((c) => (
         <div key={c.id} style={stack(spacing.micro)}>
-          {crags.length > 1 ? <span style={typeV2.lineLabel}>{c.name}</span> : null}
+          {crags.length > 1 ? <span style={{ ...typeV2.lineLabel, paddingInline: `${spacing.textInset}px` }}>{c.name}</span> : null}
           {c.retry === null ? <AlertBanner alerts={c.alerts} unchecked={c.unchecked} utcOffsetSeconds={c.utcOffsetSeconds ?? null} now={now} /> : <InlineError message="Couldn't load alerts." onRetry={c.retry} />}
         </div>
       ))}

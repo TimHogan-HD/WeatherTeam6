@@ -84,14 +84,14 @@ function WelcomeForm({ saved }: { saved: Preferences }) {
 
   return (
     <>
-      <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between', alignItems: 'center', minHeight: '44px' }}>
+      <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between', alignItems: 'center', minHeight: '44px', paddingInline: `${spacing.textInset}px` }}>
         <span style={{ ...typeV2.eyebrow, color: colorsV2.brandInk }}>Welcome</span>
         <button type="button" disabled={busy} onClick={skip} style={{ ...bareButton, ...typeV2.dayPick, width: 'auto', minHeight: '44px', color: colorsV2.txtMuted }}>
           Skip
         </button>
       </div>
 
-      <div style={stack(spacing.tight)}>
+      <div style={{ ...stack(spacing.tight), paddingInline: `${spacing.textInset}px` }}>
         <h1 style={{ ...typeV2.screenTitle, color: colorsV2.txt1 }}>Welcome to WeatherTeam6</h1>
         <p style={{ ...typeV2.lead, color: colorsV2.txt2 }}>
           A few settings before you start. The score depends on them, so they’re worth a minute. You can change any of this later on Profile.
@@ -128,43 +128,45 @@ function WelcomeForm({ saved }: { saved: Preferences }) {
       </Section>
 
       <Section title="Climbing preferences" sub="Your climbing hours and temperature range set every score. Change them and watch the example week.">
-        <RangeSlider
-          label="Climbing hours"
-          valueText={`${hourLabel(draft.firstHour)} to ${hourLabel(draft.lastHour)}`}
-          min={0}
-          max={23}
-          low={draft.firstHour}
-          high={draft.lastHour}
-          onLow={(h) => setDraft(setHour(draft, 'first', h))}
-          onHigh={(h) => setDraft(setHour(draft, 'last', h))}
-          lowName="Start of climbing hours"
-          highName="End of climbing hours"
-          format={hourLabel}
-          ends={[hourLabel(0), hourLabel(23)]}
-        />
-        <RangeSlider
-          label="Temperature range"
-          valueText={`${draft.lowF}°F to ${draft.highF}°F`}
-          min={TEMP_TRACK_F.min}
-          max={TEMP_TRACK_F.max}
-          low={draft.lowF}
-          high={draft.highF}
-          onLow={(f) => setDraft(setLowF(draft, f))}
-          onHigh={(f) => setDraft(setHighF(draft, f))}
-          lowName="Too cold below"
-          highName="Too hot above"
-          format={(f) => `${f}°F`}
-          ends={[`${TEMP_TRACK_F.min}°`, `${TEMP_TRACK_F.max}°`]}
-        />
-        <button
-          type="button"
-          disabled={isDefault({ ...draft, tab: 'overview' })}
-          onClick={() => setDraft({ ...DEFAULT_DRAFT, tab: draft.tab })}
-          style={{ ...bareButton, ...typeV2.body, width: 'auto', alignSelf: 'flex-start', minHeight: '36px', color: colorsV2.brandInk }}
-        >
-          Back to the defaults ({TEMP_RANGE_DEFAULT_F.low}°F to {TEMP_RANGE_DEFAULT_F.high}°F, {hourLabel(CLIMB_HOURS_DEFAULT.first)} to{' '}
-          {hourLabel(CLIMB_HOURS_DEFAULT.last)})
-        </button>
+        <div style={{ ...stack(spacing.listGap), paddingInline: `${spacing.textInset}px` }}>
+          <RangeSlider
+            label="Climbing hours"
+            valueText={`${hourLabel(draft.firstHour)} to ${hourLabel(draft.lastHour)}`}
+            min={0}
+            max={23}
+            low={draft.firstHour}
+            high={draft.lastHour}
+            onLow={(h) => setDraft(setHour(draft, 'first', h))}
+            onHigh={(h) => setDraft(setHour(draft, 'last', h))}
+            lowName="Start of climbing hours"
+            highName="End of climbing hours"
+            format={hourLabel}
+            ends={[hourLabel(0), hourLabel(23)]}
+          />
+          <RangeSlider
+            label="Temperature range"
+            valueText={`${draft.lowF}°F to ${draft.highF}°F`}
+            min={TEMP_TRACK_F.min}
+            max={TEMP_TRACK_F.max}
+            low={draft.lowF}
+            high={draft.highF}
+            onLow={(f) => setDraft(setLowF(draft, f))}
+            onHigh={(f) => setDraft(setHighF(draft, f))}
+            lowName="Too cold below"
+            highName="Too hot above"
+            format={(f) => `${f}°F`}
+            ends={[`${TEMP_TRACK_F.min}°`, `${TEMP_TRACK_F.max}°`]}
+          />
+          <button
+            type="button"
+            disabled={isDefault({ ...draft, tab: 'overview' })}
+            onClick={() => setDraft({ ...DEFAULT_DRAFT, tab: draft.tab })}
+            style={{ ...bareButton, ...typeV2.body, width: 'auto', alignSelf: 'flex-start', minHeight: '36px', color: colorsV2.brandInk }}
+          >
+            Back to the defaults ({TEMP_RANGE_DEFAULT_F.low}°F to {TEMP_RANGE_DEFAULT_F.high}°F, {hourLabel(CLIMB_HOURS_DEFAULT.first)} to{' '}
+            {hourLabel(CLIMB_HOURS_DEFAULT.last)})
+          </button>
+        </div>
         <ExampleWeek preview={preview} draft={draft} chosen={chosen} onChoose={setChosen} />
       </Section>
 
@@ -185,7 +187,7 @@ function WelcomeForm({ saved }: { saved: Preferences }) {
       </Section>
 
       <Section title="Feedback" aside={<span aria-hidden="true" style={feedbackLook}>Feedback</span>}>
-        <p style={{ ...typeV2.body, color: colorsV2.txt2 }}>
+        <p style={{ ...typeV2.body, color: colorsV2.txt2, paddingInline: `${spacing.textInset}px` }}>
           It’s in the top-right of every screen and comes straight to the person who runs the app. Use it for bugs, ideas, or a score that didn’t match the
           rock. From a crag, it opens with that crag chosen.
         </p>
@@ -220,7 +222,7 @@ const feedbackLook = {
 function Section({ title, sub, aside, children }: { title: string; sub?: string; aside?: ReactNode; children: ReactNode }) {
   return (
     <section style={stack(spacing.listGap)}>
-      <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between', alignItems: 'center', paddingInline: `${spacing.textInset}px` }}>
         <div style={stack(spacing.micro)}>
           <h2 style={{ ...typeV2.dayName, color: colorsV2.txt1 }}>{title}</h2>
           {sub === undefined ? null : <p style={{ ...typeV2.controlLabel, color: colorsV2.txt2 }}>{sub}</p>}

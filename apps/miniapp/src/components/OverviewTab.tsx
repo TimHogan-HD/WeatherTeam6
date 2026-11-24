@@ -729,7 +729,7 @@ function RightNowCard({ props }: { props: OverviewTabProps }) {
           </button>
         ))}
       </div>
-      {sources.length === 0 ? null : <p style={{ ...typeV2.keyRow, margin: '10px 2px 0' }}>{sources.join(' · ')}</p>}
+      {sources.length === 0 ? null : <p style={{ ...typeV2.keyRow, margin: '10px 0 0' }}>{sources.join(' · ')}</p>}
     </Card>
   )
 }

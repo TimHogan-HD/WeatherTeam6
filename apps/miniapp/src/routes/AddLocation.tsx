@@ -175,7 +175,7 @@ export function AddLocation() {
   if (candidate !== null) {
     return (
       <Screen title={candidate.name} onBack={onBack} feedback>
-        {candidate.detail === null ? null : <p style={{ ...typeV2.rowSmall, color: colorsV2.txtMuted }}>{candidate.detail}</p>}
+        {candidate.detail === null ? null : <p style={{ ...typeV2.rowSmall, color: colorsV2.txtMuted, paddingInline: `${spacing.textInset}px` }}>{candidate.detail}</p>}
         <SaveBar
           draft={draft}
           knownCrag={knownCrag}
@@ -234,7 +234,7 @@ export function AddLocation() {
 
         <button
           type="button"
-          style={{ ...bareButton, ...typeV2.dayPick, color: colorsV2.brandInk, width: 'auto', alignSelf: 'flex-start', minHeight: '44px' }}
+          style={{ ...bareButton, ...typeV2.dayPick, color: colorsV2.brandInk, width: 'auto', alignSelf: 'flex-start', minHeight: '44px', paddingInline: `${spacing.textInset}px` }}
           onClick={() => setCoordsMode(!coordsMode)}
         >
           {coordsMode ? 'Search by name instead' : 'Enter coordinates instead'}

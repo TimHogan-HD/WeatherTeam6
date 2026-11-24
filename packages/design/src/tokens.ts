@@ -1390,8 +1390,14 @@ export const typeV2 = {
 // ─────────────────────────────────────────────
 
 export const spacing = {
-  /** Standard horizontal screen gutter */
-  screenH: 20,
+  /**
+   * Horizontal screen gutter: where hairlines and filled surfaces start. Text
+   * sits `textInset` further in, so every screen has one text edge at 18px
+   * (#644 variant C: a 16px phone padding, sections inset 2px).
+   */
+  screenH: 16,
+  /** Text inset inside the gutter; the one text edge is `screenH + textInset`. */
+  textInset: 2,
   /** Top safe area / status bar clearance */
   topSafe: 48,
   /**

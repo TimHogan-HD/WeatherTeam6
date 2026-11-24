@@ -47,8 +47,15 @@ const hairline = (color: string): CSSProperties => ({
  * and one hairline above set it off from what comes before. Proximity first; a
  * container only where space cannot do it.
  */
+/**
+ * The one text edge, in px from the screen's side: the gutter (`spacing.screenH`,
+ * where hairlines start) plus `spacing.textInset`. Headers pad to it; a line of
+ * text outside a section takes `textInset` so it starts here too.
+ */
+export const TEXT_EDGE = spacing.screenH + spacing.textInset
+
 export const sectionV2: CSSProperties = {
-  padding: `${spacing.sectionGap}px 2px 0`,
+  padding: `${spacing.sectionGap}px ${spacing.textInset}px 0`,
   borderTop: `1px solid ${colorsV2.line}`,
 }
 
@@ -215,6 +222,6 @@ export const headerBand: CSSProperties = {
   ...stack(spacing.sectionGap),
   marginTop: 'calc(-1 * env(safe-area-inset-top, 0px))',
   paddingTop: `calc(env(safe-area-inset-top, 0px) + ${spacing.topWeb}px)`,
-  paddingInline: `${spacing.screenH}px`,
+  paddingInline: `${TEXT_EDGE}px`,
   paddingBottom: `${spacing.sectionGap}px`,
 }
