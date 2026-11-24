@@ -192,6 +192,19 @@ describe('HourlyCharts — gaps break, never bridge', () => {
     expect(count(svg, 'data-range=""')).toBe(2)
   })
 
+  it('draws an answered hour between two gaps as a dot, since a line of one point draws nothing', () => {
+    const gap = { wind_kmh_p50: null, wind_gust_kmh: null, temp_c_p50: null, dewpoint_c: null, humidity_pct: null }
+    const hours = twoDays.map((h, i) => (i === 11 || i === 13 ? { ...h, ...gap } : h))
+    const html = render(series(hours), 'all')
+    const wind = chartSvg(html, WIND)
+    expect(wind).toContain('data-lone="wind"')
+    expect(wind).toContain('data-lone="gust"')
+    const temp = chartSvg(html, TEMP)
+    for (const mark of ['air', 'dew', 'humidity']) expect(temp).toContain(`data-lone="${mark}"`)
+    // Unbroken hours draw lines, never dots.
+    expect(chartSvg(render(series(twoDays), 'all'), WIND)).not.toContain('data-lone')
+  })
+
   it('withholds the wind chart rather than drawing an empty one', () => {
     const calm = twoDays.map((h) => ({ ...h, wind_kmh_p50: null }))
     expect(visible(render(series(calm), 'wind'))).toContain('No hourly wind for this day.')

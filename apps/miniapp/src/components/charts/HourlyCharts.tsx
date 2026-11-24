@@ -155,6 +155,15 @@ function lineRuns(rows: readonly HourRow[], axis: TimeAxis, value: (r: HourRow) 
   ).map((run) => run.map((d) => [axis.x(d.t), y(d.v ?? 0)] as const))
 }
 
+/**
+ * An answered hour between two gaps is a run of one point, which a line cannot
+ * draw (`smoothPath` of one point is a bare move). A dot keeps the chart
+ * agreeing with the row that prints that hour’s figure.
+ */
+function LoneHour({ at, r, fill, mark }: { at: Pt | undefined; r: number; fill: string; mark: string }) {
+  return at === undefined ? null : <circle cx={at[0]} cy={at[1]} r={r} fill={fill} data-lone={mark} />
+}
+
 function Grid({ axis, ticks, y, unit = '' }: { axis: TimeAxis; ticks: readonly number[]; y: (v: number) => number; unit?: string }) {
   return (
     <>
@@ -235,13 +244,13 @@ function TemperatureChart({ axis, instants, utcOffsetSeconds, nowMs, read, rows,
             color={chartColorsV2.airBand}
           />
         ))}
-        {lineRuns(rows, axis, (r) => r.humidityPct, hy).map((pts, i) => (
+        {lineRuns(rows, axis, (r) => r.humidityPct, hy).map((pts, i) => pts.length === 1 ? <LoneHour key={i} at={pts[0]} r={2.5} fill={chartColorsV2.humidity} mark="humidity" /> : (
           <path key={i} d={smoothPath(pts)} fill="none" stroke={chartColorsV2.humidity} strokeWidth={1.8} opacity={0.85} data-humidity="" />
         ))}
-        {lineRuns(rows, axis, (r) => r.dewF, y).map((pts, i) => (
+        {lineRuns(rows, axis, (r) => r.dewF, y).map((pts, i) => pts.length === 1 ? <LoneHour key={i} at={pts[0]} r={2.5} fill={chartColorsV2.dewPoint} mark="dew" /> : (
           <path key={i} d={smoothPath(pts)} fill="none" stroke={chartColorsV2.dewPoint} strokeWidth={2} strokeDasharray="5 4" data-dew="" />
         ))}
-        {lineRuns(rows, axis, (r) => r.tempF, y).map((pts, i) => (
+        {lineRuns(rows, axis, (r) => r.tempF, y).map((pts, i) => pts.length === 1 ? <LoneHour key={i} at={pts[0]} r={4} fill={`url(#${gradient})`} mark="air" /> : (
           <Tube key={i} d={smoothPath(pts)} stroke={`url(#${gradient})`} width={6} />
         ))}
         {rr === null || rr.humidityPct === null ? null : <circle cx={axis.x(rr.ms)} cy={hy(rr.humidityPct)} r={3.5} fill={chartColorsV2.humidity} />}
@@ -503,10 +512,10 @@ function WindChart({ axis, instants, utcOffsetSeconds, nowMs, read, rows, height
             color={chartColorsV2.wind}
           />
         ))}
-        {lineRuns(rows, axis, (r) => r.gustMph, y).map((pts, i) => (
+        {lineRuns(rows, axis, (r) => r.gustMph, y).map((pts, i) => pts.length === 1 ? <LoneHour key={i} at={pts[0]} r={2.5} fill={chartColorsV2.gust} mark="gust" /> : (
           <path key={i} d={smoothPath(pts)} fill="none" stroke={chartColorsV2.gust} strokeWidth={2} strokeDasharray="5 4" data-gust="" />
         ))}
-        {lineRuns(rows, axis, (r) => r.windMph, y).map((pts, i) => (
+        {lineRuns(rows, axis, (r) => r.windMph, y).map((pts, i) => pts.length === 1 ? <LoneHour key={i} at={pts[0]} r={3.5} fill={chartColorsV2.wind} mark="wind" /> : (
           <Tube key={i} d={smoothPath(pts)} stroke={chartColorsV2.wind} width={5} />
         ))}
         {rr === null || rr.windMph === null ? null : <Bead x={axis.x(rr.ms)} y={y(rr.windMph)} color={chartColorsV2.wind} />}
