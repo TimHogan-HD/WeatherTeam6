@@ -363,18 +363,20 @@ function Detail({ row: r, scored, hourLabel }: { row: HourRow; scored: boolean; 
   const or = (v: number | string | null, unit = '') => (v === null ? EM_DASH : `${v}${unit}`)
   const dir = compass(r.windFromDeg)
   /**
-   * One figure as a pill sized to what it says: a dot in its chart's colour, the
-   * label, the figure, and a note where the figure needs one. Pills wrap, so a
-   * short figure leaves no empty tile (owner, 2026-11-24, on the tiles before).
+   * One figure as a tile, in threes (owner, 2026-11-24): the label over the
+   * figure over its note, centred, so each tile reads as one filled block.
    */
-  const pill = (label: string, value: ReactNode, opts: { dot?: string; note?: string | null; valueColor?: string } = {}) => (
-    <div key={label} style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6, background: colorsV2.raised, borderRadius: radius.full, padding: '5px 12px', minWidth: 0 }}>
-      <dt style={{ ...typeV2.daySmall, color: colorsV2.txtTab, display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+  const tile = (label: string, value: ReactNode, opts: { dot?: string; note?: string | null; valueColor?: string } = {}) => (
+    <div
+      key={label}
+      style={{ background: colorsV2.raised, borderRadius: radius.rowV2, padding: '10px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 2, minWidth: 0 }}
+    >
+      <dt style={{ ...typeV2.daySmall, color: colorsV2.txtTab, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, whiteSpace: 'nowrap', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {opts.dot === undefined ? null : <i aria-hidden="true" style={{ width: 6, height: 6, borderRadius: radius.full, background: opts.dot, flex: 'none' }} />}
         {label}
       </dt>
-      <dd style={{ margin: 0, display: 'inline-flex', alignItems: 'baseline', gap: 6, whiteSpace: 'nowrap' }}>
-        <span style={{ ...typeV2.hourPick, color: opts.valueColor ?? colorsV2.txt1 }}>{value}</span>
+      <dd style={{ margin: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <span style={{ ...typeV2.weekScore, lineHeight: 1.1, color: opts.valueColor ?? colorsV2.txt1 }}>{value}</span>
         {opts.note == null ? null : <small style={{ ...typeV2.daySmall, color: colorsV2.txtTab }}>{opts.note}</small>}
       </dd>
     </div>
@@ -382,17 +384,17 @@ function Detail({ row: r, scored, hourLabel }: { row: HourRow; scored: boolean; 
   return (
     <dl
       className="wt6-header-swap"
-      style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '0 0 12px', padding: 8, background: colorsV2.surface, border: `1px solid ${colorsV2.line}`, borderRadius: radius.cardV2 }}
+      style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 6, margin: '0 0 12px', padding: 8, background: colorsV2.surface, border: `1px solid ${colorsV2.line}`, borderRadius: radius.cardV2 }}
     >
-      {pill('Temp', or(r.tempF, '°'), { dot: chartColorsV2.air, note: r.lowF === null || r.highF === null ? null : `likely ${r.lowF}–${r.highF}°` })}
-      {pill('Humidity', or(r.humidityPct, '%'), { dot: chartColorsV2.humidity })}
-      {pill('Dew point', or(r.dewF, '°'))}
-      {pill('Chance of rain', or(r.chancePct, '%'), { dot: colorsV2.rain })}
-      {pill('Rain', r.rainIn === null ? EM_DASH : `${rowInches(r.rainIn)} in`, { dot: colorsV2.rainAmount })}
-      {pill('Wind', or(r.windMph, ' mph'), { dot: colorsV2.wind, note: r.windMph === null || dir === null ? null : `from ${dir}` })}
-      {pill('Gusts', or(r.gustMph, ' mph'), { dot: colorsV2.gust })}
-      {pill('Sun', r.daylight === false ? 'dark' : or(r.sunMin, ' min'), { dot: colorsV2.sun, note: `${hourLabel(r.ms)}–${hourLabel(r.ms + HOUR_MS)}` })}
-      {scored ? pill('Score', or(r.score), { valueColor: r.score === null ? colorsV2.txtMuted : scoreColor(r.score) }) : null}
+      {tile('Temperature', or(r.tempF, '°'), { dot: chartColorsV2.air, note: r.lowF === null || r.highF === null ? null : `likely ${r.lowF}–${r.highF}°` })}
+      {tile('Humidity', or(r.humidityPct, '%'), { dot: chartColorsV2.humidity })}
+      {tile('Dew point', or(r.dewF, '°'))}
+      {tile('Chance of rain', or(r.chancePct, '%'), { dot: colorsV2.rain })}
+      {tile('Rain', r.rainIn === null ? EM_DASH : `${rowInches(r.rainIn)} in`, { dot: colorsV2.rainAmount })}
+      {tile('Sun', r.daylight === false ? 'dark' : or(r.sunMin, ' min'), { dot: colorsV2.sun, note: `${hourLabel(r.ms)}–${hourLabel(r.ms + HOUR_MS)}` })}
+      {tile('Wind', or(r.windMph, ' mph'), { dot: colorsV2.wind, note: r.windMph === null || dir === null ? null : `from ${dir}` })}
+      {tile('Gusts', or(r.gustMph, ' mph'), { dot: colorsV2.gust })}
+      {scored ? tile('Score', or(r.score), { valueColor: r.score === null ? colorsV2.txtMuted : scoreColor(r.score) }) : null}
     </dl>
   )
 }
