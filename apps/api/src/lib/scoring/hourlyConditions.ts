@@ -326,8 +326,6 @@ export type HourConditionsInput = {
   wall?: WallOrientation | null
   /** Hours the sample covers, so the sun is taken mid-sample. Defaults to 1. */
   stepHours?: number
-  /** `user_preferences.include_sun`. Defaults to true. */
-  includeSun?: boolean
   weights?: ScoreWeights
   metabolicW?: number
 }
@@ -448,7 +446,6 @@ function surfaceFor(input: {
   cliffAngleDeg: number
   wall?: WallOrientation | null
   stepHours?: number
-  includeSun?: boolean
 }): ReturnType<typeof surfaceTemperature> {
   return surfaceTemperature({
     airTempC: input.airTempC,
@@ -457,7 +454,6 @@ function surfaceFor(input: {
     cloudPct: input.cloudPct,
     cliffAngleDeg: input.cliffAngleDeg,
     wall: wallAt(input.valid_at, input.wall ?? null, input.stepHours ?? 1),
-    includeSun: input.includeSun,
   })
 }
 
@@ -579,7 +575,6 @@ export type EvaluateSeriesOptions = {
    */
   wall?: WallOrientation | null
   weights?: ScoreWeights
-  includeSun?: boolean
   metabolicW?: number
   massTempOptions?: MassTemperatureOptions
   /**
@@ -658,7 +653,6 @@ export function evaluateHourlyConditions(
       cliffAngleDeg: options.cliffAngleDeg,
       wall: options.wall ?? null,
       stepHours: step,
-      includeSun: options.includeSun,
     })
     const surface = lagSurface(instant, previous, step, options.wall != null)
     previous = surface
@@ -716,7 +710,6 @@ export function evaluateHourlyConditions(
           cliffAngleDeg: options.cliffAngleDeg,
           wall: options.wall ?? null,
           stepHours: step,
-          includeSun: options.includeSun,
           weights: options.weights,
           metabolicW: options.metabolicW,
         },

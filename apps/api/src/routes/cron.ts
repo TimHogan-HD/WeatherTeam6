@@ -1,4 +1,4 @@
-import { createHash, timingSafeEqual } from 'node:crypto'
+import { secretsMatch } from '../lib/auth/token.js'
 import { Router, type Request, type Response } from 'express'
 import { describeError, sendServerError } from '../lib/http.js'
 import { logger } from '../lib/logger.js'
@@ -11,13 +11,10 @@ import type { ApiResponse } from '@weatherteam6/types'
 
 export const cronRouter = Router()
 
-// Fixed-length digest comparison so a mismatched CRON_SECRET can't be brute-forced
-// via response-time differences — this header is the only guard on a public URL.
+// Constant time, because this header is the only guard on a public URL.
 function isValidCronSecret(provided: string | undefined, expected: string): boolean {
   if (!provided) return false
-  const a = createHash('sha256').update(provided).digest()
-  const b = createHash('sha256').update(expected).digest()
-  return timingSafeEqual(a, b)
+  return secretsMatch(provided, expected)
 }
 
 /**

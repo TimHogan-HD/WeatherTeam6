@@ -229,20 +229,6 @@ describe('surfaceTemperature', () => {
       expect(surfaceTemperature({ ...base, shortwaveWm2: 50, windKmh: 30 }).qualified).toBe(true)
       expect(ASPECT_QUALIFY_MARGIN_C).toBe(1)
     })
-
-    it('qualifies every hour when the user has turned the sun off', () => {
-      // Nothing reads irradiance, so no geometry can change the answer — and the
-      // reading survives past the model's shortwave horizon.
-      const out = surfaceTemperature({
-        ...base,
-        shortwaveWm2: null,
-        includeSun: false,
-        airTempC: 20,
-      })
-      expect(out.t_surface_c).toBeCloseTo(20, 10)
-      expect(out.solar_gain_c).toBe(0)
-      expect(out.qualified).toBe(true)
-    })
   })
 
   describe('continuity — the invariant issue #148 was filed for', () => {

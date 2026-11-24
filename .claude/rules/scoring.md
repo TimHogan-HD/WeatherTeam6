@@ -55,7 +55,7 @@ How Crag A scores, and what may feed it.
   not per crag** — two partners can see two scores for one crag. A failed read is a
   500, never the default. Limits and the 10 °F minimum gap are `TEMP_RANGE_LIMITS_F`. The
   Phase 0 columns on that table (`ideal_temp_*`, `drying_caution`, `include_sun`,
-  `window_min_*`) are read by nothing.
+  `window_min_*`), read by nothing, were dropped in migration 0048.
 - **`rockThermal.ts` is Layer 1.** Irradiance comes from one deterministic model,
   `gfs_seamless` (`THERMAL_MODEL`); a reading above 1400 W/m² is a gap. **One model is a
   cost decision, not a safety rule** (#212): the mean of GFS, ECMWF and ICON measured 0.2 °F

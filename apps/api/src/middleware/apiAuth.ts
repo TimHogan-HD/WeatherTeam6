@@ -1,7 +1,6 @@
-import { createHash, timingSafeEqual } from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
 import { logger } from '../lib/logger.js';
-import { verifyToken } from '../lib/auth/token.js';
+import { secretsMatch, verifyToken } from '../lib/auth/token.js';
 
 /**
  * Set by `requireApiAuth` and by nothing else.
@@ -56,13 +55,6 @@ declare module 'express-serve-static-core' {
  * class 8: a permissive type that silently discards data). If you mount a new
  * router in `index.ts`, it goes inside `/api/v1` or it brings its own identity.
  */
-
-/** Fixed-length digest comparison — a bare `===` leaks the secret via response timing. */
-function secretMatches(provided: string, expected: string): boolean {
-  const a = createHash('sha256').update(provided).digest();
-  const b = createHash('sha256').update(expected).digest();
-  return timingSafeEqual(a, b);
-}
 
 function credentialFor(
   scheme: 'Bearer' | 'Session',
@@ -145,7 +137,7 @@ export function requireApiAuth(req: Request, res: Response, next: NextFunction):
   }
 
   const bearer = credentialFor('Bearer', header);
-  if (bearer === null || !secretMatches(bearer, expected)) {
+  if (bearer === null || !secretsMatch(bearer, expected)) {
     reject(req, res, 'bad or missing bearer');
     return;
   }
