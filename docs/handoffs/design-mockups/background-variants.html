@@ -24,6 +24,10 @@
 :root[data-bg="F"]{--bg:#0f1d21; --glow:#0f1d21; --mid:#0f1d21; --surface:#152629; --raised:#203339; --line:#2e454c; --tab:#8a9da3}
 /* G · Tonal ladder (Material 3 surface containers): neutral ground, each level a fixed step lighter; tiles carry the grouping, so the hairlines go quiet. */
 :root[data-bg="G"]{--bg:#121416; --glow:#121416; --mid:#121416; --surface:#1d2022; --raised:#282b2e; --line:#26292c; --tab:#959ca3}
+/* I to K · Mid-dark grounds at L* 18 to 23 (A is L* 2, E is 14). Red lifts to #ffa0a5 on J and K so small red text keeps 4.5:1 on a tile. */
+:root[data-bg="I"]{--bg:#262c33; --glow:#2c343d; --mid:#283038; --surface:#2d343c; --raised:#343b44; --line:#434b56; --tab:#a9b2bc}
+:root[data-bg="J"]{--bg:#2e3540; --glow:#353e4b; --mid:#313944; --surface:#353d48; --raised:#3d4551; --line:#4c5562; --tab:#b3bcc6; --poor:#ffa0a5}
+:root[data-bg="K"]{--bg:#1e3a40; --glow:#27484f; --mid:#213e44; --surface:#244349; --raised:#2a4b52; --line:#3a5a61; --tab:#a9c0c5; --poor:#ffa0a5}
 /* H · Light, for a phone in light mode (prefers-color-scheme). Score and accent inks are darkened so each clears 4.5:1; lime on white does not. */
 :root[data-bg="H"]{color-scheme:light;
   --bg:#f3f5f6; --glow:#e2f1f3; --mid:#eef2f3; --surface:#ffffff; --raised:#e4e9ec; --line:#cfd7dc; --tab:#56626d;
@@ -106,7 +110,8 @@ h3{margin:0 0 8px;font-family:var(--display);font-weight:600;font-size:20px}
 <main class="page">
   <header class="intro">
     <h1>Background options</h1>
-    <p>Same Overview as variant C, eight options. The page behind the phone takes the chosen ground, so it reads like a full screen. A to E move only the ground and the steps above it (tiles, the dock, hairlines); F drops the glow, G separates by tone instead of lines, and H is a light theme for a phone in light mode. Research notes are under each option's figures. Figures are a sample Taylors Falls week.</p>
+    <p><b>Why A to G look alike:</b> on a 0 to 100 lightness scale they run from 2 to 14, all of which reads as black on a phone. I, J and K sit at 18 to 23, where a dark theme starts to read as grey or colour.</p>
+    <p>Same Overview as variant C, eleven options. The page behind the phone takes the chosen ground, so it reads like a full screen. A to E move only the ground and the steps above it (tiles, the dock, hairlines); F drops the glow, G separates by tone instead of lines, and H is a light theme for a phone in light mode. Research notes are under each option's figures. Figures are a sample Taylors Falls week.</p>
   </header>
 
   <div class="switch" role="group" aria-label="Background">
@@ -117,6 +122,9 @@ h3{margin:0 0 8px;font-family:var(--display);font-weight:600;font-size:20px}
     <button type="button" aria-pressed="false" data-v="E"><i style="background:#1d242d"></i>E · Dim</button>
     <button type="button" aria-pressed="false" data-v="F"><i style="background:#0f1d21"></i>F · Teal, flat</button>
     <button type="button" aria-pressed="false" data-v="G"><i style="background:#121416"></i>G · Tonal steps</button>
+    <button type="button" aria-pressed="false" data-v="I"><i style="background:#262c33"></i>I · Graphite</button>
+    <button type="button" aria-pressed="false" data-v="J"><i style="background:#2e3540"></i>J · Storm</button>
+    <button type="button" aria-pressed="false" data-v="K"><i style="background:#1e3a40"></i>K · Teal, mid</button>
     <button type="button" aria-pressed="false" data-v="H"><i style="background:#f3f5f6"></i>H · Light mode</button>
   </div>
 
@@ -215,6 +223,28 @@ h3{margin:0 0 8px;font-family:var(--display);font-weight:600;font-size:20px}
           <li>Follows two research rules: <b>a surface ladder with one job per step</b> (Radix's 12-step scale), and <b>group by space and tone before borders</b> (NN/g: borders are "often added in an abundance of caution").</li>
           <li>Most legible of the dark options: body text 17:1, inactive tab 5.1:1 on a tile. Apple asks dark mode to "strive for 7:1, especially in small text"; muted text here is 11:1.</li>
           <li>Bigger than B to E: the hairlines between rows go nearly invisible, so the lists rely on spacing alone. Worth checking on your phone.</li>
+        </ul>
+      </div>
+      <div data-v="I" hidden>
+        <h2>I · Graphite</h2>
+        <ul>
+          <li><b>#262c33, lightness 18 of 100</b> (A is 2, E is 14). The first step that reads as grey rather than black on a phone.</li>
+          <li>Every colour stays as built and clears 4.5:1: body text 13:1, lime 10.9:1, red on a tile 4.6:1.</li>
+        </ul>
+      </div>
+      <div data-v="J" hidden>
+        <h2>J · Storm</h2>
+        <ul>
+          <li><b>#2e3540, lightness 22.</b> Blue-grey, close to Twitter/X's "Dim" theme lifted a step. Clearly a dark theme, clearly not black.</li>
+          <li>The red score lightens to #ffa0a5 so small red text keeps 4.5:1 on a tile (today's red would be 4.0:1). Lime is 9.5:1, body text 11.5:1.</li>
+          <li>The limit: much lighter than this and the light text starts losing contrast faster than it gains comfort.</li>
+        </ul>
+      </div>
+      <div data-v="K" hidden>
+        <h2>K · Teal, mid</h2>
+        <ul>
+          <li><b>#1e3a40, lightness 23.</b> D's brand teal at J's lightness: the app becomes a teal app rather than a black one.</li>
+          <li>Same red lift as J. Lime on teal is 9.3:1, but the brand teal accents (selected day, dock pill) sit closer to the ground, so the selection reads more by its outline than its fill.</li>
         </ul>
       </div>
       <div data-v="H" hidden>
