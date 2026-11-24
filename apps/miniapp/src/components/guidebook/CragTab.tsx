@@ -101,7 +101,7 @@ function AreaCard({ guide }: { guide: Guidebook }) {
   )
 }
 
-function WallRow({ wall, onOpen }: { wall: GuidebookWall; onOpen: () => void }) {
+function WallRow({ wall, first, onOpen }: { wall: GuidebookWall; first: boolean; onOpen: () => void }) {
   const range = gradeRange(wall.routes)
   const count = `${wall.routes.length} ${wall.routes.length === 1 ? 'route' : 'routes'}`
   return (
@@ -113,7 +113,8 @@ function WallRow({ wall, onOpen }: { wall: GuidebookWall; onOpen: () => void }) 
         ...row(spacing.listGapLg),
         minHeight: '52px',
         paddingBlock: `${spacing.cellPad}px`,
-        borderTop: `1px solid ${colorsV2.line}`,
+        // Rules between rows only, so the first does not fence the heading off a second time.
+        borderTop: first ? 'none' : `1px solid ${colorsV2.line}`,
       }}
     >
       <span style={{ ...stack(spacing.tight), flex: '1 1 auto', minWidth: 0 }}>
@@ -163,8 +164,8 @@ function GuideRoot(props: CragTabProps & { guide: Guidebook }) {
       <GuideCard title={many ? 'Walls' : 'Wall'} aside={many ? 'A–Z' : null}>
         <p style={{ ...typeV2.note, color: colorsV2.txtMuted }}>Conditions are for the whole crag, not each wall.</p>
         <div style={stack(0)}>
-          {guide.walls.map((wall) => (
-            <WallRow key={wall.id} wall={wall} onOpen={() => void navigate(wallPath(props.locationId, wall.id))} />
+          {guide.walls.map((wall, i) => (
+            <WallRow key={wall.id} wall={wall} first={i === 0} onOpen={() => void navigate(wallPath(props.locationId, wall.id))} />
           ))}
         </div>
         <GradeLegend routes={routes} withCounts={false} />

@@ -20,7 +20,9 @@ the mockup are sample data. Only the crag names are real.
   time-of-day sky and no weather drawn behind the content. Each section is a frosted
   glass card. Motion is only in front, and only when a reading changes. **Superseded for
   sections on 2026-11-23** (owner, #644 variant C "Open list"): every in-flow section is
-  now open (`sectionV2`: space and one hairline, no card). Glass stays only on panes that
+  now open (`sectionV2`: space and one hairline, no card). **The still background's teal
+  glow was removed on 2026-11-24** (owner's pick G, `background-variants.html`): the
+  ground is a flat dark grey with tonal steps above it. Glass stays only on panes that
   float over content (`surfaceV2`: the save bar, the map's overlays), the dock, the bottom
   bar and the headers. Where the phases below say "glass card", read "section". The same
   change (#652, #653) made headings sentence case with no tracked caps, set a 12 px text

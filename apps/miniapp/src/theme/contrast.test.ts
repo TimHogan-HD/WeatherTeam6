@@ -34,10 +34,8 @@ const TEXT: Record<string, { color: string; on: readonly (keyof typeof SURFACES)
   txt2: { color: colorsV2.txt2, on: ['bg', 'surface', 'card', 'raised'] },
   txtMuted: { color: colorsV2.txtMuted, on: ['bg', 'surface', 'card', 'raised'] },
   brandInk: { color: colorsV2.brandInk, on: ['bg', 'surface', 'card', 'raised'] },
-  // Not on `raised` (4.18:1): the one control that lays `raised` behind a label, the
-  // Gauges source switch, swaps the label to `brandInk` in the same breath. Drawing
-  // `txtTab` on `raised` anywhere needs a lighter token, not an entry here.
-  txtTab: { color: colorsV2.txtTab, on: ['bg', 'surface', 'card'] },
+  // On `raised` too since the tonal-steps pick (2026-11-24), which lifted it from 4.18:1.
+  txtTab: { color: colorsV2.txtTab, on: ['bg', 'surface', 'card', 'raised'] },
 }
 
 describe('text contrast on every surface (WCAG 1.4.3, 4.5:1)', () => {
@@ -52,7 +50,7 @@ describe('text contrast on every surface (WCAG 1.4.3, 4.5:1)', () => {
   it('measures the way WCAG does: black on white is 21, and a colour on itself is 1', () => {
     expect(contrastRatio('#000000', '#ffffff')).toBeCloseTo(21, 5)
     expect(contrastRatio(colorsV2.card, colorsV2.card)).toBe(1)
-    // The pair that fails, so the floor is shown to bite: txtTab on raised.
-    expect(contrastRatio(colorsV2.txtTab, colorsV2.raised)).toBeLessThan(FLOOR)
+    // A pair that fails, so the floor is shown to bite: the hairline, which is not text.
+    expect(contrastRatio(colorsV2.line, colorsV2.raised)).toBeLessThan(FLOOR)
   })
 })

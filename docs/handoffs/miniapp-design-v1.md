@@ -167,7 +167,12 @@ dots; sun and shade walls under the hero (#445). **Open sections, not cards** (o
 section below is set off by space and one hairline; Next days is a list, one day per row
 (day, sky, high/low, chance of rain, score); Right now is label and value rows, each still
 opening its tab. Every other screen has the same open sections since 2026-11-24 (owner:
-"make this update to all other pages").
+"make this update to all other pages"). **A hairline sits between sections and between
+list rows, never twice around one thing** (owner, 2026-11-24: "a lot of these double
+lines"): a list's first row under its heading has none, and Score breakdown belongs to
+the hero with no rule of its own. **The ground is tonal steps on a flat `#121416`**
+(owner's pick G, 2026-11-24, `design-mockups/background-variants.html`): each surface a
+fixed step lighter, the teal glow removed.
 
 **Daily** (`DailyList.tsx`, mockup `dailyTab`): one card, **Seven days**, a row per day —
 sky, day, score, the low and high on a bar shared by the week, the chance of rain — with

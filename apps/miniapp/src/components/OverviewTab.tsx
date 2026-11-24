@@ -392,7 +392,7 @@ function Breakdown({ props, now }: { props: OverviewTabProps; now: Now }) {
     todayDate: props.todayDate,
   })
   return (
-    <details className="wt6-why" style={{ borderTop: `1px solid ${colorsV2.line}`, marginTop: '14px', paddingTop: '10px' }}>
+    <details className="wt6-why" style={{ marginTop: '16px' }}>
       <summary
         style={{ display: 'flex', alignItems: 'center', gap: '10px', minHeight: '32px', cursor: 'pointer', ...typeV2.whyFigure }}
       >

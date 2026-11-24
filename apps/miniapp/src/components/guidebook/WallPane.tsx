@@ -42,7 +42,7 @@ export function GradeText({ route, style }: { route: GuidebookRoute; style: type
   return <span style={{ ...style, color: band === null ? colorsV2.txtMuted : gradeColor(band) }}>{gradeLabel(route) ?? '—'}</span>
 }
 
-function RouteRow({ route, marker, onOpen }: { route: GuidebookRoute; marker: string | null; onOpen: () => void }) {
+function RouteRow({ route, marker, first, onOpen }: { route: GuidebookRoute; marker: string | null; first: boolean; onOpen: () => void }) {
   const small = [kindsLine(route.kinds), marker].filter((s) => s !== null && s !== '').join(' · ')
   return (
     <button
@@ -56,7 +56,8 @@ function RouteRow({ route, marker, onOpen }: { route: GuidebookRoute; marker: st
         alignItems: 'center',
         minHeight: '52px',
         paddingBlock: `${spacing.listGap}px`,
-        borderTop: `1px solid ${colorsV2.line}`,
+        // Rules between rows only.
+        borderTop: first ? 'none' : `1px solid ${colorsV2.line}`,
       }}
     >
       <GradeText route={route} style={typeV2.guideRowGrade} />
@@ -174,8 +175,8 @@ export function WallPane({
           </button>
         </div>
         <div style={stack(0)}>
-          {visible.map((route) => (
-            <RouteRow key={route.id} route={route} marker={markerFor(route.id)} onOpen={() => onOpenRoute(route.id)} />
+          {visible.map((route, i) => (
+            <RouteRow key={route.id} route={route} first={i === 0} marker={markerFor(route.id)} onOpen={() => onOpenRoute(route.id)} />
           ))}
         </div>
         {visible.length < shown.length ? (

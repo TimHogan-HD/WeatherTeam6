@@ -65,7 +65,7 @@ function OnTheWall({ wall, route, onOpenRoute }: { wall: GuidebookWall; route: G
   return (
     <GuideCard title="On the wall" aside="Left → right">
       <div style={stack(0)}>
-        {n.routes.map((r) => {
+        {n.routes.map((r, i) => {
           const here = r.id === route.id
           const position = ordered.findIndex((o) => o.id === r.id) + 1
           const inner = (
@@ -77,7 +77,7 @@ function OnTheWall({ wall, route, onOpenRoute }: { wall: GuidebookWall; route: G
               <GradeText route={r} style={typeV2.guideRowGrade} />
             </>
           )
-          const box = { ...row(spacing.cellPad), minHeight: '44px', borderTop: `1px solid ${colorsV2.line}` }
+          const box = { ...row(spacing.cellPad), minHeight: '44px', borderTop: i === 0 ? 'none' : `1px solid ${colorsV2.line}` }
           return here ? (
             <div key={r.id} aria-current="true" style={box}>
               {inner}
