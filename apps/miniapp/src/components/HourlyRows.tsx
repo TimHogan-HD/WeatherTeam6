@@ -114,12 +114,17 @@ function Sky({ row }: { row: HourRow }) {
 }
 
 /** The view's own columns, after hour, sky and score. */
+/**
+ * One frame for every view: a figure column, a middle, a figure column (Temp adds
+ * one). The first and last figures stay put when the picker changes view, so the
+ * eye is not sent hunting (owner, 2026-11-24: the columns shifted on every switch).
+ */
 const VIEW_COLS: Record<HourlyView, string> = {
-  all: 'minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)',
-  temp: '40px minmax(0,1fr) 40px 34px',
-  rain: '40px minmax(0,1fr) 44px',
-  wind: '44px minmax(0,1fr) 34px',
-  sun: 'minmax(0,1fr) 52px',
+  all: '44px minmax(0,1fr) 44px',
+  temp: '44px minmax(0,1fr) 40px 40px',
+  rain: '44px minmax(0,1fr) 44px',
+  wind: '44px minmax(0,1fr) 44px',
+  sun: '44px minmax(0,1fr) 44px',
 }
 
 export function HourlyRows({ series, selectedDate, onSelectDate, readMs, onRead, showScore }: HourlyRowsProps) {
@@ -176,11 +181,11 @@ export function HourlyRows({ series, selectedDate, onSelectDate, readMs, onRead,
     </span>
   )
   const heads: Record<HourlyView, ReactNode[]> = {
-    all: [head('Temp °F'), head('Rain'), head('Wind mph')],
+    all: [head('°F'), <span key="c" style={{ textAlign: 'center' }}>Chance of rain</span>, head('mph')],
     temp: [head('°F'), scale.lowF === null || scale.highF === null ? <span /> : scaleHead(`${scale.lowF}°`, 'likely range', `${scale.highF}°`), head('Humid'), head('Dew')],
     rain: [head('Chance'), scaleHead('0', `${rowInches(scale.rainTopIn)} in`), head('in')],
     wind: [head('mph'), scaleHead('0', `${scale.windTopMph} mph`), head('Gust')],
-    sun: [scaleHead('0', 'sun in the hour', '60 min'), head('min')],
+    sun: [head('min'), scaleHead('0', 'sun in the hour', '60 min'), <span key="e" />],
   }
 
   const cells = (r: HourRow): ReactNode[] => {
@@ -188,7 +193,7 @@ export function HourlyRows({ series, selectedDate, onSelectDate, readMs, onRead,
       case 'all':
         return [
           <Num key="t" v={r.tempF === null ? null : `${r.tempF}°`} style={typeV2.weekScore} />,
-          <Num key="c" v={r.chancePct} suffix="%" style={{ color: colorsV2.rain }} />,
+          <Num key="c" v={r.chancePct} suffix="%" style={{ color: colorsV2.rain, textAlign: 'center' }} />,
           <span key="w" style={figure}>{r.windMph === null ? dash : <><Arrow fromDeg={r.windFromDeg} />{r.windMph}</>}</span>,
         ]
       case 'temp': {
@@ -223,10 +228,11 @@ export function HourlyRows({ series, selectedDate, onSelectDate, readMs, onRead,
         ]
       case 'sun':
         return r.daylight === false
-          ? [<Bar key="b" to={null} color={colorsV2.sun} />, <span key="n" style={{ ...figure, ...muted }}>dark</span>]
+          ? [<span key="n" style={{ ...figure, ...muted }}>dark</span>, <Bar key="b" to={null} color={colorsV2.sun} />, <span key="e" />]
           : [
-              <Bar key="b" to={r.sunMin === null || r.sunMin === 0 ? null : r.sunMin / 60} color={colorsV2.sun} gap={r.sunMin === null} />,
               <Num key="m" v={r.sunMin} style={r.sunMin === 0 ? muted : {}} />,
+              <Bar key="b" to={r.sunMin === null || r.sunMin === 0 ? null : r.sunMin / 60} color={colorsV2.sun} gap={r.sunMin === null} />,
+              <span key="e" />,
             ]
     }
   }
@@ -292,7 +298,8 @@ export function HourlyRows({ series, selectedDate, onSelectDate, readMs, onRead,
           {good === null ? null : <span style={typeV2.daySmall}>shaded below</span>}
         </p>
       ) : null}
-      {view === 'rain' && dry ? (
+      {/* Every view, so switching views never moves the rows (owner, 2026-11-24). */}
+      {dry ? (
         <p style={{ ...typeV2.daySub, margin: 0, padding: '8px 0 4px' }}>Dry all day: no ensemble member has measurable rain in any hour.</p>
       ) : null}
 
@@ -356,18 +363,18 @@ function Detail({ row: r, scored, hourLabel }: { row: HourRow; scored: boolean; 
   const or = (v: number | string | null, unit = '') => (v === null ? EM_DASH : `${v}${unit}`)
   const dir = compass(r.windFromDeg)
   /**
-   * One figure as a tile: a dot in its chart's colour, the label, the figure, and a
-   * note under it where the figure needs one. Tiles in threes break the hour into
-   * readable groups (owner, 2026-11-24: two long columns read as one block).
+   * One figure as a pill sized to what it says: a dot in its chart's colour, the
+   * label, the figure, and a note where the figure needs one. Pills wrap, so a
+   * short figure leaves no empty tile (owner, 2026-11-24, on the tiles before).
    */
-  const tile = (label: string, value: ReactNode, opts: { dot?: string; note?: string | null; valueColor?: string } = {}) => (
-    <div key={label} style={{ background: colorsV2.raised, borderRadius: radius.rowV2, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-      <dt style={{ ...typeV2.daySmall, color: colorsV2.txtTab, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+  const pill = (label: string, value: ReactNode, opts: { dot?: string; note?: string | null; valueColor?: string } = {}) => (
+    <div key={label} style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6, background: colorsV2.raised, borderRadius: radius.full, padding: '5px 12px', minWidth: 0 }}>
+      <dt style={{ ...typeV2.daySmall, color: colorsV2.txtTab, display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
         {opts.dot === undefined ? null : <i aria-hidden="true" style={{ width: 6, height: 6, borderRadius: radius.full, background: opts.dot, flex: 'none' }} />}
         {label}
       </dt>
-      <dd style={{ margin: 0, display: 'flex', flexDirection: 'column' }}>
-        <span style={{ ...typeV2.hourFigure, color: opts.valueColor ?? colorsV2.txt1 }}>{value}</span>
+      <dd style={{ margin: 0, display: 'inline-flex', alignItems: 'baseline', gap: 6, whiteSpace: 'nowrap' }}>
+        <span style={{ ...typeV2.hourPick, color: opts.valueColor ?? colorsV2.txt1 }}>{value}</span>
         {opts.note == null ? null : <small style={{ ...typeV2.daySmall, color: colorsV2.txtTab }}>{opts.note}</small>}
       </dd>
     </div>
@@ -375,17 +382,17 @@ function Detail({ row: r, scored, hourLabel }: { row: HourRow; scored: boolean; 
   return (
     <dl
       className="wt6-header-swap"
-      style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 6, margin: '0 0 12px', padding: 8, background: colorsV2.surface, border: `1px solid ${colorsV2.line}`, borderRadius: radius.cardV2 }}
+      style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '0 0 12px', padding: 8, background: colorsV2.surface, border: `1px solid ${colorsV2.line}`, borderRadius: radius.cardV2 }}
     >
-      {tile('Temperature', or(r.tempF, '°'), { dot: chartColorsV2.air, note: r.lowF === null || r.highF === null ? null : `likely ${r.lowF}–${r.highF}°` })}
-      {tile('Humidity', or(r.humidityPct, '%'), { dot: chartColorsV2.humidity })}
-      {tile('Dew point', or(r.dewF, '°'))}
-      {tile('Chance of rain', or(r.chancePct, '%'), { dot: colorsV2.rain })}
-      {tile('Rain', r.rainIn === null ? EM_DASH : `${rowInches(r.rainIn)} in`, { dot: colorsV2.rainAmount })}
-      {tile('Sun', r.daylight === false ? 'dark' : or(r.sunMin, ' min'), { dot: colorsV2.sun, note: `${hourLabel(r.ms)}–${hourLabel(r.ms + HOUR_MS)}` })}
-      {tile('Wind', or(r.windMph, ' mph'), { dot: colorsV2.wind, note: r.windMph === null || dir === null ? null : `from ${dir}` })}
-      {tile('Gusts', or(r.gustMph, ' mph'), { dot: colorsV2.gust })}
-      {scored ? tile('Score', or(r.score), { valueColor: r.score === null ? colorsV2.txtMuted : scoreColor(r.score) }) : null}
+      {pill('Temp', or(r.tempF, '°'), { dot: chartColorsV2.air, note: r.lowF === null || r.highF === null ? null : `likely ${r.lowF}–${r.highF}°` })}
+      {pill('Humidity', or(r.humidityPct, '%'), { dot: chartColorsV2.humidity })}
+      {pill('Dew point', or(r.dewF, '°'))}
+      {pill('Chance of rain', or(r.chancePct, '%'), { dot: colorsV2.rain })}
+      {pill('Rain', r.rainIn === null ? EM_DASH : `${rowInches(r.rainIn)} in`, { dot: colorsV2.rainAmount })}
+      {pill('Wind', or(r.windMph, ' mph'), { dot: colorsV2.wind, note: r.windMph === null || dir === null ? null : `from ${dir}` })}
+      {pill('Gusts', or(r.gustMph, ' mph'), { dot: colorsV2.gust })}
+      {pill('Sun', r.daylight === false ? 'dark' : or(r.sunMin, ' min'), { dot: colorsV2.sun, note: `${hourLabel(r.ms)}–${hourLabel(r.ms + HOUR_MS)}` })}
+      {scored ? pill('Score', or(r.score), { valueColor: r.score === null ? colorsV2.txtMuted : scoreColor(r.score) }) : null}
     </dl>
   )
 }
