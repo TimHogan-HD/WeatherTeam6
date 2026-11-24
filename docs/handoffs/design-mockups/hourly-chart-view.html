@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Hourly Chart View</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: one phone screen (the app's single dark look), the day strip and the chip row sticky at its top, a notes column beside it on wide screens. Same palette and faces as hourly-rows.html. */
+:root{
+  color-scheme:dark;
+  --ground:#0b0c0d; --bg:#121416; --surface:#1a1d1f; --raised:#282b2e; --line:#26292c;
+  --txt1:#f4f7fa; --txt2:#d3e1e4; --muted:#bccad0; --tab:#959ca3;
+  --brand:#1DC5D2; --brandInk:#6fe3ec; --brandWash:rgba(29,197,210,.16);
+  --good:#b8f542; --fair:#f6ad55; --poor:#fc8181; --goodWash:rgba(29,197,210,.08);
+  --rain:#bcc7fd; --rainAmount:#7fd1f0; --wind:#7fd1c4; --gust:#e8fbf7; --sun:#f3e08a;
+  --air:#dfe6ec; --range:#cfe8ff; --humidity:#ee9fe0; --dew:#a5b4fc; --cloud:#3a4046; --track:rgba(255,255,255,.08); --grid:rgba(255,255,255,.07);
+  --display:'Barlow Condensed','Arial Narrow',sans-serif; --body:'Barlow','Segoe UI',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--txt1);font-family:var(--body);font-variant-numeric:tabular-nums;padding-block:24px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:2px solid var(--brandInk);outline-offset:2px}
+.wrap{max-width:1000px;margin:0 auto;display:flex;flex-wrap:wrap;gap:32px;justify-content:center;align-items:flex-start}
+.phone{width:390px;max-width:100%;border-radius:40px;overflow:clip;box-shadow:0 0 0 8px #040506,0 30px 80px #000c;background:var(--bg);padding:18px 16px 28px}
+.notes{flex:1 1 300px;min-width:0;max-width:440px;display:flex;flex-direction:column;gap:12px}
+.notes h1{margin:0;font-family:var(--display);font-weight:700;font-size:34px;line-height:1;text-wrap:balance}
+.notes h2{margin:8px 0 0;font-family:var(--display);font-weight:700;font-size:22px;line-height:1.1}
+.notes p,.notes li{margin:0;color:var(--muted);line-height:1.55;font-size:15px}
+.notes ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.notes b{color:var(--txt1);font-weight:600}
+.notes code{font-size:13px;color:var(--txt2)}
+.switch{display:flex;gap:6px;flex-wrap:wrap}
+.switch button{min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-family:var(--display);font-weight:600;font-size:16px;color:var(--txt2)}
+.switch button[aria-pressed="true"]{border-color:var(--brand);color:var(--brandInk);background:var(--brandWash)}
+[hidden]{display:none!important}
+
+/* ---------- header and tabs ---------- */
+.head{display:flex;align-items:center;gap:8px;min-height:44px}
+.back{background:none;border:0;width:36px;height:44px;padding:0;color:var(--brandInk);display:grid;place-items:center}
+.head h2{margin:0;font-family:var(--display);font-weight:700;font-size:24px;line-height:1;flex:1}
+.head .at{text-align:right;line-height:1.1}
+.head .at small{display:block;font-size:12px;color:var(--muted)}
+.head .at b{font-family:var(--display);font-weight:700;font-size:26px}
+.tabs{display:flex;gap:2px;overflow-x:auto;margin:6px -16px 0;padding:0 16px;scrollbar-width:none}
+.tabs span{flex:none;padding:8px 10px;font-family:var(--display);font-weight:600;font-size:16px;color:var(--tab);border-radius:999px}
+.tabs span.on{background:var(--brandWash);color:var(--brandInk)}
+
+/* ---------- sticky: days, chips, column heads ---------- */
+.sticky{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);margin:0 -16px;padding:8px 16px 0;border-bottom:1px solid var(--line)}
+.days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));text-align:center}
+.days button{background:none;border:0;padding:6px 0 8px;display:flex;flex-direction:column;align-items:center;gap:1px;min-height:48px;position:relative}
+.days b{font-family:var(--display);font-weight:600;font-size:16px;color:var(--tab)}
+.days small{font-size:11px;font-weight:600;font-family:var(--display);color:var(--muted)}
+.days button[aria-pressed="true"] b{color:var(--txt1)}
+.days button[aria-pressed="true"]::after{content:"";position:absolute;left:22%;right:22%;bottom:2px;height:2px;border-radius:1px;background:var(--brand)}
+.pick{display:flex;align-items:center;gap:6px;padding:8px 0}
+.chips{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;flex:1;min-width:0}
+.chips button{min-height:40px;padding:0 2px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-family:var(--display);font-weight:600;font-size:16px;color:var(--txt2)}
+.chips button[aria-pressed="true"]{border-color:var(--brand);color:var(--brandInk);background:var(--brandWash)}
+/* The List / Chart switch: two icons in one pill, so it reads as a different kind of control from the chips. */
+.mode{flex:none;display:flex;border:1px solid var(--line);border-radius:999px;background:var(--surface);padding:2px}
+.mode button{width:38px;height:36px;border:0;border-radius:999px;background:none;color:var(--tab);display:grid;place-items:center}
+.mode button[aria-pressed="true"]{background:var(--brandWash);color:var(--brandInk)}
+.cols{display:grid;align-items:end;gap:6px;padding:4px 0 6px;font-size:11px;color:var(--muted);line-height:1.2}
+.cols .r{text-align:right}
+.cols .scale{display:flex;justify-content:space-between}
+
+/* ---------- rows (as built) ---------- */
+.window{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:12px 0 6px;font-size:14px;color:var(--txt2)}
+.window b{font-family:var(--display);font-weight:700;font-size:18px;color:var(--good)}
+.window span:last-child{font-size:12px;color:var(--muted)}
+ol.hours{list-style:none;margin:0;padding:0}
+ol.hours li{border-bottom:1px solid var(--line)}
+ol.hours li.good{background:var(--goodWash)}
+.row{width:100%;background:none;border:0;padding:0;min-height:46px;display:grid;align-items:center;gap:6px;text-align:left}
+.g-all{grid-template-columns:48px 22px 34px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)}
+.g-temp{grid-template-columns:48px 22px 34px 36px minmax(0,1fr) 40px 34px}
+.g-rain{grid-template-columns:48px 22px 34px 36px minmax(0,1fr) 44px}
+.g-wind{grid-template-columns:48px 22px 34px 44px minmax(0,1fr) 34px}
+.g-sun{grid-template-columns:48px 22px 34px minmax(0,1fr) 52px}
+.t{font-family:var(--display);font-weight:600;font-size:16px;color:var(--txt2);padding-left:2px;line-height:1}
+.t small{display:block;font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--brandInk);margin-top:2px}
+.row.now .t,.row[aria-expanded="true"] .t{color:var(--txt1)}
+.sky{display:grid;place-items:center}
+.sc{font-family:var(--display);font-weight:700;font-size:20px;text-align:right;line-height:1}
+.v{font-family:var(--display);font-weight:600;font-size:18px;line-height:1;text-align:right}
+.v.big{font-size:20px;font-weight:700}
+.v.m{color:var(--muted);font-weight:500}
+.v small{font-size:12px;color:var(--muted);font-weight:500;margin-left:1px}
+.bar{position:relative;height:16px}
+.bar i{position:absolute;top:50%;display:block;border-radius:4px}
+.bar .tk{left:0;right:0;height:4px;margin-top:-2px;background:var(--track)}
+.dir{display:inline-block;vertical-align:-2px;margin-right:2px;color:var(--wind)}
+.na{color:var(--muted)}
+
+/* ---------- the hour's figures: an opened row, or the read hour under a single chart ---------- */
+.fig{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:6px 0 12px}
+.fig div{background:var(--surface);border-radius:12px;padding:8px 6px;text-align:center;display:flex;flex-direction:column;gap:2px}
+.fig dt{font-size:11px;color:var(--muted)}
+.fig dd{margin:0;font-family:var(--display);font-weight:700;font-size:19px;line-height:1.05}
+.fig dd small{display:block;font-family:var(--body);font-weight:500;font-size:11px;color:var(--muted)}
+
+/* ---------- charts ---------- */
+.chart{margin:14px 0 2px}
+.chart h3{margin:0;display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-family:var(--display);font-weight:700;font-size:19px}
+.chart h3 em{font-style:normal;font-family:var(--body);font-weight:400;font-size:12px;color:var(--muted)}
+/* The read hour's figures for this chart, as the old cards' chip did. */
+.chip{display:flex;flex-wrap:wrap;gap:4px 12px;margin:6px 0 4px;font-size:12px;color:var(--muted)}
+.chip b{font-family:var(--display);font-weight:700;font-size:17px;margin-left:3px}
+.chip .when{color:var(--txt1);font-family:var(--display);font-weight:600;font-size:15px}
+svg.plot{display:block;width:100%;height:auto;touch-action:pan-y;user-select:none;-webkit-user-select:none;cursor:ew-resize}
+svg.plot text{font-family:var(--display);font-weight:500}
+.key{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted);margin-top:2px}
+.key span{display:inline-flex;align-items:center;gap:5px}
+.key i{display:inline-block;width:16px;height:3px;border-radius:2px}
+.dry{margin:6px 0 0;padding:12px;border-radius:12px;background:var(--surface);font-size:13px;color:var(--muted);line-height:1.45}
+.dry b{display:block;font-family:var(--display);font-size:18px;color:var(--txt1)}
+.foot{margin:14px 0 0;font-size:12px;line-height:1.5;color:var(--muted)}
+.hint{margin:4px 0 0;font-size:12px;color:var(--muted)}
+@media (prefers-reduced-motion:no-preference){.fig{animation:open .18s ease-out}}
+@keyframes open{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+</style>
+</head><body>
+
+<div class="wrap">
+  <div class="phone" role="region" aria-label="Hourly tab mockup">
+    <div class="head">
+      <button type="button" class="back" aria-label="Back"><svg width="12" height="20" viewBox="0 0 12 20" fill="none"><path d="M10 2 2 10l8 8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <h2>Red Rock</h2>
+      <div class="at" id="at"></div>
+    </div>
+    <div class="tabs" aria-hidden="true"><span>Overview</span><span>Daily</span><span class="on">Hourly</span><span>Precip</span><span>Rock</span><span>Crag</span></div>
+
+    <div class="sticky">
+      <div class="days" id="days" role="group" aria-label="Day"></div>
+      <div class="pick" id="pick"></div>
+      <div class="cols" id="cols" aria-hidden="true"></div>
+    </div>
+
+    <div class="window" id="window"></div>
+    <div id="body"></div>
+    <p class="foot" id="foot"></p>
+  </div>
+
+  <aside class="notes">
+    <h1>Hourly: a chart view beside the list</h1>
+    <p>The list stays the default. A switch beside the chips turns the same day into the charts Hourly had before the rows (#667): temperature and humidity, sun, rain, wind. The chips filter the charts the way they filter the list's columns. Drag across any chart to read an hour.</p>
+
+    <h2>Where the chart lives</h2>
+    <div class="switch" role="group" aria-label="Variant">
+      <button type="button" data-variant="A" aria-pressed="true">A · List or Chart</button>
+      <button type="button" data-variant="B" aria-pressed="false">B · Chart over the list</button>
+    </div>
+    <div data-note="A">
+      <ul>
+        <li><b>A, a switch (my recommendation).</b> Two icons in one pill at the end of the chip row: list or chart. The chips stay the same five, and keep their meaning in both.</li>
+        <li><b>All</b> stacks the four charts as they were, one drag reading every chart at once, each with its own figures for that hour above it.</li>
+        <li><b>Temp, Rain, Wind or Sun</b> shows that chart alone, taller, with the read hour's figures in tiles under it, the same figures an opened row gives.</li>
+        <li>The switch and the chip are remembered on the device, as the view is now.</li>
+      </ul>
+    </div>
+    <div data-note="B" hidden>
+      <ul>
+        <li><b>B, no switch.</b> The chosen chip's chart sits short above the rows, and the rows keep scrolling under it. All shows the temperature chart.</li>
+        <li>Dragging the chart opens that hour's row, so the chart is a way into the list rather than a second screen.</li>
+        <li><b>The cost:</b> about 150 px of every Hourly visit goes to a chart, and the list starts lower. No view of all four charts at once.</li>
+      </ul>
+    </div>
+
+    <h2>What each chart keeps from before</h2>
+    <ul>
+      <li><b>Temperature and humidity:</b> the air line coloured by each hour's score, the likely range shaded behind it, dew point dashed, humidity in orchid, the good hours shaded, sky every three hours. One scale, at the left (owner, 2026-10-27).</li>
+      <li><b>Sun:</b> minutes of sun per hour on 0 to 60, cloud cover as the grey behind, night named once.</li>
+      <li><b>Rain:</b> drawn as C, your 2026-11-24 pick: a row of chance cells on top, darker the likelier, figures from 30% up; amount bars per hour on a printed inch scale below. Per hour, not threes, as the rows are (owner, 2026-11-24). An unanswered chance is a dashed cell, never a pale one. Thu has the shower; Sun is dry all day.</li>
+      <li><b>Wind:</b> sustained as the line, gusts dashed, the likely range shaded.</li>
+      <li>Today draws a dashed “now” line. A missing figure is a break in the line or a dash in the chip (Fri 3 AM wind).</li>
+    </ul>
+
+    <h2>Decisions this needs from you</h2>
+    <ul>
+      <li><b>A or B.</b></li>
+      <li><b>The slim header follows the drag again</b> in chart mode, as it did before #667; in list mode it follows the opened row. One read hour is shared, so switching modes keeps your place.</li>
+      <li><b>Rain range left out.</b> Your Range pick shades driest to wettest model, and per-model hourly rain is not on <code>/hourly</code> yet. This draws the median only until that field exists.</li>
+      <li><b>Card order.</b> The old charts could be reordered (<code>CardStack</code>). I left that out: All draws them in one fixed order. Say if you want the reorder back.</li>
+    </ul>
+    <p>Example data for Red Rock, not a real forecast.</p>
+  </aside>
+</div>
+
+<script>
+(() => {
+  const DN = ['Today','Wed','Thu','Fri','Sat','Sun','Mon'];
+  const NOW_H = 9;
+  const SUNRISE = 6.6, SUNSET = 16.5;
+  const base = [49,51,45,41,46,50,53], cloud = [.1,.25,.85,.55,.15,.05,.2], windBase = [6,9,15,19,10,5,7], dirs = [225,200,190,315,330,20,240];
+  const fmtH = h => h === 0 ? '12 AM' : h < 12 ? h + ' AM' : h === 12 ? '12 PM' : (h - 12) + ' PM';
+  const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+  const dash = '—';
+
+  // Example forecast: smooth daily curves, Thursday wet in the afternoon, Sunday dry all day.
+  const days = DN.map((name, d) => {
+    const hours = [];
+    for (let h = 0; h < 24; h++) {
+      const diurnal = Math.cos((h - 15) / 24 * 2 * Math.PI);
+      const temp = base[d] + 9 * diurnal;
+      const spread = 1.5 + d * 0.7;
+      let chance = Math.round(clamp(cloud[d] * 12 + 3 * Math.sin(h + d), 0, 100));
+      if (d === 2 && h >= 12 && h <= 21) chance = Math.round(35 + 50 * Math.sin((h - 12) / 9 * Math.PI));
+      if (d === 3 && h <= 8) chance = 25 - h * 2;
+      if (d === 5) chance = 0;
+      const amount = d === 2 && h >= 13 && h <= 20 ? +(0.012 + 0.07 * Math.sin((h - 13) / 7 * Math.PI)).toFixed(2) : chance >= 30 ? 0.01 : 0;
+      const rh = Math.round(clamp(62 - 18 * diurnal + (chance > 30 ? 25 : 0) + cloud[d] * 10, 12, 98));
+      const dew = temp - (100 - rh) / 5 * 1.8;
+      const wind = Math.round(windBase[d] + 4 * Math.max(0, diurnal) + 2 * Math.sin(h * 1.3 + d));
+      const gust = Math.round(wind * (1.45 + 0.1 * Math.sin(h)));
+      const light = clamp(Math.min(h + 1 - SUNRISE, SUNSET - h), 0, 1);
+      const cl = Math.round(clamp(cloud[d] * 100 + 15 * Math.sin(h / 3 + d) + (chance > 40 ? 20 : 0), 0, 100));
+      const sun = Math.round(60 * light * (1 - cl / 100) * (chance > 40 ? 0.3 : 1));
+      const night = h + 1 <= SUNRISE || h >= SUNSET;
+      let score = 92 - Math.abs(temp - 52) * 1.6 - chance * 0.9 - Math.max(0, wind - 12) * 2 - Math.max(0, rh - 70) * 0.6;
+      if (d === 3) score -= 18;
+      score = Math.round(clamp(score, 3, 97));
+      const gapWind = d === 3 && h === 3;
+      hours.push({ h, temp: Math.round(temp), lo: Math.round(temp - spread), hi: Math.round(temp + spread), rh, dew: Math.round(dew),
+        chance: d === 2 && h === 4 ? null : chance, amount,
+        wind: gapWind ? null : wind, windLo: gapWind ? null : Math.max(0, wind - 2 - d * 0.4), windHi: gapWind ? null : wind + 2 + d * 0.5,
+        gust: gapWind ? null : gust, dir: dirs[d], sun, cloud: cl, night,
+        score: (d === 4 && h === 23) ? null : score });
+    }
+    return { name, hours };
+  });
+
+  const load = (k, ok, dflt) => { try { const v = localStorage.getItem(k); return ok.includes(v) ? v : dflt; } catch (e) { return dflt; } };
+  const save = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+  const VIEWS = [['all','All'],['temp','Temp'],['rain','Rain'],['wind','Wind'],['sun','Sun']];
+  const state = {
+    day: 0, open: NOW_H, earlier: false, variant: 'A',
+    view: load('wt6.hourlyView', VIEWS.map(v => v[0]), 'all'),
+    mode: load('wt6.hourlyMode', ['list','chart'], 'list'),
+  };
+
+  const scoreColor = s => s === null ? 'var(--muted)' : s >= 60 ? 'var(--good)' : s >= 40 ? 'var(--fair)' : 'var(--poor)';
+  const scoreHex = s => s === null ? '#dfe6ec' : s >= 60 ? '#b8f542' : s >= 40 ? '#f6ad55' : '#fc8181';
+  const num = x => x === null || x === undefined ? dash : x;
+  const compass = deg => ['N','NE','E','SE','S','SW','W','NW'][Math.round(deg / 45) % 8];
+  const inch = a => a === null ? dash : a === 0 ? '0' : a.toFixed(2).replace(/^0/, '');
+  const pctTxt = c => c === null ? dash : c + '%';
+
+  const skyIcon = (hr, size = 20) => {
+    const c = cloud[state.day];
+    const s = `width="${size}" height="${size}" viewBox="0 0 20 20"`;
+    if (hr.chance !== null && hr.chance >= 40) return `<svg ${s} aria-label="Rain"><path d="M6 12h8a3 3 0 0 0 0-6 4.5 4.5 0 0 0-8.6 1A2.5 2.5 0 0 0 6 12Z" fill="var(--muted)"/><path d="M7 14.5l-1 2.5M10.5 14.5l-1 2.5M14 14.5l-1 2.5" stroke="var(--rain)" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+    if (hr.night) return c > .5
+      ? `<svg ${s} aria-label="Cloudy night"><path d="M6 15h8a3 3 0 0 0 0-6 4.5 4.5 0 0 0-8.6 1A2.5 2.5 0 0 0 6 15Z" fill="var(--muted)"/></svg>`
+      : `<svg ${s} aria-label="Clear night"><path d="M13.5 13.8A6 6 0 0 1 8.2 4a6 6 0 1 0 7.8 7.8 6 6 0 0 1-2.5 2Z" fill="var(--muted)"/></svg>`;
+    if (c > .5) return `<svg ${s} aria-label="Mostly cloudy"><circle cx="7" cy="7" r="3" fill="var(--sun)"/><path d="M6 15h8a3 3 0 0 0 0-6 4.5 4.5 0 0 0-8.6 1A2.5 2.5 0 0 0 6 15Z" fill="var(--muted)"/></svg>`;
+    return `<svg ${s} aria-label="Sunny"><circle cx="10" cy="10" r="4" fill="var(--sun)"/><g stroke="var(--sun)" stroke-width="1.6" stroke-linecap="round"><path d="M10 1.5v2M10 16.5v2M1.5 10h2M16.5 10h2M4 4l1.4 1.4M14.6 14.6 16 16M4 16l1.4-1.4M14.6 5.4 16 4"/></g></svg>`;
+  };
+  const arrow = deg => `<svg class="dir" width="12" height="12" viewBox="0 0 12 12" style="transform:rotate(${deg + 180}deg)" aria-hidden="true"><path d="M6 1v10M2.5 4.5 6 1l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const ICON_LIST = '<svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M3 4.5h12M3 9h12M3 13.5h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+  const ICON_CHART = '<svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2.5 13.5 6.5 8l3.5 3 5.5-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  const goodRun = hours => {
+    let best = null, start = null;
+    for (let h = 7; h <= 18; h++) {
+      const ok = hours[h].score !== null && hours[h].score >= 60 && h <= 17;
+      if (ok && start === null) start = h;
+      if ((!ok || h === 17) && start !== null) {
+        const end = ok ? h : h - 1;
+        if (end - start + 1 >= 3 && (!best || end - start > best[1] - best[0])) best = [start, end];
+        start = null;
+      }
+    }
+    return best;
+  };
+
+  /* ===================== list (as built) ===================== */
+  const cols = {
+    all: () => ['<span>Hour</span>','<span></span>','<span class="r">Score</span>','<span class="r">Temp °F</span>','<span class="r">Rain</span>','<span class="r">Wind mph</span>'],
+    temp: (lo, hi) => ['<span>Hour</span>','<span></span>','<span class="r">Score</span>','<span class="r">°F</span>',`<span class="scale"><span>${lo}°</span><span>range</span><span>${hi}°</span></span>`,'<span class="r">Humid</span>','<span class="r">Dew</span>'],
+    rain: () => ['<span>Hour</span>','<span></span>','<span class="r">Score</span>','<span class="r">Chance</span>','<span class="scale"><span>0</span><span>0.10 in</span></span>','<span class="r">in</span>'],
+    wind: () => ['<span>Hour</span>','<span></span>','<span class="r">Score</span>','<span class="r">mph</span>','<span class="scale"><span>0</span><span>40 mph</span></span>','<span class="r">Gust</span>'],
+    sun: () => ['<span>Hour</span>','<span></span>','<span class="r">Score</span>','<span class="scale"><span>0</span><span>sun in the hour</span><span>60 min</span></span>','<span class="r">min</span>'],
+  };
+  const cells = (hr, lo, hi) => {
+    const pct = (x, a, b) => clamp((x - a) / (b - a) * 100, 0, 100);
+    switch (state.view) {
+      case 'all': return `<span class="v big">${hr.temp}°</span><span class="v" style="color:var(--rain)">${hr.chance === null ? '<span class="na">' + dash + '</span>' : hr.chance + '<small>%</small>'}</span><span class="v">${hr.wind === null ? '<span class="na">' + dash + '</span>' : arrow(hr.dir) + hr.wind}</span>`;
+      case 'temp': return `<span class="v big">${hr.temp}°</span><span class="bar"><i class="tk"></i><i style="left:${pct(hr.lo, lo, hi)}%;width:${pct(hr.hi, lo, hi) - pct(hr.lo, lo, hi)}%;height:6px;margin-top:-3px;background:var(--range);opacity:.35"></i><i style="left:calc(${pct(hr.temp, lo, hi)}% - 5px);width:10px;height:10px;margin-top:-5px;border-radius:50%;background:var(--air)"></i></span><span class="v" style="color:var(--humidity)">${hr.rh}<small>%</small></span><span class="v m">${hr.dew}°</span>`;
+      case 'rain': return `<span class="v" style="color:${hr.chance !== null && hr.chance >= 20 ? 'var(--rain)' : 'var(--muted)'}">${hr.chance === null ? dash : hr.chance + '<small>%</small>'}</span><span class="bar"><i class="tk"></i>${hr.amount > 0 ? `<i style="left:0;width:${Math.max(3, pct(hr.amount, 0, 0.10))}%;height:8px;margin-top:-4px;background:var(--rainAmount)"></i>` : ''}</span><span class="v${hr.amount === 0 ? ' m' : ''}" style="${hr.amount > 0 ? 'color:var(--rainAmount)' : ''}">${inch(hr.amount)}</span>`;
+      case 'wind': return hr.wind === null
+        ? `<span class="v na">${dash}</span><span class="bar"><i class="tk"></i></span><span class="v na">${dash}</span>`
+        : `<span class="v">${arrow(hr.dir)}${hr.wind}</span><span class="bar"><i class="tk"></i><i style="left:0;width:${pct(hr.gust, 0, 40)}%;height:8px;margin-top:-4px;background:transparent;box-shadow:inset 0 0 0 1.5px var(--gust);opacity:.55"></i><i style="left:0;width:${pct(hr.wind, 0, 40)}%;height:8px;margin-top:-4px;background:var(--wind)"></i></span><span class="v m">${hr.gust}</span>`;
+      case 'sun': return hr.night
+        ? `<span class="bar"><i class="tk"></i></span><span class="v m">dark</span>`
+        : `<span class="bar"><i class="tk"></i>${hr.sun > 0 ? `<i style="left:0;width:${pct(hr.sun, 0, 60)}%;height:8px;margin-top:-4px;background:var(--sun)"></i>` : ''}</span><span class="v${hr.sun === 0 ? ' m' : ''}">${hr.sun}</span>`;
+    }
+  };
+
+  // The hour's figures. `which` narrows them to one chart's measures under a single chart.
+  const figures = (hr, which = 'all') => {
+    const t = (label, value, color, note) => `<div><dt>${label}</dt><dd${color ? ` style="color:${color}"` : ''}>${value}${note ? `<small>${note}</small>` : ''}</dd></div>`;
+    const sets = {
+      temp: [t('Temp', hr.temp + '°', null, `likely ${hr.lo}–${hr.hi}°`), t('Humidity', hr.rh + '%', 'var(--humidity)'), t('Dew point', hr.dew + '°'), t('Score', num(hr.score), scoreColor(hr.score))],
+      rain: [t('Chance', pctTxt(hr.chance), 'var(--rain)'), t('Rain', inch(hr.amount), 'var(--rainAmount)', 'in'), t('Cloud', hr.cloud + '%'), t('Score', num(hr.score), scoreColor(hr.score))],
+      wind: [t('Wind', num(hr.wind), 'var(--wind)', hr.wind === null ? '' : 'mph from ' + compass(hr.dir)), t('Gusts', num(hr.gust), null, hr.gust === null ? '' : 'mph'), t('Likely', hr.wind === null ? dash : `${Math.round(hr.windLo)}–${Math.round(hr.windHi)}`, null, hr.wind === null ? '' : 'mph'), t('Score', num(hr.score), scoreColor(hr.score))],
+      sun: [t('Sun', hr.night ? 'dark' : hr.sun, 'var(--sun)', hr.night ? '' : 'min'), t('Cloud', hr.cloud + '%'), t('Temp', hr.temp + '°'), t('Score', num(hr.score), scoreColor(hr.score))],
+    };
+    const all = [t('Temp', hr.temp + '°', null, `likely ${hr.lo}–${hr.hi}°`), t('Chance', pctTxt(hr.chance), 'var(--rain)'), t('Rain', inch(hr.amount), 'var(--rainAmount)', 'in'), t('Wind', num(hr.wind), 'var(--wind)', hr.wind === null ? '' : 'mph ' + compass(hr.dir)),
+      t('Gusts', num(hr.gust), null, hr.gust === null ? '' : 'mph'), t('Humidity', hr.rh + '%', 'var(--humidity)'), t('Dew point', hr.dew + '°'), t('Sun', hr.night ? 'dark' : hr.sun, 'var(--sun)', hr.night ? '' : 'min')];
+    return `<dl class="fig">${(which === 'all' ? all : sets[which]).join('')}</dl>`;
+  };
+
+  /* ===================== charts ===================== */
+  const W = 358, L = 26, R = 4, PW = W - L - R;
+  const X = h => L + (h + 0.5) * PW / 24;       // the middle of hour h
+  const XS = h => L + h * PW / 24;               // the start of hour h
+  const smooth = pts => {
+    if (!pts.length) return '';
+    let d = `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+    for (let i = 1; i < pts.length; i++) {
+      const [x0, y0] = pts[i - 1], [x1, y1] = pts[i], mx = (x0 + x1) / 2;
+      d += ` C${mx.toFixed(1)} ${y0.toFixed(1)} ${mx.toFixed(1)} ${y1.toFixed(1)} ${x1.toFixed(1)} ${y1.toFixed(1)}`;
+    }
+    return d;
+  };
+  // Consecutive runs of hours with a value, so a gap breaks the line rather than bridging it.
+  const runs = (hrs, ok) => { const out = []; let cur = []; hrs.forEach(h => { if (ok(h)) cur.push(h); else { if (cur.length) out.push(cur); cur = []; } }); if (cur.length) out.push(cur); return out; };
+  const band = (run, yHi, yLo, color, op) => `<path d="${smooth(run.map(h => [X(h.h), yHi(h)]))} L${run.slice().reverse().map(h => `${X(h.h).toFixed(1)} ${yLo(h).toFixed(1)}`).join(' L')} Z" fill="${color}" opacity="${op}"/>`;
+  const label = (x, y, t, anchor = 'start', fill = 'var(--muted)', size = 11) => `<text x="${x}" y="${y}" font-size="${size}" fill="${fill}" text-anchor="${anchor}">${t}</text>`;
+  const ticks = (lo, hi, step) => { const o = []; for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) o.push(+v.toFixed(2)); return o; };
+
+  // The frame every chart shares: hour labels, now line, the read line, and the hit area for the drag.
+  const frame = (H, top, bot, inner, aria) => {
+    const isToday = state.day === 0, rh = state.open;
+    return `<svg class="plot" data-plot viewBox="0 0 ${W} ${H}" role="img" aria-label="${aria}">
+      ${inner}
+      ${[0, 6, 12, 18].map(h => label(XS(h) + (h === 0 ? 0 : 0), H - 3, h === 0 ? '12a' : h === 6 ? '6a' : h === 12 ? '12p' : '6p', h === 0 ? 'start' : 'middle')).join('')}
+      ${label(W - R, H - 3, '12a', 'end')}
+      ${isToday ? `<line x1="${XS(NOW_H) + PW / 48 * 0}" x2="${XS(NOW_H)}" y1="${top}" y2="${H - bot}" stroke="var(--brandInk)" stroke-dasharray="2 3"/>${label(XS(NOW_H) + 3, top + 9, 'now', 'start', 'var(--brandInk)', 10)}` : ''}
+      ${rh === null ? '' : `<line x1="${X(rh)}" x2="${X(rh)}" y1="${top}" y2="${H - bot}" stroke="rgba(255,255,255,.4)"/>`}
+    </svg>`;
+  };
+  const bead = (x, y, c) => `<circle cx="${x}" cy="${y}" r="5" fill="${c}" stroke="#121416" stroke-width="2"/>`;
+  const keyRow = items => `<div class="key">${items.map(([lab, sw]) => `<span><i style="${sw}"></i>${lab}</span>`).join('')}</div>`;
+  const chipRow = (hr, parts) => `<div class="chip"><span class="when">${DN[state.day]} ${fmtH(hr.h)}</span>${parts.map(([l, v, c]) => `<span>${l}<b style="color:${c || 'var(--txt1)'}">${v}</b></span>`).join('')}</div>`;
+
+  function tempChart(hrs, H, good) {
+    const top = 10, bot = 20, yTop = 22, yBot = H - bot - 4;
+    const lo = Math.min(...hrs.map(h => Math.min(h.lo, h.dew))), hi = Math.max(...hrs.map(h => h.hi));
+    const tk = ticks(lo, hi, 10), a = Math.min(tk[0], Math.floor(lo / 10) * 10), b = Math.max(tk[tk.length - 1], Math.ceil(hi / 10) * 10);
+    const y = v => yBot - (v - a) / (b - a) * (yBot - yTop);
+    const hy = v => yBot - v / 100 * (yBot - yTop);
+    const scored = hrs.some(h => h.score !== null);
+    const gid = 'tg' + state.day + H;
+    const stops = hrs.map(h => `<stop offset="${((X(h.h) - L) / PW * 100).toFixed(1)}%" stop-color="${scored ? scoreHex(h.score) : '#dfe6ec'}"/>`).join('');
+    const sh = state.open === null ? null : hrs[state.open];
+    const inner = `<defs><linearGradient id="${gid}" gradientUnits="userSpaceOnUse" x1="${L}" x2="${W - R}" y1="0" y2="0">${stops}</linearGradient></defs>
+      ${tk.map(v => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)"/>${label(L - 4, y(v) + 4, v + '°', 'end')}`).join('')}
+      ${good ? `<rect x="${XS(good[0])}" y="${yTop - 4}" width="${XS(good[1] + 1) - XS(good[0])}" height="${yBot - yTop + 8}" fill="var(--brand)" opacity=".10" rx="4"/>` : ''}
+      ${band(hrs, h => y(h.hi), h => y(h.lo), 'var(--range)', .2)}
+      <path d="${smooth(hrs.map(h => [X(h.h), hy(h.rh)]))}" fill="none" stroke="var(--humidity)" stroke-width="1.8" opacity=".85"/>
+      <path d="${smooth(hrs.map(h => [X(h.h), y(h.dew)]))}" fill="none" stroke="var(--dew)" stroke-width="2" stroke-dasharray="5 4"/>
+      <path d="${smooth(hrs.map(h => [X(h.h), y(h.temp)]))}" fill="none" stroke="url(#${gid})" stroke-width="4.5" stroke-linecap="round"/>
+      ${hrs.filter(h => h.h % 3 === 0).map(h => `<g transform="translate(${X(h.h) - 7} 0)">${skyIcon(h, 14).replace('<svg ', '<svg x="0" y="0" ')}</g>`).join('')}
+      ${sh ? `<circle cx="${X(sh.h)}" cy="${hy(sh.rh)}" r="3.5" fill="var(--humidity)"/>${bead(X(sh.h), y(sh.temp), scored ? scoreHex(sh.score) : '#dfe6ec')}` : ''}`;
+    return {
+      svg: frame(H, top, bot, inner, 'Temperature, dew point and humidity by hour'),
+      chip: sh ? chipRow(sh, [['air', sh.temp + '°', scoreColor(sh.score)], ['dew', sh.dew + '°', 'var(--dew)'], ['humidity', sh.rh + '%', 'var(--humidity)']]) : '',
+      key: keyRow([['air, coloured by score', 'background:linear-gradient(90deg,#fc8181,#f6ad55,#b8f542)'], ['dew point', 'background:repeating-linear-gradient(90deg,var(--dew) 0 5px,transparent 5px 8px)'], ['humidity', 'background:var(--humidity)'], ['likely range', 'background:var(--range);opacity:.45;height:8px'], ...(good ? [['good hours', 'background:var(--brand);opacity:.4;height:8px']] : [])]),
+    };
+  }
+
+  function sunChart(hrs, H) {
+    const top = 10, bot = 20, base = H - bot - 4, yTop = 14;
+    const y = v => base - v / 60 * (base - yTop), cy = v => base - v / 100 * (base - yTop);
+    const bw = PW / 24 - 2, sh = state.open === null ? null : hrs[state.open];
+    const nights = runs(hrs, h => h.night);
+    const inner = `${[0, 30, 60].map(v => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)"/>${label(L - 4, y(v) + 4, v === 0 ? '0' : v + 'm', 'end')}`).join('')}
+      ${hrs.map(h => `<rect x="${XS(h.h) + 1}" y="${cy(h.cloud)}" width="${bw}" height="${base - cy(h.cloud)}" rx="2" fill="var(--cloud)" opacity="${sh && sh.h === h.h ? .9 : .55}"/>`).join('')}
+      ${hrs.filter(h => !h.night).map(h => { const ht = Math.max(2, base - y(h.sun)); return `<rect x="${XS(h.h) + 1}" y="${base - ht}" width="${bw}" height="${ht}" rx="3" fill="var(--sun)" opacity="${h.sun < 1 ? .35 : 1}"/>`; }).join('')}
+      ${nights.filter(r => r.length >= 3).map(r => label((XS(r[0].h) + XS(r[r.length - 1].h + 1)) / 2, base - 6, 'night', 'middle', 'var(--tab)')).join('')}`;
+    return {
+      svg: frame(H, top, bot, inner, 'Minutes of sun and cloud cover by hour'),
+      chip: sh ? chipRow(sh, sh.night ? [['sun', 'dark', 'var(--muted)'], ['cloud', sh.cloud + '%']] : [['sun', sh.sun + ' min', 'var(--sun)'], ['cloud', sh.cloud + '%']]) : '',
+      key: keyRow([['minutes of sun', 'background:var(--sun);height:8px'], ['cloud cover', 'background:var(--cloud);height:8px']]),
+    };
+  }
+
+  // Rain as C (owner, 2026-11-24): a row of chance cells over amount bars on the inch scale.
+  function rainChart(hrs, H) {
+    const top = 4, bot = 20, cellY = 4, cellH = 20, base = H - bot - 4, yTop = cellY + cellH + 14;
+    const wettest = Math.max(...hrs.map(h => h.amount));
+    const scaleTop = Math.max(0.10, Math.ceil(wettest * 20) / 20);
+    const y = v => base - v / scaleTop * (base - yTop);
+    const cw = PW / 24, sh = state.open === null ? null : hrs[state.open];
+    const inner = `${[0, scaleTop / 2, scaleTop].map(v => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)"/>${label(L - 4, y(v) + 4, v === 0 ? '0' : v.toFixed(2).replace(/^0/, ''), 'end')}`).join('')}
+      ${label(L - 4, cellY + 14, '%', 'end')}
+      ${hrs.map(h => h.chance === null
+        ? `<rect x="${XS(h.h) + .75}" y="${cellY + .75}" width="${cw - 1.5}" height="${cellH - 1.5}" rx="3" fill="none" stroke="var(--muted)" stroke-dasharray="2 2" opacity=".7"/>`
+        : `<rect x="${XS(h.h) + .5}" y="${cellY}" width="${cw - 1}" height="${cellH}" rx="3" fill="#8f9cf5" opacity="${(0.06 + h.chance / 100 * 0.85).toFixed(2)}"/>${h.chance >= 30 ? label(X(h.h), cellY + 14, h.chance, 'middle', h.chance >= 60 ? '#0b0c0d' : 'var(--txt1)', 10) : ''}`).join('')}
+      ${hrs.filter(h => h.amount > 0).map(h => { const ht = Math.max(2, base - y(h.amount)); return `<rect x="${XS(h.h) + 1.5}" y="${base - ht}" width="${cw - 3}" height="${ht}" rx="3" fill="var(--rainAmount)"/>`; }).join('')}
+      ${sh ? `<rect x="${XS(sh.h)}" y="${cellY - 2}" width="${cw}" height="${cellH + 4}" rx="4" fill="none" stroke="var(--txt1)" stroke-width="1.5"/>` : ''}`;
+    return {
+      svg: frame(H, top, bot, inner, 'Chance of rain by hour as a row of cells, and inches of rain by hour as bars'),
+      chip: sh ? chipRow(sh, [['chance', pctTxt(sh.chance), 'var(--rain)'], ['rain', inch(sh.amount) + (sh.amount === null ? '' : ' in'), 'var(--rainAmount)']]) : '',
+      key: keyRow([['chance, darker the likelier', 'background:#8f9cf5;opacity:.7;height:10px;width:12px'], ['inches in the hour', 'background:var(--rainAmount);height:10px;width:8px']]),
+    };
+  }
+
+  function windChart(hrs, H) {
+    const top = 10, bot = 20, yTop = 14, yBot = H - bot - 4;
+    const have = hrs.filter(h => h.wind !== null);
+    const hi = Math.max(...have.map(h => Math.max(h.gust, h.windHi)));
+    const tk = ticks(0, hi, hi > 30 ? 10 : 5), b = Math.max(tk[tk.length - 1], Math.ceil(hi / 5) * 5);
+    const y = v => yBot - v / b * (yBot - yTop);
+    const sh = state.open === null ? null : hrs[state.open];
+    const rs = runs(hrs, h => h.wind !== null);
+    const inner = `${tk.map(v => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)"/>${label(L - 4, y(v) + 4, v, 'end')}`).join('')}
+      ${rs.map(r => band(r, h => y(h.windHi), h => y(h.windLo), 'var(--wind)', .2)).join('')}
+      ${rs.map(r => `<path d="${smooth(r.map(h => [X(h.h), y(h.gust)]))}" fill="none" stroke="var(--gust)" stroke-width="2" stroke-dasharray="5 4" opacity=".8"/>`).join('')}
+      ${rs.map(r => `<path d="${smooth(r.map(h => [X(h.h), y(h.wind)]))}" fill="none" stroke="var(--wind)" stroke-width="4" stroke-linecap="round"/>`).join('')}
+      ${sh && sh.wind !== null ? bead(X(sh.h), y(sh.wind), '#7fd1c4') : ''}`;
+    return {
+      svg: frame(H, top, bot, inner, 'Wind and gusts by hour, mph'),
+      chip: sh ? chipRow(sh, [['wind', sh.wind === null ? dash : sh.wind + ' mph ' + compass(sh.dir), 'var(--wind)'], ['gusts', sh.gust === null ? dash : sh.gust + ' mph', 'var(--gust)']]) : '',
+      key: keyRow([['sustained', 'background:var(--wind)'], ['gusts', 'background:repeating-linear-gradient(90deg,var(--gust) 0 5px,transparent 5px 8px)'], ['likely range', 'background:var(--wind);opacity:.4;height:8px']]),
+    };
+  }
+
+  const CHARTS = {
+    temp: { title: 'Temperature and humidity', unit: '°F', fn: tempChart, h: [150, 210, 130] },
+    sun: { title: 'Sun', unit: 'minutes of sun in the hour', fn: sunChart, h: [110, 170, 110] },
+    rain: { title: 'Rain', unit: 'chance · inches per hour', fn: rainChart, h: [130, 180, 120] },
+    wind: { title: 'Wind', unit: 'mph', fn: windChart, h: [120, 180, 110] },
+  };
+  const ORDER = ['temp', 'sun', 'rain', 'wind'];
+
+  // size: 0 stacked under All, 1 alone, 2 the short chart over the list (variant B).
+  function chartBlock(k, hrs, size, good) {
+    const c = CHARTS[k];
+    const dry = k === 'rain' && hrs.every(h => h.chance === 0);
+    if (dry) return `<section class="chart"><h3>${c.title}<em>${c.unit}</em></h3><div class="dry"><b>Dry all day</b>0% in every hour: no forecast member has measurable rain on ${DN[state.day] === 'Today' ? 'today' : DN[state.day]}.</div></section>`;
+    const r = c.fn(hrs, c.h[size], good);
+    return `<section class="chart"><h3>${c.title}<em>${c.unit}</em></h3>${size === 1 ? '' : r.chip}${r.svg}${size === 2 ? '' : r.key}</section>`;
+  }
+
+  /* ===================== render ===================== */
+  const $ = id => document.getElementById(id);
+
+  function render() {
+    const day = days[state.day], hrs = day.hours;
+    const lo = Math.min(...hrs.map(h => h.lo)), hi = Math.max(...hrs.map(h => h.hi));
+    const showMode = state.variant === 'A';
+    const chartMode = showMode && state.mode === 'chart';
+
+    $('days').innerHTML = days.map((d, i) => `<button type="button" data-day="${i}" aria-pressed="${i === state.day}"><b>${d.name}</b><small>Nov ${24 + i}</small></button>`).join('');
+    $('pick').innerHTML = `<div class="chips" role="group" aria-label="Show">${VIEWS.map(([k, l]) => `<button type="button" data-view="${k}" aria-pressed="${k === state.view}">${l}</button>`).join('')}</div>`
+      + (showMode ? `<div class="mode" role="group" aria-label="Show as"><button type="button" data-mode="list" aria-pressed="${state.mode === 'list'}" aria-label="List">${ICON_LIST}</button><button type="button" data-mode="chart" aria-pressed="${state.mode === 'chart'}" aria-label="Chart">${ICON_CHART}</button></div>` : '');
+
+    // Column heads belong to the list; chart mode has none.
+    const g = 'g-' + state.view;
+    $('cols').hidden = chartMode;
+    $('cols').className = 'cols ' + g;
+    $('cols').innerHTML = cols[state.view](lo, hi).join('');
+
+    const run = goodRun(hrs);
+    $('window').innerHTML = run
+      ? `<span>Good hours <b>${fmtH(run[0])} – ${fmtH(run[1] + 1)}</b></span><span>score 60 and up</span>`
+      : `<span>No good hours ${state.day === 0 ? 'today' : 'on ' + day.name}</span><span>no 3 hours in a row at 60+</span>`;
+
+    let html = '';
+    if (chartMode) {
+      if (state.view === 'all') html = ORDER.map(k => chartBlock(k, hrs, 0, run)).join('');
+      else {
+        html = chartBlock(state.view, hrs, 1, run);
+        const sh = state.open === null ? null : hrs[state.open];
+        html += sh ? `<div class="chip" style="margin-top:12px"><span class="when">${DN[state.day]} ${fmtH(sh.h)}</span></div>${figures(sh, state.view)}` : '<p class="hint">Drag across the chart to read an hour.</p>';
+      }
+    } else {
+      if (state.variant === 'B') html += chartBlock(state.view === 'all' ? 'temp' : state.view, hrs, 2, run) + '<p class="hint">Drag the chart to open that hour below.</p>';
+      const first = state.day === 0 && !state.earlier ? NOW_H : 0;
+      if (first > 0) html += `<button type="button" class="more" data-earlier style="width:100%;min-height:44px;background:none;border:0;border-bottom:1px solid var(--line);color:var(--brandInk);font-size:14px;text-align:left;padding:0">Show earlier hours, 12 AM – ${fmtH(first - 1)}</button>`;
+      if (state.variant === 'B') html += `<div class="cols ${g}" aria-hidden="true" style="border-bottom:1px solid var(--line)">${cols[state.view](lo, hi).join('')}</div>`;
+      html += `<ol class="hours">${hrs.slice(first).map(hr => {
+        const isNow = state.day === 0 && hr.h === NOW_H;
+        const good = run && hr.h >= run[0] && hr.h <= run[1];
+        const open = state.open === hr.h;
+        return `<li class="${good ? 'good' : ''}" data-li="${hr.h}"><button type="button" class="row ${g}${isNow ? ' now' : ''}" data-hour="${hr.h}" aria-expanded="${open}">
+          <span class="t">${fmtH(hr.h)}${isNow ? '<small>Now</small>' : ''}</span><span class="sky">${skyIcon(hr)}</span>
+          <span class="sc" style="color:${scoreColor(hr.score)}">${num(hr.score)}</span>${cells(hr, lo, hi)}</button>${open ? figures(hr) : ''}</li>`;
+      }).join('')}</ol>`;
+    }
+    $('body').innerHTML = html;
+    if (state.variant === 'B') $('cols').hidden = true;
+
+    const openHr = state.open === null ? null : hrs[state.open];
+    $('at').innerHTML = openHr ? `<small>${day.name} ${fmtH(openHr.h)}</small><b style="color:${scoreColor(openHr.score)}">${num(openHr.score)}</b>` : '';
+    $('foot').textContent = chartMode
+      ? 'Lines and bars are the middle of the ensemble forecast; a shaded band is where 8 in 10 forecasts fall for that hour, never added up. Chance of rain is the share of forecast members wet in that hour. Example data.'
+      : 'Figures are the middle of the ensemble forecast (the likely range is in an opened hour). Chance of rain is the share of forecast members that are wet in that hour. Example data.';
+    document.querySelectorAll('[data-note]').forEach(n => { n.hidden = n.dataset.note !== state.variant; });
+  }
+
+  // The drag: any chart reads the hour under the finger; every chart and the header follow it.
+  let dragging = null;
+  const hourAt = (svg, clientX) => { const r = svg.getBoundingClientRect(); const x = (clientX - r.left) / r.width * W; return clamp(Math.floor((x - L) / PW * 24), 0, 23); };
+  document.addEventListener('pointerdown', e => {
+    const svg = e.target.closest('svg[data-plot]'); if (!svg) return;
+    dragging = svg.closest('section'); read(hourAt(svg, e.clientX));
+  });
+  document.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const svg = document.querySelector('svg[data-plot]'); if (!svg) return;
+    const h = hourAt(svg, e.clientX); if (h !== state.open) read(h);
+  });
+  document.addEventListener('pointerup', () => { dragging = null; });
+  document.addEventListener('pointercancel', () => { dragging = null; });
+  function read(h) {
+    state.open = h;
+    if (state.variant === 'B' && state.day === 0 && h < NOW_H) state.earlier = true;
+    render();
+  }
+
+  document.addEventListener('click', e => {
+    const t = e.target.closest('button'); if (!t) return;
+    if (t.dataset.day !== undefined) { state.day = +t.dataset.day; state.open = state.day === 0 ? NOW_H : (state.mode === 'chart' ? 12 : null); state.earlier = false; }
+    else if (t.dataset.view) { state.view = t.dataset.view; save('wt6.hourlyView', state.view); }
+    else if (t.dataset.mode) { state.mode = t.dataset.mode; save('wt6.hourlyMode', state.mode); if (state.mode === 'chart' && state.open === null) state.open = 12; }
+    else if (t.dataset.hour !== undefined) { const h = +t.dataset.hour; state.open = state.open === h ? null : h; }
+    else if (t.dataset.variant) { state.variant = t.dataset.variant; document.querySelectorAll('[data-variant]').forEach(b => b.setAttribute('aria-pressed', b === t)); if (state.open === null) state.open = 12; }
+    else if (t.hasAttribute('data-earlier')) { state.earlier = true; }
+    else return;
+    render();
+  });
+  render();
+})();
+</script>
+</body></html>
