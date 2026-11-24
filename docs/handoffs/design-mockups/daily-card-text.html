@@ -34,13 +34,13 @@ button:focus-visible{outline:2px solid var(--brandInk);outline-offset:2px}
 .sect{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
 .sect h3{margin:0;font-family:var(--display);font-weight:700;font-size:22px}
 .sect small{font-size:12px;color:var(--muted)}
-.day{display:grid;grid-template-columns:26px minmax(0,1fr) 50px 112px 38px;column-gap:8px;row-gap:8px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
+.day{display:grid;grid-template-columns:52px minmax(0,1fr) 112px 38px;column-gap:10px;row-gap:8px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
 .day:last-child{border-bottom:0}
 .sky{width:22px;height:22px;border-radius:50%;background:var(--sun);box-shadow:0 0 0 4px rgba(243,224,138,.18);justify-self:center}
 .sky.part{background:linear-gradient(135deg,var(--sun) 45%,var(--tab) 46%)}
 .name b{display:block;font-family:var(--display);font-weight:700;font-size:21px;line-height:1}
 .name small{font-size:13px;color:var(--muted)}
-.score{font-family:var(--display);font-weight:700;font-size:34px;line-height:1;text-align:center}
+.score{font-family:var(--display);font-weight:700;font-size:34px;line-height:1;text-align:left;grid-row:span 2;align-self:start}
 .temps{display:flex;align-items:center;gap:5px;font-size:15px}
 .temps .lo{width:26px;text-align:right;color:var(--muted)}
 .temps .bar{position:relative;flex:1;height:6px;border-radius:3px;background:var(--track)}
@@ -117,6 +117,7 @@ button:focus-visible{outline:2px solid var(--brandInk);outline-offset:2px}
     <h2>Same in all</h2>
     <ul>
       <li><b>No wind, rain amount or model dots</b> (owner, 2026-11-24). Wind and rain amounts stay on Hourly; the chance of rain stays in the top row; the dots leave Daily.</li>
+      <li><b>The score leads on the left</b> where the sky icon was (owner, 2026-11-24); no sky icon on Daily.</li>
       <li>"Dry" gets its label, <b>Rock</b>, so it reads as a reading, not a forecast word.</li>
       <li>"Sun 5–8 h · forecasts differ" stays as the sun's value when the models disagree.</li>
     </ul>
@@ -134,8 +135,7 @@ const DAYS=[
 const LO=15,SPAN=25,pct=c=>((c-LO)/SPAN*100).toFixed(1);
 const dots=([w,m])=>`<span class="dots" aria-hidden="true">${Array.from({length:m},(_,i)=>`<i class="${i<w?'wet':''}"></i>`).join('')}</span>`;
 const sunText=d=>d.differ?`${d.sunH} · forecasts differ`:`${d.sunT} · ${d.sunH}`;
-const head=d=>`<span class="sky ${d.sky}"></span><span class="name"><b>${d.n}</b><small>${d.d}</small></span>
-  <span class="score" style="color:var(--${d.c})">${d.s}</span>
+const head=d=>`<span class="score" style="color:var(--${d.c})">${d.s}</span><span class="name"><b>${d.n}</b><small>${d.d}</small></span>
   <span class="temps"><span class="lo">${d.lo}°</span><span class="bar"><i style="left:${pct(d.lo)}%;right:${100-pct(d.hi)}%"></i></span><span>${d.hi}°</span></span>
   <span class="chance">${d.ch}%</span>`;
 const V={
