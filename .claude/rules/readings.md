@@ -108,12 +108,13 @@ What a reading may say, where it comes from, and what the client may assume of t
   chart below it, one hourly chart starting at now (owner, 2026-10-20: the score bars
   repeated it and were removed). **The day's score is only in Next days' Today column**
   (owner, 2026-10-29), never in the hero or Today's aside. Hourly's slim header follows
-  the hour opened (`Today 7 PM`). **Hourly's header is the crag's name as its headline
+  the hour opened, or read on its charts (`Today 7 PM`). **Hourly's header is the crag's name as its headline
   and that score, with no line of figures** (owner, 2026-10-20): the opened row lists the
-  hour's figures, each labelled.
+  hour's figures, each labelled; in Chart mode each chart's chip does.
 - **A figure printed beside a chart is the series the chart draws.** Hourly's rows print
   the ensemble medians (`temp_c_p50`, `wind_kmh_p50`; gusts as `max(wind_gust_kmh, p50)`),
-  so a city's figure in Hourly's slim header uses those too. On
+  so Hourly's charts (drawn from the same rows) and a city's figure in its slim header use
+  those too. On
   2026-10-20 the header printed deterministic `temp_c` (47°) over a chart reading 50°.
   Before adding a figure near a chart, grep which field the chart plots.
 - **An axis is checked on the screenshot, not the test.** `niceTicks` (`lib/chartTicks.ts`)

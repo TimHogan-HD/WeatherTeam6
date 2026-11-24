@@ -200,7 +200,16 @@ printed in its column head. The good hours are shaded and named once above the l
 already over today fold behind "Show earlier hours". Tapping a row opens every figure for
 it, labelled, and the slim header reads that hour. The view is remembered on the device
 (`wt6.hourlyView`). `readings.md` and `weather.md` hold which series a figure may come
-from and which stamp a row reads. There is no seven-day chart here, and no scrub.
+from and which stamp a row reads. There is no seven-day chart here.
+
+**List or Chart** (owner 2026-11-24, mockup `design-mockups/hourly-chart-view.html`,
+variant A; `charts/HourlyCharts.tsx`): a two-icon switch at the end of the chip row draws
+the same rows as charts, remembered on the device (`wt6.hourlyMode`). The chips keep their
+meaning: All stacks temperature and humidity, sun, rain and wind; any other view draws its
+one chart taller with the read hour's tiles under it. Rain is the 2026-11-24 pick C, a row
+of chance cells over per-hour inch bars on the Rain column's scale. A tap or drag reads the
+hour the pointer is inside, and the slim header follows it; the hour read is shared with
+the list, so switching keeps the place. The charts are not reorderable.
 
 **Precip** (`PrecipTab.tsx`, mockup `precipTab`): the drying clock beside the last rain,
 today, this week and when the rock is dry again; every hour of the past week as a grid;

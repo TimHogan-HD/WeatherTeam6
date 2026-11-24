@@ -334,6 +334,13 @@ function nearest(instants: readonly number[], ms: number): number | null {
   return best
 }
 
+/** The last hour starting at or before a pointer's x: the hour the pointer is inside. Before the first, the first. */
+export function floorInstant(instants: readonly number[], ms: number): number | null {
+  let best: number | null = null
+  for (const t of instants) if (t <= ms && (best === null || t > best)) best = t
+  return best ?? (instants.length === 0 ? null : Math.min(...instants))
+}
+
 /**
  * Marks a scrub chart as focused by a tap or a click, so `globals.css` draws no
  * focus ring round it; a key press or leaving the chart clears the mark, so
@@ -368,6 +375,7 @@ export function LiquidFrame({
   title,
   readout,
   readLabel,
+  snap = 'nearest',
   children,
 }: {
   height: number
@@ -390,13 +398,19 @@ export function LiquidFrame({
   readout?: readonly ReadoutItem[]
   /** The readout's heading when it reads more than the hour, as a span of hours does. */
   readLabel?: string
+  /**
+   * How a pointer picks an hour: the nearest instant, or the hour the pointer is
+   * inside (`floor`), for a chart whose hours are spans starting at their instant,
+   * as Hourly's rows are.
+   */
+  snap?: 'nearest' | 'floor'
   children: ReactNode
 }) {
   const pick = (e: PointerEvent<SVGSVGElement>) => {
     const box = e.currentTarget.getBoundingClientRect()
     const vx = ((e.clientX - box.left) / Math.max(1, box.width)) * LIQUID_W
     const ms = axis.fromMs + ((vx - axis.left) / (axis.right - axis.left)) * (axis.toMs - axis.fromMs)
-    const hit = nearest(instants, ms)
+    const hit = snap === 'floor' ? floorInstant(instants, ms) : nearest(instants, ms)
     if (hit !== null && hit !== read.ms) read.onRead(hit)
   }
   const step = (e: KeyboardEvent<SVGSVGElement>) => {
