@@ -833,7 +833,7 @@ code{font-size:.92em;color:var(--txt2)}
       state[key]=b.dataset.v;
       applyVis("data-"+key,b.dataset.v);
       if(key==="ov")renderDays(); else if(key==="rb")renderRb(); else renderHourly();
-      try{localStorage.setItem("wt6-research-"+key,b.dataset.v)}catch(e){}
+      try{localStorage.setItem("wt6-research-v2-"+key,b.dataset.v)}catch(e){}
     })});
   });
 
@@ -854,7 +854,7 @@ code{font-size:.92em;color:var(--txt2)}
 
   renderOvToday();renderWeek();
   state.rn="N1";
-  ["ov","hr","rn","rb"].forEach(function(k){var v=null;try{v=localStorage.getItem("wt6-research-"+k)}catch(e){}if(v){var b=document.querySelector('.switch[data-group="'+k+'"] button[data-v="'+v+'"]');if(b){b.click();return}}applyVis("data-"+k,state[k]);});
+  ["ov","hr","rn","rb"].forEach(function(k){var v=null;try{v=localStorage.getItem("wt6-research-v2-"+k)}catch(e){}if(v){var b=document.querySelector('.switch[data-group="'+k+'"] button[data-v="'+v+'"]');if(b){b.click();return}}applyVis("data-"+k,state[k]);});
   renderDays();renderHourly();renderRb();
 })();
 </script>
