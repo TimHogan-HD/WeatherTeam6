@@ -174,18 +174,20 @@ the hero with no rule of its own. **The ground is tonal steps on a flat `#121416
 (owner's pick G, 2026-11-24, `design-mockups/background-variants.html`): each surface a
 fixed step lighter, the teal glow removed.
 
-**Daily** (`DailyList.tsx`, mockup `dailyTab`): one card, **Seven days**, a row per day —
-sky, day, score, the low and high on a bar shared by the week, the chance of rain — with
-good hours, Dryness, rain amount and peak wind under it.
+**Daily** (`DailyList.tsx`; owner 2026-11-24, mockup `design-mockups/daily-card-text.html`, score
+placement B with the stat row): one card, **Seven days**, a row per day — the short day and
+date, the low and high on a bar shared by the week, the chance of rain — with a row of
+labelled stats under it: Score, Good, Rock, Sun (hours only). The score is the only colour on
+a row; a dry day's 0% is printed in the muted ink. No sky icon, wind, rain amount or model
+dots.
 
 - The score is Crag A's day score, joined on local date, in `SCORE_BANDS`' colours, the
   rungs every other surface uses.
 - **The chance is the likeliest hour's share of wet members**, said so, never a daily
   probability nothing computes; with no wet count it is left off rather than printed `0%`.
 - A row opens that day on Hourly; a day the hourly response cannot draw is not tappable.
-- **The model dots** (owner, 2026-11-23, #644 "Model dots"): every scored day that carries
-  `rain_split` shows one dot per weather model, filled for each that leaves the rock wet,
-  and `N of M dry`. The footnote defines the dots once.
+- A day the model could not read prints a dash for Score, Good and Rock, never "None".
+- The footnote says what the bar is: each day from low to high, on one scale for the week.
 
 **Hourly** (`HourlyRows.tsx`, decisions in `lib/hourlyRows.ts`; owner 2026-11-24, mockup
 `design-mockups/hourly-rows.html`, variant B): the days, five view chips (All, Temp, Rain,

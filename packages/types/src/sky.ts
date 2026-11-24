@@ -1,3 +1,5 @@
+import { EM_DASH } from './units.js'
+
 /**
  * **How sunny it is** — the sky block on `GET /hourly/:id`, and the copy every
  * surface shows it with.
@@ -7,7 +9,7 @@
  * - **Minutes of bright sun per hour** (`SunHour.sun_min`): Open-Meteo's
  *   `sunshine_duration`, the WMO measure — direct sun of at least 120 W/m²,
  *   bright enough to cast a shadow. The Hourly Sun card draws it as bars; the
- *   Daily row says it as hours and windows; the day's icon is sorted from it.
+ *   Daily row says it as hours; the day's icon is sorted from it.
  * - **How strong the sun is** (`shortwave_wm2`, said as `SunStrength` words):
  *   sunlight on flat ground. It appears only in the Sun card's readout, as a
  *   word with the figure beside it (owner, 2026-11-03: the earlier rule against
@@ -156,14 +158,10 @@ export function sunStrength(wm2: number | null): SunStrength | null {
  */
 export const SUN_DIFFER_MIN = 180
 
-/** At most this many windows are listed; more reads as "on and off". */
-export const SUN_MAX_WINDOWS = 2
-
-export type SunDayLine = {
-  text: string
-  /** Drawn in the sun colour: the day has at least an hour of sun by every reading the line gives. */
-  sunny: boolean
-  /** The line is a gap mark, not a reading. */
+export type SunDayHours = {
+  /** The value beside a `Sun` label: `8 h`, `under 1 h`, `None`, `0–3 h, forecasts differ`, or the gap mark. */
+  value: string
+  /** The value is a gap mark, not a reading. */
   gap: boolean
 }
 
@@ -185,29 +183,22 @@ export function sunWindowLabel(w: SunWindow): string {
 const hoursOf = (min: number): number => Math.round(min / 60)
 
 /**
- * The Daily row's second line: `Sun 8a–4p · 8 h`, `Sun 8–9a, 2–4p · 3 h`,
- * `Sun 5 h, on and off`, `Sun under 1 h`, `No sun`, `Sun 0–3 h · forecasts differ`, or the gap
- * mark `Sun —` when the day was not fully answered.
+ * A day's sun as the Daily row's `Sun` stat (owner, 2026-11-24): the hours only, never
+ * the windows, which Hourly shows. `8 h`, `under 1 h`, `None` (the forecast has none),
+ * `0–3 h, forecasts differ`, or the gap mark when the day was not fully answered.
  */
-export function sunDayLine(day: Pick<SkyDay, 'sun_min' | 'sun_windows' | 'sun_by_model'>): SunDayLine {
-  if (day.sun_min === null || day.sun_windows === null) return { text: 'Sun —', sunny: false, gap: true }
+export function sunDayHours(day: Pick<SkyDay, 'sun_min' | 'sun_windows' | 'sun_by_model'>): SunDayHours {
+  if (day.sun_min === null || day.sun_windows === null) return { value: EM_DASH, gap: true }
 
   const totals = day.sun_by_model.map((m) => m.sun_min)
   if (totals.length >= 2) {
     const lo = Math.min(...totals)
     const hi = Math.max(...totals)
-    if (hi - lo >= SUN_DIFFER_MIN) {
-      return { text: `Sun ${hoursOf(lo)}–${hoursOf(hi)} h · forecasts differ`, sunny: hoursOf(lo) >= 1, gap: false }
-    }
+    if (hi - lo >= SUN_DIFFER_MIN) return { value: `${hoursOf(lo)}–${hoursOf(hi)} h, forecasts differ`, gap: false }
   }
 
-  // "No sun" only when the forecast has none: up to 29 minutes rounds to 0 h but is still sun.
-  if (day.sun_min < 1) return { text: 'No sun', sunny: false, gap: false }
+  // "None" only when the forecast has none: up to 29 minutes rounds to 0 h but is still sun.
+  if (day.sun_min < 1) return { value: 'None', gap: false }
   const h = hoursOf(day.sun_min)
-  if (h === 0) return { text: 'Sun under 1 h', sunny: false, gap: false }
-  const ws = day.sun_windows
-  if (ws.length >= 1 && ws.length <= SUN_MAX_WINDOWS) {
-    return { text: `Sun ${ws.map(sunWindowLabel).join(', ')} · ${h} h`, sunny: true, gap: false }
-  }
-  return { text: `Sun ${h} h, on and off`, sunny: true, gap: false }
+  return { value: h === 0 ? 'under 1 h' : `${h} h`, gap: false }
 }
