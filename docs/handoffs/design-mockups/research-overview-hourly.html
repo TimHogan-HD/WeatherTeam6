@@ -126,6 +126,7 @@ code{font-size:.92em;color:var(--txt2)}
 .sumrow span{color:var(--muted)}
 
 .lede{color:var(--muted);font-size:15px;line-height:1.55;max-width:660px}
+.picked{border-left:2px solid var(--good);padding:4px 0 4px 12px;font-size:15px;line-height:1.55;max-width:660px;color:var(--txt1)}
 .band{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
 .word{font-family:var(--display);font-weight:700;font-size:22px;line-height:1;border:1.5px solid;border-radius:999px;padding:4px 12px}
 .action{font-size:15px;color:var(--txt1);padding:6px 2px 0;line-height:1.45}
@@ -151,15 +152,16 @@ code{font-size:.92em;color:var(--txt2)}
   <header class="intro">
     <h1>Overview and Hourly, from the weather app research</h1>
     <p>Two screens, each with the current layout and two variants built from the research report (<code>docs/handoffs/weather-app-ui-research-v1.md</code>). Every variant keeps the copy rules: no word from the score, a reading is a label and a value, weather beside every score. The figures are an invented Thursday at Taylors Falls, where the day scores 85 on its dry morning while rain arrives at 2 PM. Drag across any Hourly chart to read an hour.</p>
+    <p class="picked"><b>Owner picks, 2026-11-24:</b> Overview A + B; Hourly A + B with rain drawn as C (chance row on top, amount bars below); none of section 3 for now. Rain spread as Range (shaded from the driest forecast to the wettest). Forecast checks are out of Overview: they are the app's track record, not whether the crag is climbable. Each switch opens on the pick; the other variants stay for comparison.</p>
   </header>
 
   <!-- ===================== Overview ===================== -->
   <section class="decision" aria-labelledby="d1">
     <h2 id="d1">1. Overview</h2>
     <div class="switch" role="group" aria-label="Overview variant" data-group="ov">
-      <button type="button" aria-pressed="true" data-v="O0">Current</button>
+      <button type="button" aria-pressed="false" data-v="O0">Current</button>
       <button type="button" aria-pressed="false" data-v="O1">A · Timing first</button>
-      <button type="button" aria-pressed="false" data-v="O2">B · How sure</button>
+      <button type="button" aria-pressed="true" data-v="O2">A + B · How sure · picked</button>
     </div>
     <div class="wrap">
       <div class="phone" aria-label="Overview, phone width">
@@ -191,12 +193,6 @@ code{font-size:.92em;color:var(--txt2)}
           <h4>Next days</h4>
           <div class="days" id="ovDays"></div>
           <p class="src" data-ov="O2">One dot per weather model; a filled dot is a model that leaves the rock wet that day.</p>
-        </section>
-
-        <section class="sec" data-ov="O2">
-          <h4>Forecast checks here</h4>
-          <div class="check"><b>Sat Nov 21 · you</b><b class="match">Dry, as forecast</b><span>Score that morning 90 · 1 photo</span></div>
-          <div class="check"><b>Nov 14 · Sam</b><b style="color:var(--fair)">Damp in the cracks</b><span>Score that morning 72</span></div>
         </section>
 
         <section class="sec">
@@ -232,14 +228,13 @@ code{font-size:.92em;color:var(--txt2)}
           <p class="data"><b>Data:</b> all exists. The drying clock's forward run gives "dry again" (Precip already prints it); <code>rain_split</code> gives the count; <code>checked_at</code> is the freshness claim (<code>lib/format.ts</code>). Good hours per day are on <code>/hourly</code>.</p>
         </div>
         <div data-ov="O2" hidden>
-          <h3>B · How sure</h3>
+          <h3>A + B · How sure · picked 2026-11-24</h3>
           <ul>
             <li>Everything in A, plus <b>model dots on every scored day</b>, as Daily shows them since #644, with <code>N of 4 dry</code>. Sunday's 90 shows 2 of 4 dry; Tuesday's 92 shows 4 of 4.</li>
-            <li><b>Forecast checks here</b>: the last few Report entries at this crag, with the score that morning beside what was found. It is the one place the app can show its own track record.</li>
+            <li><b>Left out (owner, 2026-11-24): forecast checks.</b> B first drew the last few Report entries at this crag beside the score each morning. That is the app's track record, not whether the crag is climbable, so it does not belong on Overview. If it returns, the Crag tab is the place.</li>
           </ul>
           <p class="data"><b>Research:</b> uncertainty shown as numbers improved decisions and softened lost trust after a miss (Met Office game n=8,220; Joslyn's lab). Acme's founder calls nearby reports the most reliable signal. No climbing app found shows its own hit rate (report options 5, 10).</p>
-          <p class="rule"><b>Decide:</b> partners' checks are per account today (<code>/visits</code> is the reader's own). Showing Sam's check to Tim is a new cross-account read and a privacy choice. Shown here with both, to judge.</p>
-          <p class="data"><b>Data:</b> dots exist (<code>rain_split</code>, days scored 70 or more; Friday at 64 has none). Own checks exist. Partners' checks need a new route.</p>
+          <p class="data"><b>Data:</b> dots exist (<code>rain_split</code>, days scored 70 or more; Friday at 64 has none). </p>
         </div>
       </div>
     </div>
@@ -249,10 +244,10 @@ code{font-size:.92em;color:var(--txt2)}
   <section class="decision" aria-labelledby="d2">
     <h2 id="d2">2. Hourly</h2>
     <div class="switch" role="group" aria-label="Hourly variant" data-group="hr">
-      <button type="button" aria-pressed="true" data-v="H0">Current</button>
+      <button type="button" aria-pressed="false" data-v="H0">Current</button>
       <button type="button" aria-pressed="false" data-v="H1">A · Day strip, one chart</button>
       <button type="button" aria-pressed="false" data-v="H2">B · Spread shown</button>
-      <button type="button" aria-pressed="false" data-v="H3">A + B</button>
+      <button type="button" aria-pressed="true" data-v="H3">A + B, rain as C · picked</button>
     </div>
     <div class="wrap">
       <div class="phone" aria-label="Hourly, phone width">
@@ -282,7 +277,7 @@ code{font-size:.92em;color:var(--txt2)}
             <button type="button" aria-pressed="false" data-m="wind">Wind</button>
           </div>
           <h4 style="font-size:17px"><span id="oneTitle">Score</span><span class="chip" id="oneChip"></span></h4>
-          <div class="mini" role="group" aria-label="How to show the forecasts" id="oneMini" data-hr="H3"><button type="button" aria-pressed="true" data-rm="lines">Each forecast</button><button type="button" aria-pressed="false" data-rm="range">Range</button></div>
+          <div class="mini" role="group" aria-label="How to show the forecasts" id="oneMini" data-hr="H3"><button type="button" aria-pressed="false" data-rm="lines">Each forecast</button><button type="button" aria-pressed="true" data-rm="range">Range · picked</button></div>
           <svg class="chart scrub" id="oneChart" viewBox="0 0 358 130" role="img" aria-label="One chart for the chosen measure"></svg>
           <div class="legend" id="oneLegend" data-hr="H1 H3"></div>
         </section>
@@ -295,7 +290,7 @@ code{font-size:.92em;color:var(--txt2)}
         </section>
         <section class="sec" data-hr="H0 H2">
           <h4>Rain<span class="chip" id="rChip"></span></h4>
-          <div class="mini" role="group" aria-label="How to show the forecasts" data-hr="H2"><button type="button" aria-pressed="true" data-rm="lines">Each forecast</button><button type="button" aria-pressed="false" data-rm="range">Range</button></div>
+          <div class="mini" role="group" aria-label="How to show the forecasts" data-hr="H2"><button type="button" aria-pressed="false" data-rm="lines">Each forecast</button><button type="button" aria-pressed="true" data-rm="range">Range · picked</button></div>
           <svg class="chart scrub" id="rChart" viewBox="0 0 358 130" role="img" aria-label="Rain by hour"></svg>
           <div class="legend" id="rKey" data-hr="H0 H2"></div>
         </section>
@@ -326,8 +321,9 @@ code{font-size:.92em;color:var(--txt2)}
           <p class="data"><b>Data:</b> all exists on <code>/hourly</code>.</p>
         </div>
         <div data-hr="H3" hidden>
-          <h3>A + B</h3>
+          <h3>A + B, rain as C · picked 2026-11-24</h3>
           <ul>
+            <li><b>Rain is drawn as C</b> (section 2b): a chance row on top, darker the likelier, with the amount bars below on the inch scale. The spread is the Range (owner, 2026-11-24): shaded from the driest forecast to the wettest, as the temperature band is. "Each forecast" stays on the toggle here for comparison only; the build ships Range alone.</li>
             <li><b>A's shape</b>: the day strip, good hours and the rain window, then one chart with a switch.</li>
             <li><b>B's spread inside that one chart</b>: Rain draws each model's line behind the median columns, Temperature draws the band. Score and Wind are as in A.</li>
             <li><b>Freshness under the name</b>, from B.</li>
@@ -358,8 +354,8 @@ code{font-size:.92em;color:var(--txt2)}
     <h2 id="d2b">2b. Rain: chance and amount on one chart</h2>
     <p class="lede">The two-scale chart asks a reader to match a line to the right edge and a bar to the left. Each option below gives every measure its own mark instead, on one scale or none.</p>
     <div class="switch" role="group" aria-label="Rain chart variant" data-group="rn">
-      <button type="button" aria-pressed="true" data-v="N0">Current · two scales</button>
-      <button type="button" aria-pressed="false" data-v="N1">C · Chance row on top</button>
+      <button type="button" aria-pressed="false" data-v="N0">Current · two scales</button>
+      <button type="button" aria-pressed="true" data-v="N1">C · Chance row on top · picked</button>
       <button type="button" aria-pressed="false" data-v="N2">D · Chance bars, amount written</button>
       <button type="button" aria-pressed="false" data-v="N3">E · Amount bars, faded by chance</button>
       <button type="button" aria-pressed="false" data-v="N4">F · D swapped: amount bars, chance written</button>
@@ -388,7 +384,7 @@ code{font-size:.92em;color:var(--txt2)}
           </ul>
         </div>
         <div data-rn="N1" hidden>
-          <h3>C · Chance row on top</h3>
+          <h3>C · Chance row on top · picked 2026-11-24</h3>
           <ul>
             <li><b>A row of hour cells above the bars</b>, one per hour, darker the likelier, with the percentage written in each cell from 10% up. Bars below are the amount on the inch scale, as today.</li>
             <li>Each measure keeps the mark that suits it: a percentage is a share, so a shade and a figure; an amount is a quantity, so a bar on a scale.</li>
@@ -432,6 +428,7 @@ code{font-size:.92em;color:var(--txt2)}
   <section class="decision" aria-labelledby="d4">
     <h2 id="d4">3. What the rules block, drawn</h2>
     <p class="lede">Each of these breaks a rule in force today. They are drawn so you can judge them; building any one means changing the rule first.</p>
+    <p class="picked"><b>Owner, 2026-11-24:</b> none of these for now. The rules stand.</p>
     <div class="switch" role="group" aria-label="Blocked option" data-group="rb">
       <button type="button" aria-pressed="true" data-v="R1">Word band</button>
       <button type="button" aria-pressed="false" data-v="R2">Verdict sentence</button>
@@ -553,7 +550,7 @@ code{font-size:.92em;color:var(--txt2)}
     <ul>
       <li><b>A word band beside the score</b> (Good, Caution, Poor), which every climbing app found uses. Copy rule 1: no word is mapped from the score. The Met Office game also found numbers beat low/medium/high at equal information, so the rule and the evidence agree here.</li>
       <li><b>A verdict sentence</b> ("Dry until 2 PM, showers to 6 PM"). Copy rule 3: a reading is a label and a value. Variant A carries the same facts as rows; a sentence would need the rule changed.</li>
-      <li><b>Marking the score unvalidated</b>, or holding back the top of the scale until a check backs it. A product and safety call; variant B's Forecast checks is the softer version.</li>
+      <li><b>Marking the score unvalidated</b>, or holding back the top of the scale until a check backs it. A product and safety call; Overview B's forecast checks were the softer version, and the owner left those out too (2026-11-24).</li>
       <li><b>"Crag becomes climbable" alerts.</b> Parked: there is no notification channel.</li>
     </ul>
   </section>
@@ -585,7 +582,7 @@ code{font-size:.92em;color:var(--txt2)}
   function hl(h){return h===12?"12 PM":h>12?(h-12)+" PM":h+" AM"}
   function shortH(h){return h===12?"12p":h>12?(h-12)+"p":h+"a"}
 
-  var state={ov:"O0",hr:"H0",read:9,metric:"score",rainMode:"lines"};
+  var state={ov:"O2",hr:"H3",read:9,metric:"score",rainMode:"range"};
   // four hues clear of the score rungs (lime, amber, red) and of the rain bars' cyan; GEM, the dry one, in grey
   var MODEL_COL={GFS:"#c3a6ff",ECMWF:"#ffd36b",ICON:"#f29ac9",GEM:"#959ca3"};
   function rainKey(models){
@@ -678,9 +675,23 @@ code{font-size:.92em;color:var(--txt2)}
     s+='<circle cx="'+xs(state.read)+'" cy="'+yc(CHANCE[state.read])+'" r="4" fill="var(--air)" stroke="var(--bg)" stroke-width="1"/>';
     return s;
   }
+  // the rain spread on an amount scale y: a band from the driest forecast to the wettest, or one dotted line per forecast
+  function spreadMarks(y){
+    var keys=["GFS","ECMWF","ICON","GEM"],r=state.read,X=xs(r),s="";
+    if(state.rainMode==="range"){
+      var hi=HRS.map(function(_,i){return Math.max.apply(null,keys.map(function(k){return MODELS[k][i]}))});
+      var lo=HRS.map(function(_,i){return Math.min.apply(null,keys.map(function(k){return MODELS[k][i]}))});
+      s+='<path d="'+path(hi,y)+' '+lo.map(function(v,i){return"L"+xs(lo.length-1-i).toFixed(1)+" "+y(lo[lo.length-1-i]).toFixed(1)}).join(" ")+' Z" fill="var(--rainMark)" fill-opacity=".22" stroke="none"/>';
+      if(hi[r]>0)s+='<line x1="'+(X-6)+'" x2="'+(X+6)+'" y1="'+y(hi[r])+'" y2="'+y(hi[r])+'" stroke="var(--rainMark)" stroke-width="2"/>';
+      return s;
+    }
+    keys.forEach(function(k){s+='<path d="'+path(MODELS[k],y)+'" stroke="'+MODEL_COL[k]+'" stroke-width="2" stroke-dasharray="'+(k==="GEM"?"1 4":"4 3")+'" stroke-linecap="round" fill="none"/>'});
+    keys.forEach(function(k){s+='<circle cx="'+X+'" cy="'+y(MODELS[k][r])+'" r="3" fill="'+MODEL_COL[k]+'" stroke="var(--bg)" stroke-width="1"/>'});
+    return s;
+  }
   // section 2b: chance and amount on one chart, four ways
   function inchLab(v){return v.toFixed(2).replace(/^0/,"")}
-  function rainLook(v){
+  function rainLook(v,models){
     var bw=(W-L-R)/(HRS.length-1)*.62,slot=(W-L-R)/(HRS.length-1),r=state.read,s="";
     if(v==="N0")return {h:130,s:rainSvg(false),key:rainKey(false)};
     if(v==="N1"){
@@ -695,10 +706,11 @@ code{font-size:.92em;color:var(--txt2)}
         s+='<rect x="'+x0+'" y="'+top+'" width="'+Math.min(slot-2,W-1-x0)+'" height="'+rowH+'" rx="3" fill="var(--rainMark)" fill-opacity="'+(.08+p/100*.8).toFixed(2)+'"'+(i===r?' stroke="var(--txt1)" stroke-width="1.5"':'')+'/>';
         if(p>=10)s+='<text x="'+xs(i)+'" y="'+(top+rowH/2+4)+'" fill="'+(p>=50?"var(--bg)":"var(--txt1)")+'" font-size="11" font-weight="600" text-anchor="middle">'+p+'</text>';
       });
-      RAIN.forEach(function(a,i){if(a>0)s+='<rect x="'+(xs(i)-bw/2)+'" y="'+y(a)+'" width="'+bw+'" height="'+(y(0)-y(a))+'" rx="2" fill="var(--rainAmount)" fill-opacity="'+(i===r?1:.75)+'"/>'});
+      RAIN.forEach(function(a,i){if(a>0)s+='<rect x="'+(xs(i)-bw/2)+'" y="'+y(a)+'" width="'+bw+'" height="'+(y(0)-y(a))+'" rx="2" fill="var(--rainAmount)" fill-opacity="'+(models?(i===r?.7:.4):(i===r?1:.75))+'"/>'});
+      if(models)s+=spreadMarks(y);
       [0,3,6,9,12,15].forEach(function(i){s+='<text x="'+xs(i)+'" y="'+(Hh-4)+'" fill="var(--muted)" font-size="12" text-anchor="middle">'+shortH(HRS[i])+'</text>'});
       s+='<line x1="'+xs(r)+'" x2="'+xs(r)+'" y1="'+(top+rowH+2)+'" y2="'+(Hh-B)+'" stroke="var(--txt1)" stroke-opacity=".5" stroke-dasharray="2 3"/>';
-      return {h:Hh,s:s,key:'<span><i style="border-top:8px solid var(--rainMark);width:12px;border-radius:2px;opacity:.7"></i>Top row: chance of rain, %; darker is likelier</span><span><i style="border-top:8px solid var(--rainAmount);width:8px;border-radius:1px"></i>Bars: amount, inches</span>'};
+      return {h:Hh,s:s,key:'<span><i style="border-top:8px solid var(--rainMark);width:12px;border-radius:2px;opacity:.7"></i>Top row: chance of rain, %; darker is likelier</span><span><i style="border-top:8px solid var(--rainAmount);width:8px;border-radius:1px"></i>Bars: amount, inches</span>'+(models?'<span style="flex-basis:100%;height:0"></span>'+rainSpreadKey():'')};
     }
     if(v==="N2"){
       // bar height is the chance; amount written above each wet bar
@@ -754,7 +766,7 @@ code{font-size:.92em;color:var(--txt2)}
     function inch(v){return v?v.toFixed(2).replace(/^0/,""):"0"}
     return {
       temp:h+" · "+TEMP[i]+"°F"+(spread?", likely "+Math.round(TEMP[i]-SPREAD[i])+"–"+Math.round(TEMP[i]+SPREAD[i])+"°":""),
-      rain:h+" · "+CHANCE[i]+"% chance, "+(RAIN[i]?RAIN[i].toFixed(2)+" in":"none")+(spread&&hi>0?", forecasts "+inch(lo)+"–"+inch(hi):""),
+      rain:h+" · "+(CHANCE[i]===null?"":CHANCE[i]+"% chance, ")+(RAIN[i]?RAIN[i].toFixed(2)+" in":"none")+(spread&&hi>0?", forecasts "+inch(lo)+"–"+inch(hi):""),
       wind:h+" · "+WIND[i]+" mph, gusts "+GUST[i],
       score:h+" · "+SCORE[i]
     };
@@ -773,10 +785,17 @@ code{font-size:.92em;color:var(--txt2)}
     document.getElementById("oneTitle").textContent=titles[m];
     document.getElementById("oneChip").textContent=c[m];
     var both=state.hr==="H3";
-    document.getElementById("oneChart").innerHTML=m==="score"?scoreSvg():m==="rain"?rainSvg(both):m==="temp"?tempSvg(both):windSvg130();
+    var oneEl=document.getElementById("oneChart"),oneH=130,oneS,cRain=null;
+    if(m==="rain"&&both){
+      // the pick: rain drawn as C, with no right-hand scale
+      var keepR=R;R=8;try{cRain=rainLook("N1",true)}finally{R=keepR}
+      oneS=cRain.s;oneH=cRain.h;
+    } else oneS=m==="score"?scoreSvg():m==="rain"?rainSvg(false):m==="temp"?tempSvg(both):windSvg130();
+    oneEl.setAttribute("viewBox","0 0 358 "+oneH);
+    oneEl.innerHTML=oneS;
     var legends={
       score:'<span>Hours scored 60 or more are lime; 40–59 amber; under 40 red.</span>',
-      rain:rainKey(both),
+      rain:cRain?cRain.key:rainKey(false),
       temp:both?'<span>The line is the middle forecast. The shading is where 8 in 10 forecasts put the temperature: the wider it gets, the less sure.</span>':'',
       wind:'<span><i style="border-color:var(--wind)"></i>wind</span><span><i style="border-color:var(--gust);border-top-style:dashed"></i>gusts</span>'
     };
@@ -796,7 +815,7 @@ code{font-size:.92em;color:var(--txt2)}
 
   // scrub: one read hour across every chart on the phone
   document.querySelectorAll(".scrub").forEach(function(svg){
-    function set(e){var r=svg.getBoundingClientRect();var px=(e.clientX-r.left)/r.width*W;var rr=(svg.id==="rnChart"&&state.rn!=="N0")?8:R;var k=Math.round((px-L)/((W-L-rr)/(HRS.length-1)));k=Math.max(0,Math.min(HRS.length-1,k));if(k!==state.read){state.read=k;renderHourly()}}
+    function set(e){var r=svg.getBoundingClientRect();var px=(e.clientX-r.left)/r.width*W;var rr=((svg.id==="rnChart"&&state.rn!=="N0")||(svg.id==="oneChart"&&state.hr==="H3"&&state.metric==="rain"))?8:R;var k=Math.round((px-L)/((W-L-rr)/(HRS.length-1)));k=Math.max(0,Math.min(HRS.length-1,k));if(k!==state.read){state.read=k;renderHourly()}}
     svg.addEventListener("pointerdown",function(e){set(e);svg.setPointerCapture&&svg.setPointerCapture(e.pointerId)});
     svg.addEventListener("pointermove",function(e){if(e.buttons||e.pointerType==="mouse")set(e)});
     svg.setAttribute("tabindex","0");
@@ -814,7 +833,7 @@ code{font-size:.92em;color:var(--txt2)}
       state[key]=b.dataset.v;
       applyVis("data-"+key,b.dataset.v);
       if(key==="ov")renderDays(); else if(key==="rb")renderRb(); else renderHourly();
-      try{localStorage.setItem("wt6-research-"+key,b.dataset.v)}catch(e){}
+      try{localStorage.setItem("wt6-research-v2-"+key,b.dataset.v)}catch(e){}
     })});
   });
 
@@ -834,8 +853,8 @@ code{font-size:.92em;color:var(--txt2)}
   window.renderRb=renderRb;
 
   renderOvToday();renderWeek();
-  state.rn="N0";
-  ["ov","hr","rn","rb"].forEach(function(k){var v=null;try{v=localStorage.getItem("wt6-research-"+k)}catch(e){}if(v){var b=document.querySelector('.switch[data-group="'+k+'"] button[data-v="'+v+'"]');if(b){b.click();return}}applyVis("data-"+k,state[k]);});
+  state.rn="N1";
+  ["ov","hr","rn","rb"].forEach(function(k){var v=null;try{v=localStorage.getItem("wt6-research-v2-"+k)}catch(e){}if(v){var b=document.querySelector('.switch[data-group="'+k+'"] button[data-v="'+v+'"]');if(b){b.click();return}}applyVis("data-"+k,state[k]);});
   renderDays();renderHourly();renderRb();
 })();
 </script>
