@@ -364,27 +364,29 @@ function Detail({ row: r, scored, hourLabel }: { row: HourRow; scored: boolean; 
   const dir = compass(r.windFromDeg)
   /**
    * One figure as a tile, in threes (owner, 2026-11-24): the label over the
-   * figure over its note, centred, so each tile reads as one filled block.
+   * figure over its note, centred, with little padding, so the tile is the
+   * size of what it says (owner: "so much empty space").
    */
   const tile = (label: string, value: ReactNode, opts: { dot?: string; note?: string | null; valueColor?: string } = {}) => (
     <div
       key={label}
-      style={{ background: colorsV2.raised, borderRadius: radius.rowV2, padding: '10px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 2, minWidth: 0 }}
+      style={{ background: colorsV2.raised, borderRadius: radius.rowV2, padding: '5px 10px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 0, minWidth: 0 }}
     >
       <dt style={{ ...typeV2.daySmall, color: colorsV2.txtTab, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, whiteSpace: 'nowrap', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {opts.dot === undefined ? null : <i aria-hidden="true" style={{ width: 6, height: 6, borderRadius: radius.full, background: opts.dot, flex: 'none' }} />}
         {label}
       </dt>
       <dd style={{ margin: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <span style={{ ...typeV2.weekScore, lineHeight: 1.1, color: opts.valueColor ?? colorsV2.txt1 }}>{value}</span>
-        {opts.note == null ? null : <small style={{ ...typeV2.daySmall, color: colorsV2.txtTab }}>{opts.note}</small>}
+        <span style={{ ...typeV2.weekScore, lineHeight: 1.05, color: opts.valueColor ?? colorsV2.txt1 }}>{value}</span>
+        {opts.note == null ? null : <small style={{ ...typeV2.daySmall, lineHeight: 1.2, color: colorsV2.txtTab }}>{opts.note}</small>}
       </dd>
     </div>
   )
   return (
     <dl
       className="wt6-header-swap"
-      style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 6, margin: '0 0 12px', padding: 8, background: colorsV2.surface, border: `1px solid ${colorsV2.line}`, borderRadius: radius.cardV2 }}
+      // Columns as wide as their widest tile, the block centred: a tile is never wider than what it says.
+      style={{ display: 'grid', gridTemplateColumns: 'repeat(3, max-content)', justifyContent: 'center', gap: 4, margin: 0, padding: '2px 0 10px' }}
     >
       {tile('Temperature', or(r.tempF, '°'), { dot: chartColorsV2.air, note: r.lowF === null || r.highF === null ? null : `likely ${r.lowF}–${r.highF}°` })}
       {tile('Humidity', or(r.humidityPct, '%'), { dot: chartColorsV2.humidity })}
