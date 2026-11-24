@@ -114,6 +114,10 @@ code{font-size:.92em;color:var(--txt2)}
 .seg{display:flex;gap:4px;padding:12px 0 4px;flex-wrap:wrap}
 .seg button{min-height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:none;font-size:14px;color:var(--txt2)}
 .seg button[aria-pressed="true"]{border-color:var(--brand);color:var(--brandInk);background:var(--brandWash)}
+.mini{display:inline-flex;gap:2px;background:var(--surface);border-radius:999px;padding:2px;margin:2px 0 6px}
+.mini button{border:0;background:none;border-radius:999px;min-height:32px;padding:0 12px;font-size:13px;color:var(--muted)}
+.mini button[aria-pressed="true"]{background:var(--raised);color:var(--txt1)}
+.legend .k{display:inline-block;width:16px;height:0;border-top:2px dashed;vertical-align:middle;margin-right:5px}
 .legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted);padding-top:4px}
 .legend i{display:inline-block;width:14px;height:0;border-top:2px solid;vertical-align:middle;margin-right:4px}
 .sumrow{display:flex;flex-direction:column;gap:2px;padding-top:12px}
@@ -278,6 +282,7 @@ code{font-size:.92em;color:var(--txt2)}
             <button type="button" aria-pressed="false" data-m="wind">Wind</button>
           </div>
           <h4 style="font-size:17px"><span id="oneTitle">Score</span><span class="chip" id="oneChip"></span></h4>
+          <div class="mini" role="group" aria-label="How to show the forecasts" id="oneMini" data-hr="H3"><button type="button" aria-pressed="true" data-rm="lines">Each forecast</button><button type="button" aria-pressed="false" data-rm="range">Range</button></div>
           <svg class="chart scrub" id="oneChart" viewBox="0 0 358 130" role="img" aria-label="One chart for the chosen measure"></svg>
           <div class="legend" id="oneLegend" data-hr="H3"></div>
         </section>
@@ -290,8 +295,9 @@ code{font-size:.92em;color:var(--txt2)}
         </section>
         <section class="sec" data-hr="H0 H2">
           <h4>Rain<span class="chip" id="rChip"></span></h4>
+          <div class="mini" role="group" aria-label="How to show the forecasts" data-hr="H2"><button type="button" aria-pressed="true" data-rm="lines">Each forecast</button><button type="button" aria-pressed="false" data-rm="range">Range</button></div>
           <svg class="chart scrub" id="rChart" viewBox="0 0 358 130" role="img" aria-label="Rain by hour"></svg>
-          <p class="src" data-hr="H2">Bars are the middle of four forecasts. Each line is one forecast on its own. Three agree on rain mid-afternoon; GEM has none.</p>
+          <div class="legend" id="rKey" data-hr="H2"></div>
         </section>
         <section class="sec" data-hr="H0 H2">
           <h4>Wind<span class="chip" id="wChip"></span></h4>
@@ -336,7 +342,8 @@ code{font-size:.92em;color:var(--txt2)}
             <li><b>Temperature with its band</b>: the p10–p90 range of the ensemble behind the median line, keyed in words ("8 in 10 runs fall inside").</li>
             <li><b>Rain with each model's line</b> behind the median columns. GEM keeps Thursday dry; three models put the shower between 1 and 7 PM. A reader sees why the count is 3 of 4.</li>
             <li><b>Freshness under the name.</b></li>
-            <li><b>Readable without a key</b>: each forecast is named on its own line, the band is labelled "likely range", the read hour's chip gives the range in figures ("41°F, likely 38–45°"; "0.06 in, forecasts 0–.08"), and one plain line under each chart says how to read it.</li>
+            <li><b>Rain spread, two ways</b>, behind a small toggle: "Each forecast" draws every model as a dotted line in its own colour (violet, yellow, pink; GEM, dry all day, in grey), with the names in a key under the chart rather than on it; "Range" shades from the driest forecast to the wettest, the same reading as the temperature band. Pick one; the build ships one.</li>
+            <li><b>Readable at a glance</b>: the temperature band is labelled "likely range", the read hour's chip gives the range in figures ("41°F, likely 38–45°"; "0.06 in, forecasts 0–.08"), and one plain line under each chart says how to read it.</li>
           </ul>
           <p class="data"><b>Research:</b> Acme's founding idea is alternate forecasts as faint lines; Windy shows predictability per day. Fan charts biased readers optimistic in one study, so the band is soft-edged and the median stays the brightest mark (report option 5).</p>
           <p class="data"><b>Data (B):</b> the temperature band exists (<code>temp_c_p10</code>, <code>temp_c_p90</code>; <code>--rangeFrost</code> is already a token). <b>Per-model hourly rain is not on the response</b>: the server reads it for the median and the split, then drops it. It would be a new field on <code>/hourly</code>.</p>
@@ -500,7 +507,13 @@ code{font-size:.92em;color:var(--txt2)}
   function hl(h){return h===12?"12 PM":h>12?(h-12)+" PM":h+" AM"}
   function shortH(h){return h===12?"12p":h>12?(h-12)+"p":h+"a"}
 
-  var state={ov:"O0",hr:"H0",read:9,metric:"score"};
+  var state={ov:"O0",hr:"H0",read:9,metric:"score",rainMode:"lines"};
+  // four hues clear of the score rungs (lime, amber, red) and of the rain bars' cyan; GEM, the dry one, in grey
+  var MODEL_COL={GFS:"#c3a6ff",ECMWF:"#ffd36b",ICON:"#f29ac9",GEM:"#959ca3"};
+  function rainKey(){
+    if(state.rainMode==="range")return '<span>Bars are the middle of four forecasts. The shading runs from the driest forecast to the wettest: the wider it gets, the less sure.</span>';
+    return ["GFS","ECMWF","ICON","GEM"].map(function(k){return '<span><i class="k" style="border-top-color:'+MODEL_COL[k]+(k==="GEM"?';border-top-style:dotted':'')+'"></i>'+k+(k==="GEM"?" (no rain)":"")+'</span>'}).join("")+'<span style="flex-basis:100%">Bars are the middle of the four. Each dotted line is one forecast on its own.</span>';
+  }
 
   // ---------- Overview ----------
   function dotsHtml(a){var w=0,h='<span class="dots" aria-hidden="true">';a.forEach(function(x){h+='<i'+(x?' class="w"':'')+'></i>';if(!x)w++});return h+'</span> '+w+' of '+a.length+' dry'}
@@ -560,16 +573,20 @@ code{font-size:.92em;color:var(--txt2)}
     var bw=(W-L-R)/(HRS.length-1)*.62;
     RAIN.forEach(function(v,i){if(v>0)s+='<rect x="'+(xs(i)-bw/2)+'" y="'+y(v)+'" width="'+bw+'" height="'+(y(0)-y(v))+'" rx="2" fill="var(--rainAmount)" fill-opacity="'+(models?(i===state.read?.7:.4):(i===state.read?1:.75))+'"/>'});
     s+=cursor(130,20);
-    if(models){
-      // one hue in three lightness steps, so crossing lines stay traceable; each named where it is clear of the others
-      var shade={GFS:"#e3e8ff",ECMWF:"var(--rainMark)",ICON:"#7f8ff0"};
-      ["GFS","ECMWF","ICON"].forEach(function(k){s+='<path d="'+path(MODELS[k],y)+'" stroke="'+shade[k]+'" stroke-width="1.75" stroke-linejoin="round" fill="none"/>'});
-      s+='<text x="'+(xs(9.5)-14)+'" y="'+(y(.08)-3)+'" fill="'+shade.GFS+'" font-size="12" text-anchor="end">GFS</text>';
-      s+='<text x="'+(xs(8)-6)+'" y="'+(y(.045))+'" fill="'+shade.ECMWF+'" font-size="12" text-anchor="end">ECMWF</text>';
-      s+='<text x="'+(xs(12)+6)+'" y="'+(y(.045))+'" fill="'+shade.ICON+'" font-size="12" text-anchor="start">ICON</text>';
-      s+='<text x="'+xs(1)+'" y="'+(y(0)-6)+'" fill="var(--muted)" font-size="12" text-anchor="start">GEM: no rain all day</text>';
-      var r=state.read;
-      ["GFS","ECMWF","ICON","GEM"].forEach(function(k){s+='<circle cx="'+xs(r)+'" cy="'+y(MODELS[k][r])+'" r="3" fill="'+(k==="GEM"?"var(--muted)":shade[k])+'" stroke="var(--bg)" stroke-width="1"/>'});
+    if(models&&state.rainMode==="range"){
+      // shaded from the driest to the wettest forecast, like the temperature band
+      var keys=["GFS","ECMWF","ICON","GEM"];
+      var hi=HRS.map(function(_,i){return Math.max.apply(null,keys.map(function(k){return MODELS[k][i]}))});
+      var lo=HRS.map(function(_,i){return Math.min.apply(null,keys.map(function(k){return MODELS[k][i]}))});
+      var band='<path d="'+path(hi,y)+' '+lo.map(function(v,i){return"L"+xs(lo.length-1-i).toFixed(1)+" "+y(lo[lo.length-1-i]).toFixed(1)}).join(" ")+' Z" fill="var(--rainMark)" fill-opacity=".22" stroke="none"/>';
+      s=band+s;
+      var r=state.read,X=xs(r);
+      if(hi[r]>0)s+='<line x1="'+(X-6)+'" x2="'+(X+6)+'" y1="'+y(hi[r])+'" y2="'+y(hi[r])+'" stroke="var(--rainMark)" stroke-width="2"/>';
+    } else if(models){
+      // dotted lines, one colour per forecast; the key sits under the chart
+      var r2=state.read;
+      ["GFS","ECMWF","ICON","GEM"].forEach(function(k){s+='<path d="'+path(MODELS[k],y)+'" stroke="'+MODEL_COL[k]+'" stroke-width="2" stroke-dasharray="'+(k==="GEM"?"1 4":"4 3")+'" stroke-linecap="round" fill="none"/>'});
+      ["GFS","ECMWF","ICON","GEM"].forEach(function(k){s+='<circle cx="'+xs(r2)+'" cy="'+y(MODELS[k][r2])+'" r="3" fill="'+MODEL_COL[k]+'" stroke="var(--bg)" stroke-width="1"/>'});
     }
     return s;
   }
@@ -613,11 +630,13 @@ code{font-size:.92em;color:var(--txt2)}
     document.getElementById("oneChart").innerHTML=m==="score"?scoreSvg():m==="rain"?rainSvg(both):m==="temp"?tempSvg(both):windSvg130();
     var legends={
       score:'<span>Hours scored 60 or more are lime; 40–59 amber; under 40 red.</span>',
-      rain:'<span>Bars are the middle of four forecasts. Each line is one forecast on its own. Three agree on rain mid-afternoon; GEM has none.</span>',
+      rain:rainKey(),
       temp:'<span>The line is the middle forecast. The shading is where 8 in 10 forecasts put the temperature: the wider it gets, the less sure.</span>',
       wind:'<span><i style="border-color:var(--wind)"></i>wind</span><span><i style="border-color:var(--gust);border-top-style:dashed"></i>gusts</span>'
     };
     document.getElementById("oneLegend").innerHTML=legends[m];
+    document.getElementById("rKey").innerHTML=rainKey();
+    document.getElementById("oneMini").style.display=m==="rain"?"":"none";
     var st="";SCORE.forEach(function(v,k){st+='<i style="background:'+col(v)+';opacity:'+(HRS[k]>=8&&HRS[k]<18?1:.35)+'"class="'+(k===i?"read":"")+'" title="'+hl(HRS[k])+' · '+v+'"></i>'});
     document.getElementById("strip").innerHTML=st;
     var rr="";RAIN.forEach(function(v){rr+='<i style="background:'+(v>0?"var(--rainAmount)":"transparent")+';opacity:'+(v>0?Math.min(1,.35+v*9):0)+'"></i>'});
@@ -636,6 +655,7 @@ code{font-size:.92em;color:var(--txt2)}
     svg.setAttribute("tabindex","0");
     svg.addEventListener("keydown",function(e){if(e.key==="ArrowLeft"||e.key==="ArrowRight"){e.preventDefault();state.read=Math.max(0,Math.min(HRS.length-1,state.read+(e.key==="ArrowRight"?1:-1)));renderHourly()}});
   });
+  document.querySelectorAll(".mini button").forEach(function(b){b.addEventListener("click",function(){state.rainMode=b.dataset.rm;document.querySelectorAll(".mini button").forEach(function(x){x.setAttribute("aria-pressed",x.dataset.rm===state.rainMode?"true":"false")});renderHourly()})});
   document.querySelectorAll(".seg button").forEach(function(b){b.addEventListener("click",function(){state.metric=b.dataset.m;document.querySelectorAll(".seg button").forEach(function(x){x.setAttribute("aria-pressed",x===b?"true":"false")});renderHourly()})});
 
   // variant switchers
