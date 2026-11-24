@@ -13,8 +13,8 @@ import { colorsV2 } from '@weatherteam6/design/tokens'
  * exists to make a cold open draw at once.
  *
  * The two colours are the reason this is TypeScript. `theme_color` and
- * `background_color` are the same values `globals.css` paints the gradient
- * with, and a hex typed into a `.webmanifest` would be a colour redefined
+ * `background_color` are `colorsV2.bg`, the flat ground `globals.css` paints,
+ * and a hex typed into a `.webmanifest` would be a colour redefined
  * inside an app — which the token rule forbids however right it looked the day
  * it was written.
  */
