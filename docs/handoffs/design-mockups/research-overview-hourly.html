@@ -411,7 +411,7 @@ code{font-size:.92em;color:var(--txt2)}
             <li><b>Bar height is the amount</b> on the inch scale; the chance is written above each hour in the chance colour (violet), the way D writes the amount in the bar colour.</li>
             <li>The amount, which decides how wet the rock gets, keeps the scale; the chance is one glance up, no second axis, no fade to decode.</li>
             <li>Hours with a chance but no median amount (1 PM, 30%) show the figure on the baseline, so the build-up before the shower still reads.</li>
-            <li><b>The cost</b>: the chance is figures only, so its shape across the day is read number by number rather than seen. A null chance leaves the hour without a figure; its bar still draws if the amount is known.</li>
+            <li><b>The cost</b>: the chance is figures only, so its shape across the day is read number by number rather than seen. Chances under 10% are left unwritten to keep the dry hours quiet; a null chance is written "—", so a gap never reads as a low chance. The bar still draws if the amount is known.</li>
           </ul>
         </div>
         <div data-rn="N3" hidden>
@@ -422,7 +422,7 @@ code{font-size:.92em;color:var(--txt2)}
             <li><b>The cost</b>: opacity is the least precise visual channel (Cleveland and McGill 1984); the fade is a hint, so the figures carry the reading. Hours with a chance but no median amount show only a figure on the baseline.</li>
           </ul>
         </div>
-        <p class="data"><b>Data, all variants:</b> amount is the hourly median, chance is <code>precip_chance_pct</code> (the share of ensemble members wet), both already on <code>/hourly</code>. A null chance is an empty cell, no bar or no figure, never 0%.</p>
+        <p class="data"><b>Data, all variants:</b> amount is the hourly median, chance is <code>precip_chance_pct</code> (the share of ensemble members wet), both already on <code>/hourly</code>. A null chance is never 0%: in C it is no cell at all (a 0% hour is a faint drawn cell), in D no bar, and in E and F a "—" where the figure would be. E and F leave chances under 10% unwritten.</p>
         <p class="data">The chosen look carries into B's spread views (each forecast's line or the range sit on the amount scale, so C and E keep them; D would need them redrawn as chance).</p>
       </div>
     </div>
@@ -692,7 +692,7 @@ code{font-size:.92em;color:var(--txt2)}
       CHANCE.forEach(function(p,i){
         var x0=xs(i)-slot/2+1;
         if(p===null)return;
-        s+='<rect x="'+x0+'" y="'+top+'" width="'+Math.min(slot-2,W-1-x0)+'" height="'+rowH+'" rx="3" fill="var(--rainMark)" fill-opacity="'+(p?(.08+p/100*.8).toFixed(2):0)+'"'+(i===r?' stroke="var(--txt1)" stroke-width="1.5"':'')+'/>';
+        s+='<rect x="'+x0+'" y="'+top+'" width="'+Math.min(slot-2,W-1-x0)+'" height="'+rowH+'" rx="3" fill="var(--rainMark)" fill-opacity="'+(.08+p/100*.8).toFixed(2)+'"'+(i===r?' stroke="var(--txt1)" stroke-width="1.5"':'')+'/>';
         if(p>=10)s+='<text x="'+xs(i)+'" y="'+(top+rowH/2+4)+'" fill="'+(p>=50?"var(--bg)":"var(--txt1)")+'" font-size="11" font-weight="600" text-anchor="middle">'+p+'</text>';
       });
       RAIN.forEach(function(a,i){if(a>0)s+='<rect x="'+(xs(i)-bw/2)+'" y="'+y(a)+'" width="'+bw+'" height="'+(y(0)-y(a))+'" rx="2" fill="var(--rainAmount)" fill-opacity="'+(i===r?1:.75)+'"/>'});
@@ -712,14 +712,14 @@ code{font-size:.92em;color:var(--txt2)}
       // D turned over: bar height is the amount, the chance written above each hour
       var g4=frame(130,20,0,.1,[0,.05,.1],function(a){return a?inchLab(a):"0"}),y4=g4.y;s=g4.s;
       RAIN.forEach(function(a,i){if(a>0)s+='<rect x="'+(xs(i)-bw/2)+'" y="'+y4(a)+'" width="'+bw+'" height="'+(y4(0)-y4(a))+'" rx="2" fill="var(--rainAmount)" fill-opacity="'+(i===r?1:.75)+'"/>'});
-      CHANCE.forEach(function(p,i){if(p!==null&&p>=10)s+='<text x="'+xs(i)+'" y="'+(y4(RAIN[i])-4)+'" fill="'+(i===r?"var(--txt1)":"var(--rainMark)")+'" font-size="11" font-weight="600" text-anchor="middle">'+p+'</text>'});
+      CHANCE.forEach(function(p,i){if(p===null||p>=10)s+='<text x="'+xs(i)+'" y="'+(y4(RAIN[i])-4)+'" fill="'+(p===null?"var(--muted)":i===r?"var(--txt1)":"var(--rainMark)")+'" font-size="11" font-weight="600" text-anchor="middle">'+(p===null?"—":p)+'</text>'});
       s+=cursor(130,20);
       return {h:130,s:s,key:'<span><i style="border-top:8px solid var(--rainAmount);width:8px;border-radius:1px"></i>Bars: amount, inches</span><span style="color:var(--rainMark)">70</span><span style="margin-left:-8px">Figure above: chance of rain, %</span>'};
     }
     // N3: bar height is the amount; fainter is less likely; chance written above
     var g=frame(130,20,0,.1,[0,.05,.1],function(a){return a?inchLab(a):"0"}),y3=g.y;s=g.s;
     RAIN.forEach(function(a,i){if(a>0&&CHANCE[i]!==null)s+='<rect x="'+(xs(i)-bw/2)+'" y="'+y3(a)+'" width="'+bw+'" height="'+(y3(0)-y3(a))+'" rx="2" fill="var(--rainAmount)" fill-opacity="'+(.2+CHANCE[i]/100*.8).toFixed(2)+'"'+(i===r?' stroke="var(--txt1)" stroke-width="1"':'')+'/>'});
-    CHANCE.forEach(function(p,i){if(p!==null&&p>=10)s+='<text x="'+xs(i)+'" y="'+(y3(RAIN[i])-4)+'" fill="'+(i===r?"var(--txt1)":"var(--muted)")+'" font-size="11" font-weight="600" text-anchor="middle">'+p+'</text>'});
+    CHANCE.forEach(function(p,i){if(p===null||p>=10)s+='<text x="'+xs(i)+'" y="'+(y3(RAIN[i])-4)+'" fill="'+(p!==null&&i===r?"var(--txt1)":"var(--muted)")+'" font-size="11" font-weight="600" text-anchor="middle">'+(p===null?"—":p)+'</text>'});
     s+=cursor(130,20);
     return {h:130,s:s,key:'<span><i style="border-top:8px solid var(--rainAmount);width:8px;border-radius:1px"></i>Bars: amount, inches; fainter is less likely</span><span>Figure above: chance, %</span>'};
   }
