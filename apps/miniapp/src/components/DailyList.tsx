@@ -1,31 +1,21 @@
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { colorsV2 } from '@weatherteam6/design/tokens'
-import {
-  EM_DASH,
-  formatPrecipIn,
-  formatWindMph,
-  skyDayIcon,
-  sunDayLine,
-  type ForecastSnapshot,
-  type HourlySample,
-  type SkyDay,
-} from '@weatherteam6/types'
+import { EM_DASH, sunDayHours, type ForecastSnapshot, type HourlySample, type SkyDay } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, sectionV2 } from '../theme/styles.js'
 import { formatTempDeg } from '../lib/format.js'
 import { findToday } from '../lib/forecast.js'
-import { rainSplitText, scoredDays, type DayReadings } from '../lib/overview.js'
+import { scoredDays, shortDay, type DayReadings } from '../lib/overview.js'
 import { scoreRampColor } from './charts/chartStyle.js'
 import { Sect } from './charts/liquid.js'
-import { SkyIcon } from './Icons.js'
-import { RainSplitDots } from './RainSplitDots.js'
 
 /**
- * The Daily tab in the hybrid look (`docs/handoffs/design-mockups/weatherteam6-hybrid.html`,
- * `dailyTab`): one glass card, **Seven days**, a row per day — the sky, the
- * day's name, its score, the low and high on a bar shared by the week, and
- * the chance of rain; under them the good hours, Dryness, rain amount and
- * peak wind.
+ * The Daily tab's **Seven days** list (owner, 2026-11-24: mockup
+ * `docs/handoffs/design-mockups/daily-card-text.html`, score placement B with the
+ * stat row). A day is two lines: its short name and date, the low and high on a
+ * bar shared by the week, and the chance of rain; under them a row of labelled
+ * stats — Score, Good, Rock, Sun. The score is the only colour on a row. No sky
+ * icon, wind, rain amount or model dots (owner, 2026-11-24).
  *
  * Rows open that day in the Hourly tab. A day the hourly response cannot draw
  * is not tappable: `onSelectDay` is omitted for it rather than opening an
@@ -56,18 +46,17 @@ export function dayRainChance(
 /** What the rows are, said once under them. */
 const FOOT_SCORE =
   'A day score is the worst hour of the best three-hour run inside your climbing hours (8 AM to 6 PM unless you change them on Profile); today counts only hours still ahead.'
-const FOOT_FIGURES = 'Chance of rain is the highest hourly share of wet ensemble members. Rain is the median daily amount.'
+const FOOT_BAR = 'The bar spans each day from low to high, on one scale for the week.'
+const FOOT_CHANCE = 'Chance of rain is the highest hourly share of wet ensemble members.'
 const FOOT_TAP = 'Tap a day for its hours.'
 const FOOT_SUN = 'Sun is the hours of bright sunshine.'
-const FOOT_DOTS = "Dots are the weather models; a filled dot is one whose rain leaves the rock wet that day."
 
 /**
- * The note under the rows: the score's rule only where scores show, the sun
- * line's meaning only where one shows, the model dots' only where they show,
- * and "tap" only where a row opens.
+ * The note under the rows: the score's rule only where scores show, the sun's
+ * meaning only where it shows, and "tap" only where a row opens.
  */
-export function dailyFoot(scored: boolean, tappable: boolean, sun = false, dots = false): string {
-  return [scored ? FOOT_SCORE : null, dots ? FOOT_DOTS : null, FOOT_FIGURES, sun ? FOOT_SUN : null, tappable ? FOOT_TAP : null]
+export function dailyFoot(scored: boolean, tappable: boolean, sun = false): string {
+  return [scored ? FOOT_SCORE : null, FOOT_BAR, FOOT_CHANCE, sun ? FOOT_SUN : null, tappable ? FOOT_TAP : null]
     .filter((s) => s !== null)
     .join(' ')
 }
@@ -77,12 +66,12 @@ export type DailyListProps = {
   /**
    * The per-day readings and alert state the score is read from, through
    * `summarizeReadings`. `null` for a city and while `/hourly` is in flight —
-   * all of which draw rows with no score.
+   * all of which draw rows with no Score, Good or Rock.
    */
   readings: DayReadings | null
   /** The hourly run's hours, for each day's chance of rain. Empty while the query is in flight or failed. */
   hours: readonly HourlySample[]
-  /** The hourly response's sky days. A day absent here, or with a null summary, shows no sky rather than a guess. */
+  /** The hourly response's sky days, for each day's sun. A day absent here shows the gap mark. */
   sky: readonly SkyDay[]
   /** Opens a day in the Hourly tab. Omitted when there is no hourly data at all. */
   onSelectDay?: (localDate: string) => void
@@ -90,43 +79,49 @@ export type DailyListProps = {
   drawableDates?: ReadonlySet<string>
 }
 
+/** One fixed name column, so every day's temperature track starts and ends at the same x: one scale down the list. */
 const rowGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '28px minmax(0, 1fr) 56px 124px 44px',
-  columnGap: '8px',
-  rowGap: '8px',
+  gridTemplateColumns: '96px minmax(0, 1fr) 40px',
+  columnGap: '12px',
+  rowGap: '6px',
   alignItems: 'center',
-  padding: '14px 0',
+  padding: '16px 0',
   borderBottom: `1px solid ${colorsV2.line}`,
   textAlign: 'left',
 }
 
-/** "Today" or the full weekday, and the date under it — "Oct 21". */
+/** "Today" or the short weekday — "Wed" — and the date beside it, "Oct 21". */
 export function dayHeading(isoDate: string, todayDate: string): { name: string; date: string } {
   const [y, m, d] = isoDate.split('-').map(Number)
   if (y === undefined || m === undefined || d === undefined || ![y, m, d].every(Number.isFinite)) {
     return { name: isoDate, date: '' }
   }
   const at = new Date(Date.UTC(y, m - 1, d))
-  const name = isoDate === todayDate ? 'Today' : at.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' })
-  return { name, date: at.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }) }
+  return { name: shortDay(isoDate, todayDate), date: at.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }) }
+}
+
+/** A label over its value. Spans, not a `dl`: a row can be a `<button>`, which holds phrasing content only. */
+function Stat({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <span style={typeV2.dailyStatLabel}>{label}</span>
+      {children}
+    </span>
+  )
 }
 
 export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDates }: DailyListProps) {
   const rows = [...days].sort((a, b) => a.forecast_date.localeCompare(b.forecast_date))
   // Joined on the date inside `scoredDays`, never on position.
   const scored = new Map(scoredDays(rows, readings).map((d) => [d.local_date, d]))
-  const skyByDate = new Map(sky.map((d) => [d.local_date, d.summary]))
-  // An older API's sky days carry no sun fields: those rows show no sun line rather than a gap mark.
-  const sunByDate = new Map(sky.filter((d) => d.sun_windows !== undefined).map((d) => [d.local_date, sunDayLine(d)]))
+  // An older API's sky days carry no sun fields: then no row has a Sun stat rather than a gap mark.
+  const sunShown = sky.some((d) => d.sun_windows !== undefined)
+  const sunByDate = new Map(sky.filter((d) => d.sun_windows !== undefined).map((d) => [d.local_date, sunDayHours(d)]))
   const todayDate = findToday(rows)?.forecast_date ?? ''
-  // The model dots (owner, 2026-11-23, #644 "Model dots"): every scored day that carries
-  // `rain_split`, which the API sends only for a day scored `RAIN_SPLIT_MIN_SCORE` or more.
-  const splitFor = (localDate: string) => {
-    const split = readings?.days.find((r) => r.local_date === localDate)?.rain_split ?? null
-    return split === null || split.models === 0 || scored.get(localDate)?.score == null ? null : split
-  }
-  const anyDots = rows.some((d) => splitFor(d.forecast_date) !== null)
+  const crag = readings !== null
+  // The same columns on every row, so each stat sits under the one above it.
+  const statColumns = [crag ? '0.8fr 1fr 0.8fr' : null, sunShown ? '1.8fr' : null].filter((c) => c !== null).join(' ')
 
   // One scale for the week, so a bar's place says how warm the day is against the others.
   const temps = rows.flatMap((d) => [d.temp_c_min, d.temp_c_max]).filter((v): v is number => v !== null)
@@ -135,25 +130,15 @@ export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDat
   const pct = (c: number) => ((c - lo) / span) * 100
   return (
     <section style={sectionV2}>
-      <Sect title="Seven days" aside={readings === null ? 'low–high · chance of rain' : 'score · low–high · chance of rain'} />
+      <Sect title="Seven days" aside="low–high · chance of rain" />
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         {rows.map((day, i) => {
           const d = scored.get(day.forecast_date)
           if (d === undefined) return null
           const open = onSelectDay !== undefined && drawableDates?.has(day.forecast_date) === true ? () => onSelectDay(day.forecast_date) : null
-          const summary = skyByDate.get(day.forecast_date) ?? null
-          const sun = sunByDate.get(day.forecast_date) ?? null
+          const sun = sunShown ? (sunByDate.get(day.forecast_date) ?? { value: EM_DASH, gap: true }) : null
           const chance = dayRainChance(hours, day.forecast_date)
           const { name, date } = dayHeading(day.forecast_date, todayDate)
-          const split = splitFor(day.forecast_date)
-          // The mockup's `best 11a–2p · Dry · 0 in · peak wind 20 mph`. "good", not "best": the
-          // span is the day's good hours, not the three-hour run its score comes from.
-          const sub = [
-            d.span === null ? null : d.span === 'None' ? 'no good hours' : `good ${d.span.toLowerCase()}`,
-            d.dryness,
-            formatPrecipIn(day.precip_mm_p50),
-            `peak wind ${formatWindMph(day.wind_kmh_max)}`,
-          ].filter((s): s is string => s !== null)
           // Each row rises a step after the one above, and its bar grows out after it.
           const step = { '--wt6-i': i } as CSSProperties
           const bar =
@@ -174,52 +159,63 @@ export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDat
             )
           const content = (
             <>
-              {summary === null ? <span /> : <SkyIcon sky={skyDayIcon(summary)} size={28} />}
-              <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                <span style={{ ...typeV2.dayName, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
-                <span style={typeV2.dayDate}>{date}</span>
+              <span style={{ display: 'flex', alignItems: 'baseline', gap: '8px', whiteSpace: 'nowrap', minWidth: 0 }}>
+                <span style={typeV2.dailyDay}>{name}</span>
+                <span style={typeV2.dailyDate}>{date}</span>
               </span>
-              <b
-                data-day-score=""
-                style={{
-                  ...typeV2.dailyScore,
-                  textAlign: 'center',
-                  color: d.score === null ? colorsV2.txtMuted : scoreRampColor(d.score),
-                }}
-              >
-                {readings === null ? '' : (d.score ?? EM_DASH)}
-              </b>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '6px', ...typeV2.dayTemp, fontVariantNumeric: 'tabular-nums' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px', ...typeV2.dailyFigure, fontVariantNumeric: 'tabular-nums' }}>
                 <span style={{ width: '30px', textAlign: 'right', color: colorsV2.txtMuted }}>{formatTempDeg(day.temp_c_min)}</span>
-                <span style={{ position: 'relative', flex: '1 1 auto', height: '6px', borderRadius: '3px', background: colorsV2.tempBarTrack }}>
+                <span style={{ position: 'relative', flex: '1 1 auto', height: '5px', borderRadius: '3px', background: colorsV2.tempBarTrack }}>
                   {bar}
                 </span>
                 <span style={{ width: '30px', color: colorsV2.txt1 }}>{formatTempDeg(day.temp_c_max)}</span>
               </span>
-              <span style={{ ...typeV2.dayChance, textAlign: 'right' }}>{chance === null ? EM_DASH : `${chance}%`}</span>
-              {split === null ? null : (
-                <span data-model-dots="" style={{ ...typeV2.daySub, gridColumn: '2 / -1', display: 'flex', alignItems: 'center', gap: '6px', color: colorsV2.txtMuted }}>
-                  <RainSplitDots wet={split.wet} models={split.models} label={null} />
-                  {`${split.models - split.wet} of ${split.models} dry`}
-                </span>
-              )}
-              <span style={{ ...typeV2.daySub, gridColumn: '2 / -1' }}>{sub.join(' · ')}</span>
-              {sun === null ? null : (
-                <span
-                  data-sun-line={sun.gap ? 'gap' : sun.sunny ? 'sunny' : 'dull'}
-                  style={{
-                    ...typeV2.daySub,
-                    gridColumn: '2 / -1',
-                    marginTop: '-4px',
-                    ...(sun.sunny ? { color: colorsV2.sun, fontWeight: 600 } : {}),
-                  }}
-                >
-                  {sun.text}
+              <span
+                style={{
+                  ...typeV2.dailyFigure,
+                  textAlign: 'right',
+                  fontVariantNumeric: 'tabular-nums',
+                  // A dry day's 0% steps back so a wet one stands out; it is still printed.
+                  ...(chance === 0 ? { color: colorsV2.txtTab, fontWeight: 500 } : {}),
+                }}
+              >
+                {chance === null ? EM_DASH : `${chance}%`}
+              </span>
+              {statColumns === '' ? null : (
+                <span style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: statColumns, columnGap: '8px' }}>
+                  {crag ? (
+                    <>
+                      <Stat label="Score">
+                        <b
+                          data-day-score=""
+                          style={{
+                            ...typeV2.dailyStatScore,
+                            fontVariantNumeric: 'tabular-nums',
+                            color: d.score === null ? colorsV2.txtMuted : scoreRampColor(d.score),
+                          }}
+                        >
+                          {d.score ?? EM_DASH}
+                        </b>
+                      </Stat>
+                      <Stat label="Good">
+                        {/* An unread day reads a window of "None" from `summarizeReadings`: unknown, not no good hours. */}
+                        <span data-day-good="" style={typeV2.dailyStatValue}>{d.score === null ? EM_DASH : (d.span ?? EM_DASH)}</span>
+                      </Stat>
+                      <Stat label="Rock">
+                        <span data-day-rock="" style={typeV2.dailyStatValue}>{d.dryness ?? EM_DASH}</span>
+                      </Stat>
+                    </>
+                  ) : null}
+                  {sun === null ? null : (
+                    <Stat label="Sun">
+                      <span data-day-sun={sun.gap ? 'gap' : ''} style={typeV2.dailyStatValue}>{sun.value}</span>
+                    </Stat>
+                  )}
                 </span>
               )}
             </>
           )
-          const spoken = `${[name, date].filter((s) => s !== '').join(' ')}: ${d.score === null ? 'no score' : `score ${d.score}`}${split === null ? '' : `, ${rainSplitText(split)}`}, low ${formatTempDeg(day.temp_c_min)}, high ${formatTempDeg(day.temp_c_max)}, ${chance === null ? 'chance of rain unknown' : `${chance}% chance of rain`}${sun === null ? '' : sun.gap ? ', sun unknown' : `, ${sun.text}`}`
+          const spoken = `${[name, date].filter((s) => s !== '').join(' ')}: ${!crag ? '' : d.score === null ? 'no score, ' : `score ${d.score}, `}low ${formatTempDeg(day.temp_c_min)}, high ${formatTempDeg(day.temp_c_max)}, ${chance === null ? 'chance of rain unknown' : `${chance}% chance of rain`}${!crag || d.score === null || d.span === null ? '' : `, good ${d.span}`}${!crag || d.dryness === null ? '' : `, rock ${d.dryness}`}${sun === null ? '' : sun.gap ? ', sun unknown' : `, sun ${sun.value}`}`
           const style = { ...step, ...(i === rows.length - 1 ? { ...rowGrid, borderBottom: 'none' } : rowGrid) }
           return open === null ? (
             <div key={day.forecast_date} className="wt6-rise" style={style}>
@@ -240,12 +236,7 @@ export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDat
         })}
       </div>
       <p style={{ ...typeV2.keyRow, margin: '10px 0 0', lineHeight: '16px' }}>
-        {dailyFoot(
-          readings !== null,
-          onSelectDay !== undefined && rows.some((d) => drawableDates?.has(d.forecast_date) === true),
-          rows.some((d) => sunByDate.has(d.forecast_date)),
-          anyDots,
-        )}
+        {dailyFoot(crag, onSelectDay !== undefined && rows.some((d) => drawableDates?.has(d.forecast_date) === true), sunShown)}
       </p>
       {onSelectDay === undefined ||
       drawableDates === undefined ||

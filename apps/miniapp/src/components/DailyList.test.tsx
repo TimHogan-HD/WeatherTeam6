@@ -1,9 +1,9 @@
 import { renderToStaticMarkup } from 'react-dom/server'
+import { colorsV2 } from '@weatherteam6/design/tokens'
 import { describe, expect, it } from 'vitest'
 import {
   EM_DASH,
   formatPrecipIn,
-  formatWindMph,
   type ForecastSnapshot,
   type HourlyReading,
   type HourlySample,
@@ -116,12 +116,12 @@ describe('DailyList — rows', () => {
       <DailyList days={[day(DATES[2]), day(DATES[0]), day(DATES[1])]} readings={null} hours={[]} sky={[]} />,
     )
     expect(html).toContain('Seven days')
-    const names = [...html.matchAll(/>(Today|\w+day)</g)].map((m) => m[1])
-    expect(names).toEqual(['Today', 'Tuesday', 'Wednesday'])
+    const names = [...html.matchAll(/>(Today|Mon|Tue|Wed|Thu|Fri|Sat|Sun)</g)].map((m) => m[1])
+    expect(names).toEqual(['Today', 'Tue', 'Wed'])
   })
 
-  it('names each day in full with its date under it', () => {
-    expect(dayHeading('2026-10-21', '2026-10-20')).toEqual({ name: 'Wednesday', date: 'Oct 21' })
+  it('names each day short, with its date beside it', () => {
+    expect(dayHeading('2026-10-21', '2026-10-20')).toEqual({ name: 'Wed', date: 'Oct 21' })
     expect(dayHeading('2026-10-20', '2026-10-20')).toEqual({ name: 'Today', date: 'Oct 20' })
   })
 
@@ -129,7 +129,7 @@ describe('DailyList — rows', () => {
     const html = render(
       <DailyList days={[day(DATES[1])]} readings={null} hours={[]} sky={[]} onSelectDay={() => {}} drawableDates={new Set([DATES[1]])} />,
     )
-    expect(html).toMatch(/aria-label="Tuesday \w+ \d+: no score, low /)
+    expect(html).toMatch(/aria-label="Tue \w+ \d+: low /)
   })
 
   it('prints the low and high, and dashes a missing one rather than printing 32°', () => {
@@ -142,17 +142,31 @@ describe('DailyList — rows', () => {
     expect(html).not.toContain('32°')
   })
 
-  it('prints the rain amount and peak wind through the shared formatters', () => {
-    const html = render(<DailyList days={[day(DATES[0])]} readings={null} hours={[]} sky={[]} />)
-    expect(html).toContain(`${formatPrecipIn(1)} · peak wind`)
-    expect(html).toContain(`peak wind ${formatWindMph(12)}`)
+  it('prints no rain amount and no wind (owner, 2026-11-24)', () => {
+    const html = render(<DailyList days={[day(DATES[0], { wind_kmh_max: 40 })]} readings={null} hours={[]} sky={[]} />)
+    expect(html).not.toContain(formatPrecipIn(1))
+    expect(html).not.toContain('wind')
+    expect(html).not.toContain('mph')
   })
 
-  it('names the day’s good hours and Dryness beside its score', () => {
+  it('labels the day’s good hours and its rock as stats beside the score', () => {
     const html = render(
       <DailyList days={[day(DATES[0])]} readings={readings([readingsDay(DATES[0], 30, 'wet')])} hours={[]} sky={[]} />,
     )
-    expect(html).toContain('>no good hours · Wet · ')
+    expect(html).toMatch(/>Good<\/span><span data-day-good=""[^>]*>None</)
+    expect(html).toMatch(/>Rock<\/span><span data-day-rock=""[^>]*>Wet</)
+  })
+
+  it('dashes Good and Rock for a day the model could not read, and drops them for a city', () => {
+    const crag = render(
+      <DailyList days={[day(DATES[0])]} readings={readings([readingsDay(DATES[0], null)])} hours={[]} sky={[]} />,
+    )
+    expect(crag).toMatch(/data-day-good=""[^>]*>—</)
+    expect(crag).toMatch(/data-day-rock=""[^>]*>—</)
+    const city = render(<DailyList days={[day(DATES[0])]} readings={null} hours={[]} sky={[]} />)
+    expect(city).not.toContain('>Good<')
+    expect(city).not.toContain('>Rock<')
+    expect(city).not.toContain('>Score<')
   })
 
   it('says how a day score and the chance of rain are made', () => {
@@ -187,6 +201,11 @@ describe('DailyList — the chance of rain', () => {
     expect(html).toContain('>36%<')
     expect(html).not.toContain('>0%<')
   })
+
+  it('prints a real 0%, stepped back in the muted ink', () => {
+    const html = render(<DailyList days={[day(DATES[0])]} readings={null} hours={hoursFor(DATES[0], () => 0)} sky={[]} />)
+    expect(html).toMatch(new RegExp(`style="[^"]*color:${colorsV2.txtTab}[^"]*">0%<`))
+  })
 })
 
 describe('DailyList — the score', () => {
@@ -215,8 +234,8 @@ describe('DailyList — the score', () => {
     expect(scores(html)).toEqual(['0', EM_DASH])
   })
 
-  it('is empty with no readings at all — a city, or /hourly in flight', () => {
-    expect(scores(render(<DailyList days={[day(DATES[0])]} readings={null} hours={[]} sky={[]} />))).toEqual([''])
+  it('is not drawn with no readings at all — a city, or /hourly in flight', () => {
+    expect(scores(render(<DailyList days={[day(DATES[0])]} readings={null} hours={[]} sky={[]} />))).toEqual([])
   })
 })
 
@@ -266,103 +285,63 @@ describe('dayRainChance', () => {
 
 const NO_SUN = { sun_min: null, sun_windows: null, sun_by_model: [] }
 
-describe('DailyList — sky', () => {
-  it('draws a sky only for days the response has one for, joined on the date', () => {
+describe('DailyList — no sky icon (owner, 2026-11-24)', () => {
+  it('draws no icon even where the response has a sky', () => {
     const html = render(
-      <DailyList
-        days={[day(DATES[0]), day(DATES[1])]}
-        readings={null}
-        hours={[]}
-        sky={[
-          { local_date: '2026-09-30', summary: 'cloudy', ...NO_SUN },
-          { local_date: DATES[1], summary: 'sunny', ...NO_SUN },
-          { local_date: DATES[0], summary: null, ...NO_SUN },
-        ]}
-      />,
+      <DailyList days={[day(DATES[0])]} readings={null} hours={[]} sky={[{ local_date: DATES[0], summary: 'sunny', ...NO_SUN }]} />,
     )
-    expect(html.match(/<svg/g)?.length ?? 0).toBe(1)
+    expect(html).not.toContain('<svg')
   })
 })
 
-describe('DailyList — sun line', () => {
+describe('DailyList — the Sun stat', () => {
   const sunDay = (local_date: string, sun: Partial<SkyDay>): SkyDay => ({ local_date, summary: null, ...NO_SUN, ...sun })
-  const line = (html: string) => /data-sun-line="(\w+)"[^>]*>([^<]*)</.exec(html)
+  const value = (html: string) => /data-day-sun="(\w*)"[^>]*>([^<]*)</.exec(html)?.slice(1)
 
-  it('says the day’s sun in the sun colour, under the figures', () => {
+  it('is the day’s hours of sun, without the windows', () => {
     const html = render(
       <DailyList days={[day(DATES[0])]} readings={null} hours={[]} sky={[sunDay(DATES[0], { sun_min: 480, sun_windows: [{ start_hour: 8, end_hour: 16 }] })]} />,
     )
-    expect(line(html)?.slice(1)).toEqual(['sunny', 'Sun 8a–4p · 8 h'])
+    expect(value(html)).toEqual(['', '8 h'])
+    expect(html).not.toContain('8a–4p')
     expect(html).toContain('Sun is the hours of bright sunshine.')
   })
 
-  it('prints a gap mark for an unanswered day, never "No sun"', () => {
-    const html = render(<DailyList days={[day(DATES[0])]} readings={null} hours={[]} sky={[sunDay(DATES[0], {})]} />)
-    expect(line(html)?.slice(1)).toEqual(['gap', 'Sun —'])
-    expect(html).not.toContain('No sun')
+  it('prints a gap mark for an unanswered day, and for a day the response skipped, never "None"', () => {
+    const html = render(
+      <DailyList days={[day(DATES[0]), day(DATES[1])]} readings={null} hours={[]} sky={[sunDay(DATES[0], {})]} />,
+    )
+    expect([...html.matchAll(/data-day-sun="(\w*)"[^>]*>([^<]*)</g)].map((m) => m.slice(1))).toEqual([
+      ['gap', EM_DASH],
+      ['gap', EM_DASH],
+    ])
+    expect(html).not.toContain('None')
   })
 
-  it('reads a measured dull day as "No sun", in the ordinary ink', () => {
+  it('reads a measured dull day as "None"', () => {
     const html = render(<DailyList days={[day(DATES[0])]} readings={null} hours={[]} sky={[sunDay(DATES[0], { sun_min: 0, sun_windows: [] })]} />)
-    expect(line(html)?.slice(1)).toEqual(['dull', 'No sun'])
+    expect(value(html)).toEqual(['', 'None'])
   })
 
-  it('shows no sun line, and no sun footnote, for an older API’s sky day without sun fields', () => {
+  it('shows no Sun stat, and no sun footnote, for an older API’s sky day without sun fields', () => {
     const old = { local_date: DATES[0], summary: 'sunny' } as unknown as SkyDay
     const html = render(<DailyList days={[day(DATES[0])]} readings={null} hours={[]} sky={[old]} />)
-    expect(html).not.toContain('data-sun-line')
+    expect(html).not.toContain('data-day-sun')
     expect(html).not.toContain('bright sunshine')
   })
 })
 
-describe('DailyList — the model dots (#644)', () => {
-  const split = (d: ReadingsDay, wet: number, models: number): ReadingsDay => ({ ...d, rain_split: { wet, models } })
-  /** The text after each row's dots: the dots' own span closes first, then the count. */
-  const dots = (html: string): string[] => [...html.matchAll(/data-model-dots=""[^>]*>.*?<\/span>([^<]*)</g)].map((m) => m[1] ?? '')
-
-  it('counts the dry models on every scored day that carries a split, including a day with none wet', () => {
-    const html = render(
-      <DailyList
-        days={[day(DATES[0]), day(DATES[1])]}
-        readings={readings([split(readingsDay(DATES[0], 92), 0, 4), split(readingsDay(DATES[1], 85), 3, 4)])}
-        hours={[]}
-        sky={[]}
-      />,
-    )
-    expect(dots(html)).toEqual(['4 of 4 dry', '1 of 4 dry'])
-    expect(html).toContain(dailyFoot(true, false, false, true))
-  })
-
-  it('reads the count aloud on a tappable row', () => {
+describe('DailyList — no model dots (owner, 2026-11-24)', () => {
+  it('draws no count even on a day that carries a split', () => {
     const html = render(
       <DailyList
         days={[day(DATES[0])]}
-        readings={readings([split(readingsDay(DATES[0], 90), 1, 4)])}
-        hours={[]}
-        sky={[]}
-        onSelectDay={() => {}}
-        drawableDates={new Set([DATES[0]])}
-      />,
-    )
-    expect(html).toContain("score 90, 1 of 4 weather models say it&#x27;ll be wet")
-  })
-
-  it('draws nothing, and no dots footnote, where the split is withheld or absent or the day is unscored', () => {
-    // Under RAIN_SPLIT_MIN_SCORE the API sends no split; under MIN_RAIN_MODELS it sends null.
-    // A split beside an unscored day would be a count with no score to qualify.
-    const html = render(
-      <DailyList
-        days={[day(DATES[0]), day(DATES[1]), day(DATES[2])]}
-        readings={readings([
-          readingsDay(DATES[0], 40),
-          { ...readingsDay(DATES[1], 90), rain_split: null },
-          split(readingsDay(DATES[2], null), 2, 4),
-        ])}
+        readings={readings([{ ...readingsDay(DATES[0], 92), rain_split: { wet: 1, models: 4 } }])}
         hours={[]}
         sky={[]}
       />,
     )
-    expect(html).not.toContain('data-model-dots')
-    expect(html).not.toContain('Dots are the weather models')
+    expect(html).not.toContain('of 4 dry')
+    expect(html).not.toContain('weather models')
   })
 })

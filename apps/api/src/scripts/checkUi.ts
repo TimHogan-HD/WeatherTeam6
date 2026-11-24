@@ -678,15 +678,20 @@ async function run(): Promise<void> {
 
     // The reader's card order (owner, 2026-11-03): moved, kept over a reload, and reset.
     async function rearrangeCards(): Promise<void> {
+      // Precip: Hourly lost its cards when it became rows (#667). The last card moves up one,
+      // whichever cards this crag has, so the check does not depend on the gauge card.
       const open = async () => {
-        await page.getByRole('tab', { name: 'Hourly', exact: true }).click()
+        await page.getByRole('tab', { name: 'Precip', exact: true }).click()
         await page.getByRole('button', { name: 'Rearrange cards' }).click()
       }
       const rows = () => page.$$eval('[data-card-row]', (r) => r.map((e) => (e as HTMLElement).dataset['cardRow']).join())
       await open()
-      await page.getByRole('button', { name: 'Move Wind up' }).click()
+      const before = await rows()
+      const ids = before.split(',')
+      const swapped = [...ids.slice(0, -2), ...ids.slice(-2).reverse()].join()
+      await page.getByRole('button', { name: /^Move .+ up$/ }).last().click()
       const moved = await rows()
-      check('Rearrange cards moves Wind above Rain', moved.endsWith('wind,rain'), moved)
+      check('Rearrange cards moves the last card up one', ids.length >= 2 && moved === swapped, `${before} → ${moved}`)
       await page.getByRole('button', { name: 'Done' }).click()
       await page.reload()
       await page.getByRole('tab').first().waitFor({ timeout: 60_000 })
@@ -695,7 +700,7 @@ async function run(): Promise<void> {
       check('the card order survives a reload', kept === moved, kept)
       await page.getByRole('button', { name: 'Reset order' }).click()
       const reset = await rows()
-      check('Reset order restores Hourly', reset.endsWith('rain,wind'), reset)
+      check('Reset order restores Precip', reset === before, reset)
       await page.getByRole('button', { name: 'Done' }).click()
       // `guidebookLevels` runs next and starts on the tab `everyTab` ended on.
       await page.getByRole('tab', { name: 'Crag', exact: true }).click()
