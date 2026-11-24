@@ -20,6 +20,17 @@
 :root[data-bg="C"]{--bg:#161d26; --glow:#1f2b38; --mid:#19212b; --surface:#1d2530; --raised:#28323e; --line:#374352; --tab:#8f9cab}
 :root[data-bg="D"]{--bg:#0f1d21; --glow:#18323a; --mid:#12232a; --surface:#152629; --raised:#203339; --line:#2e454c; --tab:#8a9da3}
 :root[data-bg="E"]{--bg:#1d242d; --glow:#263241; --mid:#202833; --surface:#242c36; --raised:#2e3843; --line:#3e4a58; --tab:#98a4b2}
+/* F · D's colours with the glow removed: a flat ground. */
+:root[data-bg="F"]{--bg:#0f1d21; --glow:#0f1d21; --mid:#0f1d21; --surface:#152629; --raised:#203339; --line:#2e454c; --tab:#8a9da3}
+/* G · Tonal ladder (Material 3 surface containers): neutral ground, each level a fixed step lighter; tiles carry the grouping, so the hairlines go quiet. */
+:root[data-bg="G"]{--bg:#121416; --glow:#121416; --mid:#121416; --surface:#1d2022; --raised:#282b2e; --line:#26292c; --tab:#959ca3}
+/* H · Light, for a phone in light mode (prefers-color-scheme). Score and accent inks are darkened so each clears 4.5:1; lime on white does not. */
+:root[data-bg="H"]{color-scheme:light;
+  --bg:#f3f5f6; --glow:#e2f1f3; --mid:#eef2f3; --surface:#ffffff; --raised:#e4e9ec; --line:#cfd7dc; --tab:#56626d;
+  --txt1:#0f1418; --txt2:#26313a; --muted:#4a5661; --brand:#0b8792; --brandInk:#086a73; --brandWash:rgba(11,135,146,.12);
+  --good:#3b6a00; --fair:#94540a; --poor:#b4261c; --rain:#3d4ab8}
+:root[data-bg="H"] .phone{box-shadow:0 0 0 8px #020304,0 30px 80px #0004}
+:root[data-bg="H"] .dock{box-shadow:inset 0 0 0 1px var(--line),0 10px 30px #0002}
 *{box-sizing:border-box}
 html{background:var(--bg)}
 body{margin:0;background:var(--bg);color:var(--txt1);font-family:var(--body);font-variant-numeric:tabular-nums;padding-block:24px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
@@ -95,7 +106,7 @@ h3{margin:0 0 8px;font-family:var(--display);font-weight:600;font-size:20px}
 <main class="page">
   <header class="intro">
     <h1>Background options</h1>
-    <p>Same Overview as variant C, five grounds. The page behind the phone takes the chosen ground, so it reads like a full screen. Text, brand and score colours stay as built; each option only moves the ground and the steps above it (tiles, the dock, hairlines). Figures are a sample Taylors Falls week.</p>
+    <p>Same Overview as variant C, eight options. The page behind the phone takes the chosen ground, so it reads like a full screen. A to E move only the ground and the steps above it (tiles, the dock, hairlines); F drops the glow, G separates by tone instead of lines, and H is a light theme for a phone in light mode. Research notes are under each option's figures. Figures are a sample Taylors Falls week.</p>
   </header>
 
   <div class="switch" role="group" aria-label="Background">
@@ -104,6 +115,9 @@ h3{margin:0 0 8px;font-family:var(--display);font-weight:600;font-size:20px}
     <button type="button" aria-pressed="false" data-v="C"><i style="background:#161d26"></i>C · Slate</button>
     <button type="button" aria-pressed="false" data-v="D"><i style="background:#0f1d21"></i>D · Deep teal</button>
     <button type="button" aria-pressed="false" data-v="E"><i style="background:#1d242d"></i>E · Dim</button>
+    <button type="button" aria-pressed="false" data-v="F"><i style="background:#0f1d21"></i>F · Teal, flat</button>
+    <button type="button" aria-pressed="false" data-v="G"><i style="background:#121416"></i>G · Tonal steps</button>
+    <button type="button" aria-pressed="false" data-v="H"><i style="background:#f3f5f6"></i>H · Light mode</button>
   </div>
 
   <div class="wrap">
@@ -186,6 +200,32 @@ h3{margin:0 0 8px;font-family:var(--display);font-weight:600;font-size:20px}
           <li>In direct sun on the crag, a lighter dark ground loses some punch. Size and contrast carry sunlight readability, not darkness.</li>
         </ul>
       </div>
+      <div data-v="F" hidden>
+        <h2>F · Teal, flat</h2>
+        <ul>
+          <li><b>D without the glow.</b> The radial glow tells the reader nothing; it is the "atmospheric gradient" #637 lists among the tells of a generated look. A flat ground puts the eye on the score instead.</li>
+          <li>Compare with D: if you can't tell which one you prefer, the glow isn't earning its place.</li>
+          <li>Removing it also removes one token (<code>glass.groundGlow</code>) and the gradient from <code>globals.css</code>.</li>
+        </ul>
+      </div>
+      <div data-v="G" hidden>
+        <h2>G · Tonal steps</h2>
+        <ul>
+          <li><b>Material 3's approach:</b> a neutral ground (#121416) and a fixed ladder of lighter surfaces, one step per level. A lighter surface means "closer to you", so the tiles separate by tone and the hairlines can fade.</li>
+          <li>Follows two research rules: <b>a surface ladder with one job per step</b> (Radix's 12-step scale), and <b>group by space and tone before borders</b> (NN/g: borders are "often added in an abundance of caution").</li>
+          <li>Most legible of the dark options: body text 17:1, inactive tab 5.1:1 on a tile. Apple asks dark mode to "strive for 7:1, especially in small text"; muted text here is 11:1.</li>
+          <li>Bigger than B to E: the hairlines between rows go nearly invisible, so the lists rely on spacing alone. Worth checking on your phone.</li>
+        </ul>
+      </div>
+      <div data-v="H" hidden>
+        <h2>H · Light mode</h2>
+        <ul>
+          <li><b>A second theme, not a replacement.</b> The app would follow the phone's own light or dark setting, never an in-app switch (Apple: "Avoid offering an app-specific appearance setting").</li>
+          <li>Why consider it: in dim light, dark text on a light ground reads faster than the reverse (Dobres et al. 2017); in daylight the two did not differ. NN/g advises against dark-only for a general audience.</li>
+          <li>The cost: the score colours change shade. Lime on white measures about 1.3:1, so "good" becomes a dark green (#3b6a00, 5.3:1 on a tile), and amber and red darken too. Every chart's data ramps need a light version.</li>
+          <li>Sizeable: a full second token set and a <code>check:ui</code> pass in each mode. It could follow any of A to G as the dark half.</li>
+        </ul>
+      </div>
 
       <div class="ladder" aria-label="Surface steps for this option">
         <span style="background:var(--bg)">ground</span>
@@ -203,9 +243,18 @@ h3{margin:0 0 8px;font-family:var(--display);font-weight:600;font-size:20px}
         <span>Inactive tab</span><b data-r="tab"></b><b data-r="tabt"></b>
       </div>
 
-      <p class="data"><b>What every option changes:</b> the ground, the glow, the surface, tile and hairline steps, and the inactive tab grey (lifted in B–E so it stays over 4.5:1 on a tile; today's measures 4.2:1 there). The phone's status bar colour follows the ground. Scores, text and the brand teal are untouched, and all of them stay well over the 4.5:1 floor in every option.</p>
-      <p class="data"><b>Not drawn:</b> a light theme that follows the phone's setting. That is a bigger change (every chart and colour needs a light version, and lime on white fails contrast), so it would be its own decision.</p>
-      <p class="data"><b>Cost of B–E:</b> about seven token values in <code>packages/design</code>, then a <code>check:ui</code> pass to look at every screen. No layout or data change.</p>
+      <p class="data"><b>What B to G change:</b> the ground, the glow, the surface, tile and hairline steps, and the inactive tab grey (lifted so it stays over 4.5:1 on a tile; today's measures 4.2:1 there). The phone's status bar colour follows the ground. Text, scores and the brand teal are untouched and stay well over the 4.5:1 floor. H also changes the text and score shades, as its note says.</p>
+      <p class="data"><b>Cost:</b> B to G are about seven token values in <code>packages/design</code> and a <code>check:ui</code> pass; no layout or data change. H is a second theme.</p>
+      <p class="data"><b>The options combine.</b> Ground (B, C, D, E or G), glow or flat (F), and light mode (H) are three separate choices: for example "D, flat, no light mode yet".</p>
+
+      <h2 style="margin-top:8px">What the research says</h2>
+      <ul>
+        <li><b>Not pure black.</b> Material's dark theme recommends a dark grey (#121212) over black: it shows elevation and avoids the smear and edge glow bright text gets on OLED black.</li>
+        <li><b>One job per surface step.</b> Radix: ground, subtle background, element, hover, selected, borders, then text. Today's ladder has a ground, a surface and a tile that do overlapping jobs.</li>
+        <li><b>Fewer colours, each with a meaning.</b> NN/g: "Limit your palette to three colors", about 60/30/10. A neutral or brand-tinted ground leaves the lime, amber and red as the only strong colours, so they read as scores.</li>
+        <li><b>Decoration should carry information.</b> Glass on content cards and atmospheric gradients are tells of a generated look (#637); Apple: "Don't use Liquid Glass in the content layer."</li>
+        <li><b>Sunlight is about size and contrast,</b> not darkness: polarity made no difference in daylight (Dobres et al. 2017). That is why every option keeps text above 4.5:1 rather than chasing the darkest ground.</li>
+      </ul>
     </div>
   </div>
 </main>
