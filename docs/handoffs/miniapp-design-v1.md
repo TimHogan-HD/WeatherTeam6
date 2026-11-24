@@ -424,7 +424,8 @@ constants and copy rules. Its React Native library choices are replaced:
   withheld without an `ends` or the crag's offset, never read from `expires`). An alert with a
   description or instruction is a `<details>` that opens on a tap to both (#482); one with
   neither is a plain card.
-- **Layout constants** carry over (`screenH` 20, `cardPad` 14, `bottomInset` 24), except
+- **Layout constants** carry over (`screenH` 16 since 2026-11-24, with text 2px in from it at
+  `textInset`; `cardPad` 14, `bottomInset` 24), except
   `topSafe`, which the web replaces with `topWeb` 16 over the safe-area inset.
 - **CSS, transitions and motion are allowed** on tokens with `prefers-reduced-motion`
   (`design-system-v1.md` § CSS and motion; the `motion` skill).
