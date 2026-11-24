@@ -114,12 +114,17 @@ function Sky({ row }: { row: HourRow }) {
 }
 
 /** The view's own columns, after hour, sky and score. */
+/**
+ * One frame for every view: a figure column, a middle, a figure column (Temp adds
+ * one). The first and last figures stay put when the picker changes view, so the
+ * eye is not sent hunting (owner, 2026-11-24: the columns shifted on every switch).
+ */
 const VIEW_COLS: Record<HourlyView, string> = {
-  all: 'minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)',
-  temp: '40px minmax(0,1fr) 40px 34px',
-  rain: '40px minmax(0,1fr) 44px',
-  wind: '44px minmax(0,1fr) 34px',
-  sun: 'minmax(0,1fr) 52px',
+  all: '44px minmax(0,1fr) 44px',
+  temp: '44px minmax(0,1fr) 40px 40px',
+  rain: '44px minmax(0,1fr) 44px',
+  wind: '44px minmax(0,1fr) 44px',
+  sun: '44px minmax(0,1fr) 44px',
 }
 
 export function HourlyRows({ series, selectedDate, onSelectDate, readMs, onRead, showScore }: HourlyRowsProps) {
@@ -176,11 +181,11 @@ export function HourlyRows({ series, selectedDate, onSelectDate, readMs, onRead,
     </span>
   )
   const heads: Record<HourlyView, ReactNode[]> = {
-    all: [head('Temp °F'), head('Rain'), head('Wind mph')],
+    all: [head('°F'), <span key="c" style={{ textAlign: 'center' }}>Chance of rain</span>, head('mph')],
     temp: [head('°F'), scale.lowF === null || scale.highF === null ? <span /> : scaleHead(`${scale.lowF}°`, 'likely range', `${scale.highF}°`), head('Humid'), head('Dew')],
     rain: [head('Chance'), scaleHead('0', `${rowInches(scale.rainTopIn)} in`), head('in')],
     wind: [head('mph'), scaleHead('0', `${scale.windTopMph} mph`), head('Gust')],
-    sun: [scaleHead('0', 'sun in the hour', '60 min'), head('min')],
+    sun: [head('min'), scaleHead('0', 'sun in the hour', '60 min'), <span key="e" />],
   }
 
   const cells = (r: HourRow): ReactNode[] => {
@@ -188,7 +193,7 @@ export function HourlyRows({ series, selectedDate, onSelectDate, readMs, onRead,
       case 'all':
         return [
           <Num key="t" v={r.tempF === null ? null : `${r.tempF}°`} style={typeV2.weekScore} />,
-          <Num key="c" v={r.chancePct} suffix="%" style={{ color: colorsV2.rain }} />,
+          <Num key="c" v={r.chancePct} suffix="%" style={{ color: colorsV2.rain, textAlign: 'center' }} />,
           <span key="w" style={figure}>{r.windMph === null ? dash : <><Arrow fromDeg={r.windFromDeg} />{r.windMph}</>}</span>,
         ]
       case 'temp': {
@@ -223,10 +228,11 @@ export function HourlyRows({ series, selectedDate, onSelectDate, readMs, onRead,
         ]
       case 'sun':
         return r.daylight === false
-          ? [<Bar key="b" to={null} color={colorsV2.sun} />, <span key="n" style={{ ...figure, ...muted }}>dark</span>]
+          ? [<span key="n" style={{ ...figure, ...muted }}>dark</span>, <Bar key="b" to={null} color={colorsV2.sun} />, <span key="e" />]
           : [
-              <Bar key="b" to={r.sunMin === null || r.sunMin === 0 ? null : r.sunMin / 60} color={colorsV2.sun} gap={r.sunMin === null} />,
               <Num key="m" v={r.sunMin} style={r.sunMin === 0 ? muted : {}} />,
+              <Bar key="b" to={r.sunMin === null || r.sunMin === 0 ? null : r.sunMin / 60} color={colorsV2.sun} gap={r.sunMin === null} />,
+              <span key="e" />,
             ]
     }
   }
@@ -292,7 +298,8 @@ export function HourlyRows({ series, selectedDate, onSelectDate, readMs, onRead,
           {good === null ? null : <span style={typeV2.daySmall}>shaded below</span>}
         </p>
       ) : null}
-      {view === 'rain' && dry ? (
+      {/* Every view, so switching views never moves the rows (owner, 2026-11-24). */}
+      {dry ? (
         <p style={{ ...typeV2.daySub, margin: 0, padding: '8px 0 4px' }}>Dry all day: no ensemble member has measurable rain in any hour.</p>
       ) : null}
 
@@ -356,18 +363,20 @@ function Detail({ row: r, scored, hourLabel }: { row: HourRow; scored: boolean; 
   const or = (v: number | string | null, unit = '') => (v === null ? EM_DASH : `${v}${unit}`)
   const dir = compass(r.windFromDeg)
   /**
-   * One figure as a tile: a dot in its chart's colour, the label, the figure, and a
-   * note under it where the figure needs one. Tiles in threes break the hour into
-   * readable groups (owner, 2026-11-24: two long columns read as one block).
+   * One figure as a tile, in threes (owner, 2026-11-24): the label over the
+   * figure over its note, centred, so each tile reads as one filled block.
    */
   const tile = (label: string, value: ReactNode, opts: { dot?: string; note?: string | null; valueColor?: string } = {}) => (
-    <div key={label} style={{ background: colorsV2.raised, borderRadius: radius.rowV2, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-      <dt style={{ ...typeV2.daySmall, color: colorsV2.txtTab, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+    <div
+      key={label}
+      style={{ background: colorsV2.raised, borderRadius: radius.rowV2, padding: '10px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 2, minWidth: 0 }}
+    >
+      <dt style={{ ...typeV2.daySmall, color: colorsV2.txtTab, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, whiteSpace: 'nowrap', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {opts.dot === undefined ? null : <i aria-hidden="true" style={{ width: 6, height: 6, borderRadius: radius.full, background: opts.dot, flex: 'none' }} />}
         {label}
       </dt>
-      <dd style={{ margin: 0, display: 'flex', flexDirection: 'column' }}>
-        <span style={{ ...typeV2.hourFigure, color: opts.valueColor ?? colorsV2.txt1 }}>{value}</span>
+      <dd style={{ margin: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <span style={{ ...typeV2.weekScore, lineHeight: 1.1, color: opts.valueColor ?? colorsV2.txt1 }}>{value}</span>
         {opts.note == null ? null : <small style={{ ...typeV2.daySmall, color: colorsV2.txtTab }}>{opts.note}</small>}
       </dd>
     </div>
