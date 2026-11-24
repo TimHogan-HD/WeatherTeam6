@@ -18,6 +18,8 @@
   --t-score:30px; --t-row:20px; --t-small:14px;
   /* Spacing on a 4 px scale: inside a day 4-8, between days 16 + hairline + 16. */
   --s1:4px; --s2:8px; --s3:12px; --s4:16px;
+  /* One fixed name column, so every day's temperature track starts and ends at the same x: one scale down the list. */
+  --namew:92px;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--ground);color:var(--txt1);font-family:var(--body);font-variant-numeric:tabular-nums;padding-block:24px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
@@ -55,11 +57,11 @@ button:focus-visible{outline:2px solid var(--brandInk);outline-offset:2px}
 .sub{min-width:0}
 
 /* A: score in the last column, right-aligned: the numbers to compare in one column down the right edge. */
-.pA .day{grid-template-columns:minmax(0,1fr) 100px 36px 46px}
+.pA .day{grid-template-columns:var(--namew) minmax(0,1fr) 36px 46px}
 .pA .score{grid-column:4;grid-row:1 / span 2;text-align:right;align-self:center}
 .pA .sub{grid-column:1 / 4}
 /* B: score as the first reading on the second line, labelled like the rest. */
-.pB .day{grid-template-columns:minmax(0,1fr) 100px 36px}
+.pB .day{grid-template-columns:var(--namew) minmax(0,1fr) 36px}
 .pB .sub{grid-column:1 / -1}
 .pB .lab .sc b{font-family:var(--display);font-size:var(--t-row);font-weight:700}
 /* C: score as a bar: length to compare, the number at its end. Temperatures become text so there is one bar per day. */
@@ -132,7 +134,7 @@ button:focus-visible{outline:2px solid var(--brandInk);outline-offset:2px}
     <h2>Spacing, in all three</h2>
     <ul>
       <li>One row of three sizes, not six: the score (30), the day and chance (20), everything else (14). NN/g: no more than three sizes in a group.</li>
-      <li>Day name and date share one line, so the top line is one height and the row is shorter.</li>
+      <li>Day name and date share one line, so the top line is one height and the row is shorter. Day names are short (Wed, Thu) and sit in one fixed column, so the temperature bar stretches into the space that was empty and every day's bar spans the same width: one scale down the list.</li>
       <li>4 px between the lines inside a day, 16 px above and below each day plus the hairline. The space between days is now clearly larger than inside one, so each day reads as a group.</li>
       <li>No sky icon; no wind, rain amount or model dots (owner, 2026-11-24).</li>
     </ul>
@@ -142,10 +144,10 @@ button:focus-visible{outline:2px solid var(--brandInk);outline-offset:2px}
 <script>
 const DAYS=[
   {n:'Today',d:'Nov 24',s:60,c:'mid',lo:15,hi:30,ch:0,good:'1p–3p',rock:'Dry',sunT:'9a–4p',sunH:'7 h'},
-  {n:'Wednesday',d:'Nov 25',s:71,c:'good',lo:22,hi:36,ch:0,good:'12p–4p',rock:'Dry',sunT:'8a–4p',sunH:'8 h'},
-  {n:'Thursday',d:'Nov 26',s:85,c:'good',lo:22,hi:38,ch:0,good:'9a–8p',rock:'Dry',sunT:'8a–4p',sunH:'8 h'},
-  {n:'Friday',d:'Nov 27',s:100,c:'good',lo:23,hi:39,ch:21,good:'9a–8p',rock:'Dry',sunT:null,sunH:'5–8 h',differ:true},
-  {n:'Saturday',d:'Nov 28',s:69,c:'good',lo:29,hi:40,ch:15,good:'6p–11p',rock:'Dry',sunT:'9a–1p, 3–4p',sunH:'5 h'},
+  {n:'Wed',d:'Nov 25',s:71,c:'good',lo:22,hi:36,ch:0,good:'12p–4p',rock:'Dry',sunT:'8a–4p',sunH:'8 h'},
+  {n:'Thu',d:'Nov 26',s:85,c:'good',lo:22,hi:38,ch:0,good:'9a–8p',rock:'Dry',sunT:'8a–4p',sunH:'8 h'},
+  {n:'Fri',d:'Nov 27',s:100,c:'good',lo:23,hi:39,ch:21,good:'9a–8p',rock:'Dry',sunT:null,sunH:'5–8 h',differ:true},
+  {n:'Sat',d:'Nov 28',s:69,c:'good',lo:29,hi:40,ch:15,good:'6p–11p',rock:'Dry',sunT:'9a–1p, 3–4p',sunH:'5 h'},
 ];
 const LO=15,SPAN=25,pct=c=>((c-LO)/SPAN*100).toFixed(1);
 const sunText=d=>d.differ?`${d.sunH} · forecasts differ`:`${d.sunT} · ${d.sunH}`;
