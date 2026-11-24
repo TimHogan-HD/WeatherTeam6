@@ -5,142 +5,78 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
 <style>
-/* Layout: the Daily tab's Seven days list on one phone, the score placed three ways and the small text three ways; a notes column beside it. Same palette and faces as the app (look-variants-644 C). */
+/* Layout: the Daily tab's Seven days list on one phone, a quieter row against the last round's; a short notes column beside it. Same palette and faces as the app (look-variants-644 C). */
 :root{
   color-scheme:dark;
-  --ground:#0b0c0d; --bg:#121416; --surface:#1a1d1f; --raised:#282b2e; --line:#26292c;
+  --ground:#0b0c0d; --bg:#121416; --surface:#1a1d1f; --line:#26292c;
   --txt1:#f4f7fa; --txt2:#d3e1e4; --muted:#bccad0; --tab:#959ca3;
   --brand:#1DC5D2; --brandInk:#6fe3ec; --brandWash:rgba(29,197,210,.16);
-  --good:#b8f542; --mid:#d9dc4c; --rain:#bcc7fd; --sun:#f3e08a; --sunWash:rgba(243,224,138,.12);
+  --good:#b8f542; --mid:#d9dc4c; --rain:#bcc7fd; --sun:#f3e08a;
   --track:#2a2e31; --cool:#7fd1c4; --warm:#f3e08a;
   --display:'Barlow Condensed','Arial Narrow',sans-serif; --body:'Barlow','Segoe UI',system-ui,sans-serif;
-  /* Three sizes in a row, no more (NN/g): the score, the day and chance, everything else. */
-  --t-score:30px; --t-row:20px; --t-small:14px;
-  /* Spacing on a 4 px scale: inside a day 4-8, between days 16 + hairline + 16. */
   --s1:4px; --s2:8px; --s3:12px; --s4:16px;
-  /* One fixed name column, so every day's temperature track starts and ends at the same x: one scale down the list. */
-  --namew:92px;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--ground);color:var(--txt1);font-family:var(--body);font-variant-numeric:tabular-nums;padding-block:24px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 button{font:inherit;color:inherit;cursor:pointer}
 button:focus-visible{outline:2px solid var(--brandInk);outline-offset:2px}
-.wrap{max-width:1000px;margin:0 auto;display:flex;flex-wrap:wrap;gap:32px;justify-content:center;align-items:flex-start}
+.wrap{max-width:900px;margin:0 auto;display:flex;flex-wrap:wrap;gap:32px;justify-content:center;align-items:flex-start}
 .phone{width:390px;max-width:100%;border-radius:40px;overflow:clip;box-shadow:0 0 0 8px #040506,0 30px 80px #000c;background:var(--bg);padding:20px 18px 28px}
-.notes{flex:1 1 300px;min-width:0;max-width:440px;display:flex;flex-direction:column;gap:12px}
-.notes h1{margin:0;font-family:var(--display);font-weight:700;font-size:34px;line-height:1;text-wrap:balance}
-.notes h2{margin:8px 0 0;font-family:var(--display);font-weight:700;font-size:22px;line-height:1.1}
-.notes h3{margin:4px 0 0;font-size:13px;font-weight:600;color:var(--tab)}
+.notes{flex:1 1 280px;min-width:0;max-width:400px;display:flex;flex-direction:column;gap:12px}
+.notes h1{margin:0;font-family:var(--display);font-weight:700;font-size:32px;line-height:1}
 .notes p,.notes li{margin:0;color:var(--muted);line-height:1.55;font-size:15px}
 .notes ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
-.notes b{color:var(--txt1);font-weight:600}
-.switch{display:flex;gap:6px;flex-wrap:wrap}
-.switch button{min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-family:var(--display);font-weight:600;font-size:16px;color:var(--txt2)}
+.switch{display:flex;gap:6px}
+.switch button{min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-family:var(--display);font-weight:600;font-size:16px;color:var(--txt2)}
 .switch button[aria-pressed="true"]{border-color:var(--brand);color:var(--brandInk);background:var(--brandWash)}
 
 .sect{display:flex;justify-content:space-between;align-items:baseline;padding-bottom:var(--s2);border-bottom:1px solid var(--line)}
-.sect h3{margin:0;font-family:var(--display);font-weight:700;font-size:var(--t-row)}
+.sect h3{margin:0;font-family:var(--display);font-weight:700;font-size:20px}
 .sect small{font-size:12px;color:var(--tab)}
-.day{display:grid;column-gap:var(--s3);row-gap:var(--s1);align-items:center;padding:var(--s4) 0;border-bottom:1px solid var(--line)}
+.day{display:grid;grid-template-columns:92px minmax(0,1fr) 36px 46px;column-gap:var(--s3);row-gap:var(--s1);align-items:center;padding:var(--s4) 0;border-bottom:1px solid var(--line)}
 .day:last-child{border-bottom:0}
-/* Day name and date on one baseline: one line, two sizes. */
-.name{display:flex;align-items:baseline;gap:var(--s2);min-width:0;white-space:nowrap}
-.name b{font-family:var(--display);font-weight:700;font-size:var(--t-row);line-height:1.1}
-.name small{font-size:var(--t-small);color:var(--tab)}
-.score{font-family:var(--display);font-weight:700;font-size:var(--t-score);line-height:1}
-.temps{display:flex;align-items:center;gap:6px;font-size:var(--t-small);font-weight:600}
+.name{display:flex;align-items:baseline;gap:var(--s2);white-space:nowrap}
+.name b{font-family:var(--display);font-weight:700;font-size:20px;line-height:1.1}
+.name small{font-size:14px;color:var(--tab)}
+.temps{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600}
 .temps .lo{width:24px;text-align:right;color:var(--tab)}
 .temps .hi{width:24px}
 .temps .bar{position:relative;flex:1;height:5px;border-radius:3px;background:var(--track)}
 .temps .bar i{position:absolute;top:0;bottom:0;border-radius:3px;background:linear-gradient(90deg,var(--cool),var(--warm))}
-.chance{font-family:var(--display);font-weight:600;font-size:var(--t-row);color:var(--rain);text-align:right;line-height:1}
-.sub{min-width:0}
+.score{grid-column:4;grid-row:1 / span 2;text-align:right;font-family:var(--display);font-weight:700;font-size:30px;line-height:1}
+.sub{grid-column:1 / 4;margin:0;font-size:14px;line-height:1.4;color:var(--tab);display:flex;flex-wrap:wrap;column-gap:var(--s3)}
+.sub span{white-space:nowrap}
 
-/* A: score in the last column, right-aligned: the numbers to compare in one column down the right edge. */
-.pA .day{grid-template-columns:var(--namew) minmax(0,1fr) 36px 46px}
-.pA .score{grid-column:4;grid-row:1 / span 2;text-align:right;align-self:center}
-.pA .sub{grid-column:1 / 4}
-/* B: score as the first reading on the second line, labelled like the rest. */
-.pB .day{grid-template-columns:var(--namew) minmax(0,1fr) 36px}
-.pB .sub{grid-column:1 / -1}
-.pB .lab .sc b{font-family:var(--display);font-size:var(--t-row);font-weight:700}
-/* C: score as a bar: length to compare, the number at its end. Temperatures become text so there is one bar per day. */
-.pC .day{grid-template-columns:minmax(0,1fr) auto 36px}
-.pC .tt{font-size:var(--t-small);font-weight:600;white-space:nowrap}
-.pC .tt span{color:var(--tab)}
-.pC .sbar{grid-column:1 / -1;display:grid;grid-template-columns:minmax(0,1fr) 42px;align-items:center;gap:var(--s2);margin-top:var(--s1)}
-.pC .sbar .tr{height:8px;border-radius:4px;background:var(--track);position:relative}
-.pC .sbar .tr i{position:absolute;inset:0 auto 0 0;border-radius:4px}
-.pC .sbar .score{text-align:right;font-size:24px}
-.pC .sub{grid-column:1 / -1}
+/* Last round: chance in its own colour and display face, sun in yellow with its times. */
+.was .chance{font-family:var(--display);font-weight:600;font-size:20px;color:var(--rain);text-align:right;line-height:1}
+.was .sub b{color:var(--txt1);font-weight:600;margin-left:4px}
+.was .sub .sunv b{color:var(--sun)}
 
-/* Small text: chips, stat row, labelled. */
-.chips{display:flex;flex-wrap:wrap;gap:var(--s1)}
-.chip{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font-size:var(--t-small);line-height:1.4;color:var(--tab);white-space:nowrap}
-.chip b{color:var(--txt1);font-weight:600}
-.chip.sun{background:var(--sunWash);border-color:transparent;color:var(--sun)}
-.chip.sun b{color:var(--sun)}
-.stats{display:grid;grid-template-columns:1fr 1fr 2fr;gap:var(--s2);margin:0}
-.stats.wsc{grid-template-columns:.8fr 1fr .8fr 1.8fr}
-.stats div{min-width:0}
-.stats dt{font-size:12px;line-height:1.3;color:var(--tab)}
-.stats dd{margin:0;font-size:var(--t-small);font-weight:600;line-height:1.3;color:var(--txt1);white-space:nowrap}
-.stats dd small{font-size:12px;font-weight:500;color:var(--tab)}
-.stats .s dd{color:var(--sun)}
-.lab{margin:0;font-size:var(--t-small);line-height:1.4;color:var(--tab);display:flex;flex-wrap:wrap;column-gap:var(--s3);row-gap:2px}
-.lab span{white-space:nowrap}
-.lab b{color:var(--txt1);font-weight:600;margin-left:4px}
-.lab .sunv b{color:var(--sun)}
+/* Quieter: the score is the only colour on the row. Chance is plain text at the temperatures' size, 0% muted. Second line is grey with lighter values, no accent. */
+.quiet .chance{font-size:14px;font-weight:600;color:var(--txt2);text-align:right}
+.quiet .chance.zero{color:var(--tab);font-weight:500}
+.quiet .sub b{color:var(--txt2);font-weight:500;margin-left:4px}
 </style>
 </head><body>
 <div class="wrap">
   <div class="phone" id="phone">
-    <div class="sect"><h3>Seven days</h3><small id="aside"></small></div>
+    <div class="sect"><h3>Seven days</h3><small>low–high · rain · score</small></div>
     <div id="days"></div>
   </div>
-
   <div class="notes">
-    <h1>Daily: where the score goes</h1>
-    <p>Score placed three ways; small text drawn three ways. Mix any score with any text.</p>
-    <h3>Score</h3>
-    <div class="switch" role="group" aria-label="Score placement">
-      <button data-p="A" aria-pressed="true">A · right column</button>
-      <button data-p="B" aria-pressed="false">B · first reading</button>
-      <button data-p="C" aria-pressed="false">C · bar</button>
+    <h1>Daily: quieter</h1>
+    <div class="switch" role="group" aria-label="Version">
+      <button data-v="quiet" aria-pressed="true">Quieter</button>
+      <button data-v="was" aria-pressed="false">Last round</button>
     </div>
-    <h3>Small text</h3>
-    <div class="switch" role="group" aria-label="Small text">
-      <button data-t="lab" aria-pressed="true">Labelled</button>
-      <button data-t="stat" aria-pressed="false">Stat row</button>
-      <button data-t="chips" aria-pressed="false">Chips</button>
-    </div>
-
-    <h2>A · right column</h2>
     <ul>
-      <li>The score sits at the right edge of every day, right-aligned, so the seven scores make one column you read top to bottom. NN/g: for items to compare, a list with figures that line up, not cards.</li>
-      <li>The eye starts at the day on the left and ends at its answer on the right, like a table row.</li>
-      <li>Risk: chance of rain is a number beside it. Colour, size and the % keep them apart.</li>
-    </ul>
-    <h2>B · first reading</h2>
-    <ul>
-      <li>The score becomes the first labelled reading on the second line: <b>Score 100</b>, then Good, Rock, Sun. It follows the readings rule to the letter: a label and a value.</li>
-      <li>Quietest of the three. The score is no longer the biggest thing on the row, so picking a day takes a second look.</li>
-    </ul>
-    <h2>C · bar</h2>
-    <ul>
-      <li>A 0–100 bar per day, the number at its end. Length is the easiest visual to compare; the temperature bar becomes text so there is one bar per day.</li>
-      <li>Risk: with three 100s or near it the bars look alike. A saturated scale cannot rank, the bar just shows it.</li>
-    </ul>
-    <h2>Spacing, in all three</h2>
-    <ul>
-      <li>One row of three sizes, not six: the score (30), the day and chance (20), everything else (14). NN/g: no more than three sizes in a group.</li>
-      <li>Day name and date share one line, so the top line is one height and the row is shorter. Day names are short (Wed, Thu) and sit in one fixed column, so the temperature bar stretches into the space that was empty and every day's bar spans the same width: one scale down the list.</li>
-      <li>4 px between the lines inside a day, 16 px above and below each day plus the hairline. The space between days is now clearly larger than inside one, so each day reads as a group.</li>
-      <li>No sky icon; no wind, rain amount or model dots (owner, 2026-11-24).</li>
+      <li>One colour per row: the score. Chance of rain and sun lose their own colours.</li>
+      <li>Chance of rain drops to the temperatures' size; 0% goes grey so a wet day stands out.</li>
+      <li>Sun is just hours. Its times are on Hourly.</li>
+      <li>Score stays in the right column, all other options dropped.</li>
     </ul>
   </div>
 </div>
-
 <script>
 const DAYS=[
   {n:'Today',d:'Nov 24',s:60,c:'mid',lo:15,hi:30,ch:0,good:'1p–3p',rock:'Dry',sunT:'9a–4p',sunH:'7 h'},
@@ -149,37 +85,20 @@ const DAYS=[
   {n:'Fri',d:'Nov 27',s:100,c:'good',lo:23,hi:39,ch:21,good:'9a–8p',rock:'Dry',sunT:null,sunH:'5–8 h',differ:true},
   {n:'Sat',d:'Nov 28',s:69,c:'good',lo:29,hi:40,ch:15,good:'6p–11p',rock:'Dry',sunT:'9a–1p, 3–4p',sunH:'5 h'},
 ];
-const LO=15,SPAN=25,pct=c=>((c-LO)/SPAN*100).toFixed(1);
-const sunText=d=>d.differ?`${d.sunH} · forecasts differ`:`${d.sunT} · ${d.sunH}`;
+const LO=15,SPAN=25,pct=c=>(c-LO)/SPAN*100;
+const head=d=>`<span class="name"><b>${d.n}</b><small>${d.d}</small></span><span class="temps"><span class="lo">${d.lo}°</span><span class="bar"><i style="left:${pct(d.lo)}%;right:${100-pct(d.hi)}%"></i></span><span class="hi">${d.hi}°</span></span>`;
 const score=d=>`<span class="score" style="color:var(--${d.c})">${d.s}</span>`;
-const name=d=>`<span class="name"><b>${d.n}</b><small>${d.d}</small></span>`;
-const temps=d=>`<span class="temps"><span class="lo">${d.lo}°</span><span class="bar"><i style="left:${pct(d.lo)}%;right:${100-pct(d.hi)}%"></i></span><span class="hi">${d.hi}°</span></span>`;
-const chance=d=>`<span class="chance">${d.ch}%</span>`;
-const sc=d=>`<span class="sc">Score<b style="color:var(--${d.c})">${d.s}</b></span>`;
-const T={
-  lab:(d,withScore)=>`<p class="sub lab">${withScore?sc(d):''}<span>Good<b>${d.good}</b></span><span>Rock<b>${d.rock}</b></span><span class="sunv">Sun<b>${sunText(d)}</b></span></p>`,
-  stat:(d,withScore)=>`<dl class="sub stats${withScore?' wsc':''}">${withScore?`<div><dt>Score</dt><dd style="color:var(--${d.c});font-family:var(--display);font-size:var(--t-row);line-height:1">${d.s}</dd></div>`:''}<div><dt>Good</dt><dd>${d.good}</dd></div><div><dt>Rock</dt><dd>${d.rock}</dd></div><div class="s"><dt>Sun</dt><dd>${d.sunH}<small>${d.differ?' · forecasts differ':` · ${d.sunT}`}</small></dd></div></dl>`,
-  chips:(d,withScore)=>`<div class="sub chips">${withScore?`<span class="chip">Score <b style="color:var(--${d.c})">${d.s}</b></span>`:''}<span class="chip">Good <b>${d.good}</b></span><span class="chip">Rock <b>${d.rock}</b></span><span class="chip sun">Sun <b>${sunText(d)}</b></span></div>`,
+const V={
+  was:d=>`${head(d)}<span class="chance">${d.ch}%</span>${score(d)}<p class="sub"><span>Good<b>${d.good}</b></span><span>Rock<b>${d.rock}</b></span><span class="sunv">Sun<b>${d.differ?`${d.sunH} · forecasts differ`:`${d.sunT} · ${d.sunH}`}</b></span></p>`,
+  quiet:d=>`${head(d)}<span class="chance${d.ch===0?' zero':''}">${d.ch}%</span>${score(d)}<p class="sub"><span>Good<b>${d.good}</b></span><span>Rock<b>${d.rock}</b></span><span>Sun<b>${d.sunH}${d.differ?', forecasts differ':''}</b></span></p>`,
 };
-const P={
-  A:(d,t)=>`${name(d)}${temps(d)}${chance(d)}${score(d)}${T[t](d,false)}`,
-  B:(d,t)=>`${name(d)}${temps(d)}${chance(d)}${T[t](d,true)}`,
-  C:(d,t)=>`${name(d)}<span class="tt">${d.lo}° <span>to</span> ${d.hi}°</span>${chance(d)}<span class="sbar"><span class="tr"><i style="width:${d.s}%;background:var(--${d.c})"></i></span>${score(d)}</span>${T[t](d,false)}`,
-};
-const ASIDE={A:'low–high · chance of rain · score',B:'low–high · chance of rain',C:'low–high · chance of rain'};
-let st={p:'A',t:'lab'};
-try{st=Object.assign(st,JSON.parse(localStorage.getItem('dct2')||'{}'))}catch(e){}
-if(!P[st.p])st.p='A';if(!T[st.t])st.t='lab';
+let v='quiet';
 function draw(){
-  const ph=document.getElementById('phone');ph.className='phone p'+st.p;
-  document.getElementById('aside').textContent=ASIDE[st.p];
-  document.getElementById('days').innerHTML=DAYS.map(d=>`<div class="day">${P[st.p](d,st.t)}</div>`).join('');
-  document.querySelectorAll('[data-p]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.p===st.p)));
-  document.querySelectorAll('[data-t]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.t===st.t)));
-  try{localStorage.setItem('dct2',JSON.stringify(st))}catch(e){}
+  document.getElementById('phone').className='phone '+v;
+  document.getElementById('days').innerHTML=DAYS.map(d=>`<div class="day">${V[v](d)}</div>`).join('');
+  document.querySelectorAll('[data-v]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===v)));
 }
-document.querySelectorAll('[data-p]').forEach(b=>b.addEventListener('click',()=>{st.p=b.dataset.p;draw()}));
-document.querySelectorAll('[data-t]').forEach(b=>b.addEventListener('click',()=>{st.t=b.dataset.t;draw()}));
+document.querySelectorAll('[data-v]').forEach(b=>b.addEventListener('click',()=>{v=b.dataset.v;draw()}));
 draw();
 </script>
 </body></html>
