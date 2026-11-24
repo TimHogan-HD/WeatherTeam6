@@ -35,15 +35,15 @@ describe('sunDayHours', () => {
   })
 
   it('is the gap mark, never "None", when the day was not answered', () => {
-    expect(sunDayHours(day(null, null))).toEqual({ value: '—', gap: true })
-    expect(sunDayHours(day(300, null))).toEqual({ value: '—', gap: true })
+    expect(sunDayHours(day(null, null))).toEqual({ value: '—', gap: true, differ: false })
+    expect(sunDayHours(day(300, null))).toEqual({ value: '—', gap: true, differ: false })
   })
 
   it('says "None" only for none, and "under 1 h" for a little, as readings', () => {
-    expect(sunDayHours(day(0, []))).toEqual({ value: 'None', gap: false })
-    expect(sunDayHours(day(0.9, []))).toEqual({ value: 'None', gap: false })
-    expect(sunDayHours(day(1, []))).toEqual({ value: 'under 1 h', gap: false })
-    expect(sunDayHours(day(29, []))).toEqual({ value: 'under 1 h', gap: false })
+    expect(sunDayHours(day(0, []))).toEqual({ value: 'None', gap: false, differ: false })
+    expect(sunDayHours(day(0.9, []))).toEqual({ value: 'None', gap: false, differ: false })
+    expect(sunDayHours(day(1, []))).toEqual({ value: 'under 1 h', gap: false, differ: false })
+    expect(sunDayHours(day(29, []))).toEqual({ value: 'under 1 h', gap: false, differ: false })
   })
 
   it('gives the hours only, whatever the windows', () => {
@@ -53,7 +53,7 @@ describe('sunDayHours', () => {
   })
 
   it('gives the models’ range when they differ by three hours or more, and not below', () => {
-    expect(sunDayHours(day(120, [[10, 12]], [180, 0, 60])).value).toBe('0–3 h, forecasts differ')
+    expect(sunDayHours(day(120, [[10, 12]], [180, 0, 60]))).toEqual({ value: '0–3 h', gap: false, differ: true })
     expect(sunDayHours(day(120, [[10, 12]], [120, 120 - SUN_DIFFER_MIN + 1])).value).toBe('2 h')
     // One model is no comparison.
     expect(sunDayHours(day(480, [[8, 16]], [480])).value).toBe('8 h')

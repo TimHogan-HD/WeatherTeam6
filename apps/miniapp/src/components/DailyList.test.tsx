@@ -320,6 +320,23 @@ describe('DailyList — the Sun stat', () => {
     expect(value(html)).toEqual(['', '8 h'])
     expect(html).not.toContain('8a–4p')
     expect(html).toContain('Sun is the hours of bright sunshine.')
+    expect(html).not.toContain('forecasts differ')
+  })
+
+  it('prints the models’ range with "forecasts differ" under it, and speaks both', () => {
+    const html = render(
+      <DailyList
+        days={[day(DATES[0])]}
+        readings={null}
+        hours={[]}
+        sky={[sunDay(DATES[0], { sun_min: 240, sun_windows: [], sun_by_model: [{ model: 'gfs_seamless', sun_min: 0 }, { model: 'ecmwf_ifs025', sun_min: 480 }] })]}
+        onSelectDay={() => {}}
+        drawableDates={new Set([DATES[0]])}
+      />,
+    )
+    expect(value(html)).toEqual(['', '0–8 h'])
+    expect(html).toMatch(/>0–8 h<\/span><span[^>]*>forecasts differ</)
+    expect(html).toContain('sun 0–8 h, forecasts differ')
   })
 
   it('prints a gap mark for an unanswered day, and for a day the response skipped, never "None"', () => {

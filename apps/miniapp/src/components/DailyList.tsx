@@ -82,9 +82,9 @@ export type DailyListProps = {
 /** One fixed name column, so every day's temperature track starts and ends at the same x: one scale down the list. */
 const rowGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '96px minmax(0, 1fr) 40px',
+  gridTemplateColumns: '104px minmax(0, 1fr) 48px',
   columnGap: '12px',
-  rowGap: '6px',
+  rowGap: '10px',
   alignItems: 'center',
   padding: '16px 0',
   borderBottom: `1px solid ${colorsV2.line}`,
@@ -120,8 +120,9 @@ export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDat
   const sunByDate = new Map(sky.filter((d) => d.sun_windows !== undefined).map((d) => [d.local_date, sunDayHours(d)]))
   const todayDate = findToday(rows)?.forecast_date ?? ''
   const crag = readings !== null
-  // The same columns on every row, so each stat sits under the one above it.
-  const statColumns = [crag ? '0.8fr 1fr 0.8fr' : null, sunShown ? '1.8fr' : null].filter((c) => c !== null).join(' ')
+  // Columns across the full width, the same on every row, so each stat sits under the one above it.
+  // Sun gets the most room: "forecasts differ" stays on one line under its range from about 400 px.
+  const statColumns = [crag ? '0.7fr 1fr 0.8fr' : null, sunShown ? '1.3fr' : null].filter((c) => c !== null).join(' ')
 
   // One scale for the week, so a bar's place says how warm the day is against the others.
   const temps = rows.flatMap((d) => [d.temp_c_min, d.temp_c_max]).filter((v): v is number => v !== null)
@@ -136,7 +137,7 @@ export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDat
           const d = scored.get(day.forecast_date)
           if (d === undefined) return null
           const open = onSelectDay !== undefined && drawableDates?.has(day.forecast_date) === true ? () => onSelectDay(day.forecast_date) : null
-          const sun = sunShown ? (sunByDate.get(day.forecast_date) ?? { value: EM_DASH, gap: true }) : null
+          const sun = sunShown ? (sunByDate.get(day.forecast_date) ?? { value: EM_DASH, gap: true, differ: false }) : null
           const chance = dayRainChance(hours, day.forecast_date)
           const { name, date } = dayHeading(day.forecast_date, todayDate)
           // Each row rises a step after the one above, and its bar grows out after it.
@@ -164,11 +165,11 @@ export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDat
                 <span style={typeV2.dailyDate}>{date}</span>
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px', ...typeV2.dailyFigure, fontVariantNumeric: 'tabular-nums' }}>
-                <span style={{ width: '30px', textAlign: 'right', color: colorsV2.txtMuted }}>{formatTempDeg(day.temp_c_min)}</span>
-                <span style={{ position: 'relative', flex: '1 1 auto', height: '5px', borderRadius: '3px', background: colorsV2.tempBarTrack }}>
+                <span style={{ width: '38px', textAlign: 'right', color: colorsV2.txtMuted }}>{formatTempDeg(day.temp_c_min)}</span>
+                <span style={{ position: 'relative', flex: '1 1 auto', height: '6px', borderRadius: '3px', background: colorsV2.tempBarTrack }}>
                   {bar}
                 </span>
-                <span style={{ width: '30px', color: colorsV2.txt1 }}>{formatTempDeg(day.temp_c_max)}</span>
+                <span style={{ width: '38px', color: colorsV2.txt1 }}>{formatTempDeg(day.temp_c_max)}</span>
               </span>
               <span
                 style={{
@@ -182,7 +183,7 @@ export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDat
                 {chance === null ? EM_DASH : `${chance}%`}
               </span>
               {statColumns === '' ? null : (
-                <span style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: statColumns, columnGap: '8px' }}>
+                <span style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: statColumns, columnGap: '12px' }}>
                   {crag ? (
                     <>
                       <Stat label="Score">
@@ -209,13 +210,14 @@ export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDat
                   {sun === null ? null : (
                     <Stat label="Sun">
                       <span data-day-sun={sun.gap ? 'gap' : ''} style={typeV2.dailyStatValue}>{sun.value}</span>
+                      {sun.differ ? <span style={typeV2.dailyStatLabel}>forecasts differ</span> : null}
                     </Stat>
                   )}
                 </span>
               )}
             </>
           )
-          const spoken = `${[name, date].filter((s) => s !== '').join(' ')}: ${!crag ? '' : d.score === null ? 'no score, ' : `score ${d.score}, `}low ${formatTempDeg(day.temp_c_min)}, high ${formatTempDeg(day.temp_c_max)}, ${chance === null ? 'chance of rain unknown' : `${chance}% chance of rain`}${!crag || d.score === null || d.span === null ? '' : d.span === 'None' ? ', no good hours' : `, good ${d.span}`}${!crag || d.dryness === null ? '' : `, rock ${d.dryness}`}${sun === null ? '' : sun.gap ? ', sun unknown' : `, sun ${sun.value}`}`
+          const spoken = `${[name, date].filter((s) => s !== '').join(' ')}: ${!crag ? '' : d.score === null ? 'no score, ' : `score ${d.score}, `}low ${formatTempDeg(day.temp_c_min)}, high ${formatTempDeg(day.temp_c_max)}, ${chance === null ? 'chance of rain unknown' : `${chance}% chance of rain`}${!crag || d.score === null || d.span === null ? '' : d.span === 'None' ? ', no good hours' : `, good ${d.span}`}${!crag || d.dryness === null ? '' : `, rock ${d.dryness}`}${sun === null ? '' : sun.gap ? ', sun unknown' : `, sun ${sun.value}${sun.differ ? ', forecasts differ' : ''}`}`
           const style = { ...step, ...(i === rows.length - 1 ? { ...rowGrid, borderBottom: 'none' } : rowGrid) }
           return open === null ? (
             <div key={day.forecast_date} className="wt6-rise" style={style}>
@@ -235,13 +237,13 @@ export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDat
           )
         })}
       </div>
-      <p style={{ ...typeV2.keyRow, margin: '10px 0 0', lineHeight: '16px' }}>
+      <p style={{ ...typeV2.dailyStatLabel, margin: '12px 0 0' }}>
         {dailyFoot(crag, onSelectDay !== undefined && rows.some((d) => drawableDates?.has(d.forecast_date) === true), sunShown)}
       </p>
       {onSelectDay === undefined ||
       drawableDates === undefined ||
       rows.every((d) => drawableDates.has(d.forecast_date)) ? null : (
-        <p style={{ ...typeV2.keyRow, margin: '6px 0 0' }}>{"Days without an hour-by-hour forecast can't be opened."}</p>
+        <p style={{ ...typeV2.dailyStatLabel, margin: '8px 0 0' }}>{"Days without an hour-by-hour forecast can't be opened."}</p>
       )}
     </section>
   )

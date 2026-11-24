@@ -159,10 +159,12 @@ export function sunStrength(wm2: number | null): SunStrength | null {
 export const SUN_DIFFER_MIN = 180
 
 export type SunDayHours = {
-  /** The value beside a `Sun` label: `8 h`, `under 1 h`, `None`, `0–3 h, forecasts differ`, or the gap mark. */
+  /** The value beside a `Sun` label: `8 h`, `under 1 h`, `None`, `0–3 h` (with `differ`), or the gap mark. */
   value: string
   /** The value is a gap mark, not a reading. */
   gap: boolean
+  /** The models disagree by `SUN_DIFFER_MIN` or more: `value` is their range, and the surface says "forecasts differ" beside it. */
+  differ: boolean
 }
 
 /** `8a`, `12p`, `12a` — the hour with its half of the day. */
@@ -185,20 +187,20 @@ const hoursOf = (min: number): number => Math.round(min / 60)
 /**
  * A day's sun as the Daily row's `Sun` stat (owner, 2026-11-24): the hours only, never
  * the windows, which Hourly shows. `8 h`, `under 1 h`, `None` (the forecast has none),
- * `0–3 h, forecasts differ`, or the gap mark when the day was not fully answered.
+ * `0–3 h` with `differ` set, or the gap mark when the day was not fully answered.
  */
 export function sunDayHours(day: Pick<SkyDay, 'sun_min' | 'sun_windows' | 'sun_by_model'>): SunDayHours {
-  if (day.sun_min === null || day.sun_windows === null) return { value: EM_DASH, gap: true }
+  if (day.sun_min === null || day.sun_windows === null) return { value: EM_DASH, gap: true, differ: false }
 
   const totals = day.sun_by_model.map((m) => m.sun_min)
   if (totals.length >= 2) {
     const lo = Math.min(...totals)
     const hi = Math.max(...totals)
-    if (hi - lo >= SUN_DIFFER_MIN) return { value: `${hoursOf(lo)}–${hoursOf(hi)} h, forecasts differ`, gap: false }
+    if (hi - lo >= SUN_DIFFER_MIN) return { value: `${hoursOf(lo)}–${hoursOf(hi)} h`, gap: false, differ: true }
   }
 
   // "None" only when the forecast has none: up to 29 minutes rounds to 0 h but is still sun.
-  if (day.sun_min < 1) return { value: 'None', gap: false }
+  if (day.sun_min < 1) return { value: 'None', gap: false, differ: false }
   const h = hoursOf(day.sun_min)
-  return { value: h === 0 ? 'under 1 h' : `${h} h`, gap: false }
+  return { value: h === 0 ? 'under 1 h' : `${h} h`, gap: false, differ: false }
 }
