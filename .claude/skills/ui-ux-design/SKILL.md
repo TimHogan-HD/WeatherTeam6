@@ -105,9 +105,11 @@ up for a vote: the copy rules and the contrast floors.
   Headline 17 semibold, Body 17, Callout 16, Subhead 15, Footnote 13, Caption 1 12,
   Caption 2 11 (leading 41/34/28/25/22/22/21/20/18/16/13). Material 3's smallest role is
   `label-small` at 11 px / 16 px line; its body roles are 12, 14 and 16 px. Body text on the
-  web: 15–25 px (Butterick). So 11 px is the floor for anything a person must read, for short
-  labels only, and running text sits at 15–17. Apple: "In general, avoid light font weights." The app has
-  ten styles at 9–10 px (#648): each is a candidate to raise or remove.
+  web: 15–25 px (Butterick). So 11 px is the platforms' floor for short labels, and running text sits at 15–17. The app's
+  own floor is 12 px (owner, #644, 2026-11-23): every `typeV2` role is 12 or more, and chart
+  labels are `LABEL_SIZE` in viewBox units, 12 px or more at the app's widths. Apple: "In general, avoid light font weights." The app had
+  ten styles at 9–10 px (#648); all were raised to 12 on 2026-11-24 (#653). A new style
+  below 12 px needs the owner.
 - **Line height.** 120–145% of the size (Butterick); Material's body roles sit at 133–150%.
   Text must survive a user override to 1.5× line height, 0.12em letter spacing and 0.16em
   word spacing without clipping (WCAG 1.4.12, AA). Fixed-height boxes around text break
@@ -124,7 +126,8 @@ up for a vote: the copy rules and the contrast floors.
   text face instead (`font-variant-numeric: tabular-nums`).
 - **Capitals.** "All caps are fine for less than one line of text", with 5–12% extra letter
   spacing (0.05–0.12em) (Butterick). Lowercase is never letterspaced. A tracked caps eyebrow
-  on every heading is a template tell (#637); use sentence case for headings.
+  on every heading is a template tell (#637); use sentence case for headings. The app has no
+  tracked caps since #652 and #653 (owner's #644 pick): `typeV2` sets no `textTransform`.
 - **Weight and style.** "Use bold or italic as little as possible, and not together"
   (Butterick). Do not emphasise one word in a heading with a different colour or style
   (Anthropic `frontend-design`).
@@ -293,7 +296,7 @@ Run it on a mockup before showing it, and on the built screen's `check:ui` scree
 - Is anything said twice on this screen?
 - Does every colour mean one thing, and is any score colour used for something other than a
   score?
-- Is every text style a named role, at 11 px or more, at 4.5:1 or better on its real
+- Is every text style a named role, at 12 px or more, at 4.5:1 or better on its real
   background?
 - Are the loading, empty, partial and error states designed, and is a missing input a gap
   rather than a number?

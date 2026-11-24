@@ -22,7 +22,10 @@ the mockup are sample data. Only the crag names are real.
   sections on 2026-11-23** (owner, #644 variant C "Open list"): every in-flow section is
   now open (`sectionV2`: space and one hairline, no card). Glass stays only on panes that
   float over content (`surfaceV2`: the save bar, the map's overlays), the dock, the bottom
-  bar and the headers. Where the phases below say "glass card", read "section".
+  bar and the headers. Where the phases below say "glass card", read "section". The same
+  change (#652, #653) made headings sentence case with no tracked caps, set a 12 px text
+  floor, and kept lime for scores only: the Feedback pill below is now muted text and the
+  list's Add a `raised` pill.
 - **Chart glow: Soft.** The line charts keep a soft glow and a thin highlight, well
   short of the old neon. In the mockup this is `GL.soft` (`{sd:1.6, a:.4, w:.55}`): blur
   std-dev 1.6, glow alpha 0.4, stroke widths at 0.55×. Put the numbers into tokens in

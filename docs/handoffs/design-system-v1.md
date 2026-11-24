@@ -94,8 +94,10 @@ the current look. `look-variants-644.html` holds the #644 variants; the owner pi
 the model dots (U1) on 2026-11-23, and C was carried to every screen on 2026-11-24
 (`sectionV2` and `surfaceV2` in `theme/styles.ts`).
 
-`docs/handoffs/design-mockups/weatherteam6-hybrid.html` — the current look (owner,
-2026-10-19). Open it directly in a browser; `miniapp-hybrid-transition-v1.md` says what it
+`docs/handoffs/design-mockups/weatherteam6-hybrid.html` — the layout of every screen (owner,
+2026-10-19); its glass cards, tracked caps, sub-12 px labels and lime Feedback pill are
+superseded by variant C in `look-variants-644.html`, as is every mockup drawn before
+2026-11-23. Open both directly in a browser; `miniapp-hybrid-transition-v1.md` says what it
 covers and where the app departs from it. **Open the mockup itself, not a prose summary of
 it** — one phase was built twice for reading a description instead of opening the file.
 
