@@ -353,6 +353,71 @@ code{font-size:.92em;color:var(--txt2)}
     </div>
   </section>
 
+  <!-- ===================== Rain: chance and amount ===================== -->
+  <section class="decision" aria-labelledby="d2b">
+    <h2 id="d2b">2b. Rain: chance and amount on one chart</h2>
+    <p class="lede">The two-scale chart asks a reader to match a line to the right edge and a bar to the left. Each option below gives every measure its own mark instead, on one scale or none.</p>
+    <div class="switch" role="group" aria-label="Rain chart variant" data-group="rn">
+      <button type="button" aria-pressed="true" data-v="N0">Current · two scales</button>
+      <button type="button" aria-pressed="false" data-v="N1">C · Chance row on top</button>
+      <button type="button" aria-pressed="false" data-v="N2">D · Chance bars, amount written</button>
+      <button type="button" aria-pressed="false" data-v="N3">E · Amount bars, faded by chance</button>
+    </div>
+    <div class="wrap">
+      <div class="phone" aria-label="Hourly rain chart, phone width">
+        <div class="bar"><button class="back" type="button" aria-label="Back">‹</button><button class="fb" type="button">Feedback</button></div>
+        <div class="tabs"><span>Overview</span><span>Daily</span><span class="on">Hourly</span><span>Precip</span><span>Rock</span><span>Crag</span></div>
+        <div class="hhead">
+          <div><div class="name">Taylors Falls</div><p class="fresh">Thursday</p></div>
+          <div class="hs"><small id="rnWhen">Score at Thu 3 PM</small><b id="rnScore">12</b></div>
+        </div>
+        <section class="sec">
+          <h4>Rain<span class="chip" id="rnChip"></span></h4>
+          <svg class="chart scrub" id="rnChart" viewBox="0 0 358 130" role="img" aria-label="Chance and amount of rain by hour"></svg>
+          <div class="legend" id="rnKey"></div>
+        </section>
+      </div>
+
+      <div class="notes">
+        <div data-rn="N0">
+          <h3>Current · two scales</h3>
+          <ul>
+            <li>Bars are inches on the left scale; the white line is the chance on a 0–100% right scale.</li>
+            <li><b>The cost</b>: where the line crosses a bar means nothing, yet the eye reads it as a relation. Two scales on one chart are the pattern most often misread (Few; Isenberg et al. 2011), and the right edge eats 24 px of a 390 px screen.</li>
+          </ul>
+        </div>
+        <div data-rn="N1" hidden>
+          <h3>C · Chance row on top</h3>
+          <ul>
+            <li><b>A row of hour cells above the bars</b>, one per hour, darker the likelier, with the percentage written in each cell from 10% up. Bars below are the amount on the inch scale, as today.</li>
+            <li>Each measure keeps the mark that suits it: a percentage is a share, so a shade and a figure; an amount is a quantity, so a bar on a scale.</li>
+            <li>Same shape as A's day strip, so the hourly screen has one idiom for "per hour" rather than two.</li>
+            <li>Reads the early hours too: 30% at 1 PM shows though no rain is expected yet in the median.</li>
+          </ul>
+          <p class="data"><b>Recommended.</b> No second scale, no crossing marks, and both figures are readable without scrubbing.</p>
+        </div>
+        <div data-rn="N2" hidden>
+          <h3>D · Chance bars, amount written</h3>
+          <ul>
+            <li><b>Bar height is the chance</b> on one 0–100 scale; the amount is written above each wet bar (".06").</li>
+            <li>The pattern Apple Weather and most phone apps use, so it is familiar.</li>
+            <li><b>The cost</b>: the amount, which is what wets the rock, becomes small text. A 90% chance of a trace and a 90% chance of half an inch look the same until the reader reads the figures.</li>
+          </ul>
+        </div>
+        <div data-rn="N3" hidden>
+          <h3>E · Amount bars, faded by chance</h3>
+          <ul>
+            <li><b>Bar height is the amount</b>; a bar is fainter the less likely it is, and the chance is written above it.</li>
+            <li>The amount keeps the scale, which suits a crag screen: wetness is what decides drying.</li>
+            <li><b>The cost</b>: opacity is the least precise visual channel (Cleveland and McGill 1984); the fade is a hint, so the figures carry the reading. Hours with a chance but no median amount show only a figure on the baseline.</li>
+          </ul>
+        </div>
+        <p class="data"><b>Data, all variants:</b> amount is the hourly median, chance is <code>precip_chance_pct</code> (the share of ensemble members wet), both already on <code>/hourly</code>. A null chance is an empty cell, no bar or no figure, never 0%.</p>
+        <p class="data">The chosen look carries into B's spread views (each forecast's line or the range sit on the amount scale, so C and E keep them; D would need them redrawn as chance).</p>
+      </div>
+    </div>
+  </section>
+
   <!-- ===================== Blocked by a rule ===================== -->
   <section class="decision" aria-labelledby="d4">
     <h2 id="d4">3. What the rules block, drawn</h2>
@@ -603,6 +668,56 @@ code{font-size:.92em;color:var(--txt2)}
     s+='<circle cx="'+xs(state.read)+'" cy="'+yc(CHANCE[state.read])+'" r="4" fill="var(--air)" stroke="var(--bg)" stroke-width="1"/>';
     return s;
   }
+  // section 2b: chance and amount on one chart, four ways
+  function inchLab(v){return v.toFixed(2).replace(/^0/,"")}
+  function rainLook(v){
+    var bw=(W-L-R)/(HRS.length-1)*.62,slot=(W-L-R)/(HRS.length-1),r=state.read,s="";
+    if(v==="N0")return {h:130,s:rainSvg(false),key:rainKey(false)};
+    if(v==="N1"){
+      // chance row on top, amount bars below on the inch scale
+      var Hh=152,top=T,rowH=22,cT=top+rowH+12,B=20;
+      var y=function(a){return cT+(.1-a)/.1*(Hh-B-cT)};
+      [0,.05,.1].forEach(function(a){s+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+y(a)+'" y2="'+y(a)+'" stroke="var(--line)"/><text x="'+(L-6)+'" y="'+(y(a)+4)+'" fill="var(--muted)" font-size="12" text-anchor="end">'+(a?inchLab(a):"0")+'</text>'});
+      s+='<text x="'+(L-6)+'" y="'+(top+rowH/2+4)+'" fill="var(--muted)" font-size="12" text-anchor="end">%</text>';
+      CHANCE.forEach(function(p,i){
+        var x0=xs(i)-slot/2+1;
+        if(p===null)return;
+        s+='<rect x="'+x0+'" y="'+top+'" width="'+Math.min(slot-2,W-1-x0)+'" height="'+rowH+'" rx="3" fill="var(--rainMark)" fill-opacity="'+(p?(.08+p/100*.8).toFixed(2):0)+'"'+(i===r?' stroke="var(--txt1)" stroke-width="1.5"':'')+'/>';
+        if(p>=10)s+='<text x="'+xs(i)+'" y="'+(top+rowH/2+4)+'" fill="'+(p>=50?"var(--bg)":"var(--txt1)")+'" font-size="11" font-weight="600" text-anchor="middle">'+p+'</text>';
+      });
+      RAIN.forEach(function(a,i){if(a>0)s+='<rect x="'+(xs(i)-bw/2)+'" y="'+y(a)+'" width="'+bw+'" height="'+(y(0)-y(a))+'" rx="2" fill="var(--rainAmount)" fill-opacity="'+(i===r?1:.75)+'"/>'});
+      [0,3,6,9,12,15].forEach(function(i){s+='<text x="'+xs(i)+'" y="'+(Hh-4)+'" fill="var(--muted)" font-size="12" text-anchor="middle">'+shortH(HRS[i])+'</text>'});
+      s+='<line x1="'+xs(r)+'" x2="'+xs(r)+'" y1="'+(top+rowH+2)+'" y2="'+(Hh-B)+'" stroke="var(--txt1)" stroke-opacity=".5" stroke-dasharray="2 3"/>';
+      return {h:Hh,s:s,key:'<span><i style="border-top:8px solid var(--rainMark);width:12px;border-radius:2px;opacity:.7"></i>Top row: chance of rain, %; darker is likelier</span><span><i style="border-top:8px solid var(--rainAmount);width:8px;border-radius:1px"></i>Bars: amount, inches</span>'};
+    }
+    if(v==="N2"){
+      // bar height is the chance; amount written above each wet bar
+      var f=frame(130,20,0,100,[0,50,100],function(p){return p}),yy=f.y;s=f.s;
+      CHANCE.forEach(function(p,i){if(p)s+='<rect x="'+(xs(i)-bw/2)+'" y="'+yy(p)+'" width="'+bw+'" height="'+(yy(0)-yy(p))+'" rx="2" fill="var(--rainMark)" fill-opacity="'+(i===r?.95:.6)+'"/>'});
+      RAIN.forEach(function(a,i){if(a>0)s+='<text x="'+xs(i)+'" y="'+(yy(CHANCE[i])-4)+'" fill="'+(i===r?"var(--txt1)":"var(--rainAmount)")+'" font-size="11" font-weight="600" text-anchor="middle">'+inchLab(a)+'</text>'});
+      s+=cursor(130,20);
+      return {h:130,s:s,key:'<span><i style="border-top:8px solid var(--rainMark);width:8px;border-radius:1px;opacity:.7"></i>Bars: chance of rain, %</span><span style="color:var(--rainAmount)">.06</span><span style="margin-left:-8px">Figure above: amount, inches</span>'};
+    }
+    // N3: bar height is the amount; fainter is less likely; chance written above
+    var g=frame(130,20,0,.1,[0,.05,.1],function(a){return a?inchLab(a):"0"}),y3=g.y;s=g.s;
+    RAIN.forEach(function(a,i){if(a>0&&CHANCE[i]!==null)s+='<rect x="'+(xs(i)-bw/2)+'" y="'+y3(a)+'" width="'+bw+'" height="'+(y3(0)-y3(a))+'" rx="2" fill="var(--rainAmount)" fill-opacity="'+(.2+CHANCE[i]/100*.8).toFixed(2)+'"'+(i===r?' stroke="var(--txt1)" stroke-width="1"':'')+'/>'});
+    CHANCE.forEach(function(p,i){if(p!==null&&p>=10)s+='<text x="'+xs(i)+'" y="'+(y3(RAIN[i])-4)+'" fill="'+(i===r?"var(--txt1)":"var(--muted)")+'" font-size="11" font-weight="600" text-anchor="middle">'+p+'</text>'});
+    s+=cursor(130,20);
+    return {h:130,s:s,key:'<span><i style="border-top:8px solid var(--rainAmount);width:8px;border-radius:1px"></i>Bars: amount, inches; fainter is less likely</span><span>Figure above: chance, %</span>'};
+  }
+  function renderRain(){
+    var el=document.getElementById("rnChart");if(!el)return;
+    // C, D and E carry no right-hand scale, so they take back the margin the two-scale chart needs
+    var keepR=R;if(state.rn!=="N0")R=8;
+    var o;try{o=rainLook(state.rn||"N0")}finally{R=keepR}
+    var i=state.read;
+    el.setAttribute("viewBox","0 0 358 "+o.h);
+    el.innerHTML=o.s;
+    document.getElementById("rnKey").innerHTML=o.key;
+    document.getElementById("rnChip").textContent=hl(HRS[i])+" · "+(CHANCE[i]===null?"":CHANCE[i]+"% chance, ")+(RAIN[i]?RAIN[i].toFixed(2)+" in":"none");
+    document.getElementById("rnWhen").textContent="Score at Thu "+hl(HRS[i]);
+    var sc=document.getElementById("rnScore");sc.textContent=SCORE[i];sc.style.color=col(SCORE[i]);
+  }
   function windSvg(){
     var f=frame(110,20,0,30,[0,10,20,30],function(v){return v}),s=f.s,y=f.y;
     s+='<path d="'+path(GUST,y)+'" stroke="var(--gust)" stroke-width="1.5" stroke-dasharray="5 4" fill="none"/>';
@@ -654,6 +769,7 @@ code{font-size:.92em;color:var(--txt2)}
     document.getElementById("strip").innerHTML=st;
     var rr="";RAIN.forEach(function(v){rr+='<i style="background:'+(v>0?"var(--rainAmount)":"transparent")+';opacity:'+(v>0?Math.min(1,.35+v*9):0)+'"></i>'});
     document.getElementById("rainrow").innerHTML=rr;
+    renderRain();
   }
   function renderWeek(){
     var h="";WEEK.forEach(function(d){h+='<button type="button" class="'+(d[0]==="Thu"?"on":"")+'"><span>'+d[0]+'</span><b style="color:'+col(d[1])+'">'+d[1]+'</b></button>'});
@@ -662,7 +778,7 @@ code{font-size:.92em;color:var(--txt2)}
 
   // scrub: one read hour across every chart on the phone
   document.querySelectorAll(".scrub").forEach(function(svg){
-    function set(e){var r=svg.getBoundingClientRect();var px=(e.clientX-r.left)/r.width*W;var k=Math.round((px-L)/((W-L-R)/(HRS.length-1)));k=Math.max(0,Math.min(HRS.length-1,k));if(k!==state.read){state.read=k;renderHourly()}}
+    function set(e){var r=svg.getBoundingClientRect();var px=(e.clientX-r.left)/r.width*W;var rr=(svg.id==="rnChart"&&state.rn!=="N0")?8:R;var k=Math.round((px-L)/((W-L-rr)/(HRS.length-1)));k=Math.max(0,Math.min(HRS.length-1,k));if(k!==state.read){state.read=k;renderHourly()}}
     svg.addEventListener("pointerdown",function(e){set(e);svg.setPointerCapture&&svg.setPointerCapture(e.pointerId)});
     svg.addEventListener("pointermove",function(e){if(e.buttons||e.pointerType==="mouse")set(e)});
     svg.setAttribute("tabindex","0");
@@ -700,7 +816,8 @@ code{font-size:.92em;color:var(--txt2)}
   window.renderRb=renderRb;
 
   renderOvToday();renderWeek();
-  ["ov","hr","rb"].forEach(function(k){var v=null;try{v=localStorage.getItem("wt6-research-"+k)}catch(e){}if(v){var b=document.querySelector('.switch[data-group="'+k+'"] button[data-v="'+v+'"]');if(b){b.click();return}}applyVis("data-"+k,state[k]);});
+  state.rn="N0";
+  ["ov","hr","rn","rb"].forEach(function(k){var v=null;try{v=localStorage.getItem("wt6-research-"+k)}catch(e){}if(v){var b=document.querySelector('.switch[data-group="'+k+'"] button[data-v="'+v+'"]');if(b){b.click();return}}applyVis("data-"+k,state[k]);});
   renderDays();renderHourly();renderRb();
 })();
 </script>
