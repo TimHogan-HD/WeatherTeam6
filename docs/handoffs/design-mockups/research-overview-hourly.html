@@ -362,6 +362,7 @@ code{font-size:.92em;color:var(--txt2)}
       <button type="button" aria-pressed="false" data-v="N1">C · Chance row on top</button>
       <button type="button" aria-pressed="false" data-v="N2">D · Chance bars, amount written</button>
       <button type="button" aria-pressed="false" data-v="N3">E · Amount bars, faded by chance</button>
+      <button type="button" aria-pressed="false" data-v="N4">F · D swapped: amount bars, chance written</button>
     </div>
     <div class="wrap">
       <div class="phone" aria-label="Hourly rain chart, phone width">
@@ -402,6 +403,15 @@ code{font-size:.92em;color:var(--txt2)}
             <li><b>Bar height is the chance</b> on one 0–100 scale; the amount is written above each wet bar (".06").</li>
             <li>The pattern Apple Weather and most phone apps use, so it is familiar.</li>
             <li><b>The cost</b>: the amount, which is what wets the rock, becomes small text. A 90% chance of a trace and a 90% chance of half an inch look the same until the reader reads the figures.</li>
+          </ul>
+        </div>
+        <div data-rn="N4" hidden>
+          <h3>F · D swapped: amount bars, chance written</h3>
+          <ul>
+            <li><b>Bar height is the amount</b> on the inch scale; the chance is written above each hour in the chance colour (violet), the way D writes the amount in the bar colour.</li>
+            <li>The amount, which decides how wet the rock gets, keeps the scale; the chance is one glance up, no second axis, no fade to decode.</li>
+            <li>Hours with a chance but no median amount (1 PM, 30%) show the figure on the baseline, so the build-up before the shower still reads.</li>
+            <li><b>The cost</b>: the chance is figures only, so its shape across the day is read number by number rather than seen. A null chance leaves the hour without a figure; its bar still draws if the amount is known.</li>
           </ul>
         </div>
         <div data-rn="N3" hidden>
@@ -697,6 +707,14 @@ code{font-size:.92em;color:var(--txt2)}
       RAIN.forEach(function(a,i){if(a>0)s+='<text x="'+xs(i)+'" y="'+(yy(CHANCE[i])-4)+'" fill="'+(i===r?"var(--txt1)":"var(--rainAmount)")+'" font-size="11" font-weight="600" text-anchor="middle">'+inchLab(a)+'</text>'});
       s+=cursor(130,20);
       return {h:130,s:s,key:'<span><i style="border-top:8px solid var(--rainMark);width:8px;border-radius:1px;opacity:.7"></i>Bars: chance of rain, %</span><span style="color:var(--rainAmount)">.06</span><span style="margin-left:-8px">Figure above: amount, inches</span>'};
+    }
+    if(v==="N4"){
+      // D turned over: bar height is the amount, the chance written above each hour
+      var g4=frame(130,20,0,.1,[0,.05,.1],function(a){return a?inchLab(a):"0"}),y4=g4.y;s=g4.s;
+      RAIN.forEach(function(a,i){if(a>0)s+='<rect x="'+(xs(i)-bw/2)+'" y="'+y4(a)+'" width="'+bw+'" height="'+(y4(0)-y4(a))+'" rx="2" fill="var(--rainAmount)" fill-opacity="'+(i===r?1:.75)+'"/>'});
+      CHANCE.forEach(function(p,i){if(p!==null&&p>=10)s+='<text x="'+xs(i)+'" y="'+(y4(RAIN[i])-4)+'" fill="'+(i===r?"var(--txt1)":"var(--rainMark)")+'" font-size="11" font-weight="600" text-anchor="middle">'+p+'</text>'});
+      s+=cursor(130,20);
+      return {h:130,s:s,key:'<span><i style="border-top:8px solid var(--rainAmount);width:8px;border-radius:1px"></i>Bars: amount, inches</span><span style="color:var(--rainMark)">70</span><span style="margin-left:-8px">Figure above: chance of rain, %</span>'};
     }
     // N3: bar height is the amount; fainter is less likely; chance written above
     var g=frame(130,20,0,.1,[0,.05,.1],function(a){return a?inchLab(a):"0"}),y3=g.y;s=g.s;
