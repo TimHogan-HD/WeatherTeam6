@@ -19,6 +19,7 @@
   --display:'Barlow Condensed','Arial Narrow',sans-serif; --body:'Barlow','Segoe UI',system-ui,sans-serif;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{margin:0;background:var(--ground);color:var(--txt1);font-family:var(--body);font-variant-numeric:tabular-nums;padding-block:24px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 button{font:inherit;color:inherit;cursor:pointer}
 button:focus-visible{outline:2px solid var(--brandInk);outline-offset:2px}
@@ -120,6 +121,25 @@ code{font-size:.92em;color:var(--txt2)}
 .sumrow div:first-child{border-top:0}
 .sumrow span{color:var(--muted)}
 
+.lede{color:var(--muted);font-size:15px;line-height:1.55;max-width:660px}
+.band{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.word{font-family:var(--display);font-weight:700;font-size:22px;line-height:1;border:1.5px solid;border-radius:999px;padding:4px 12px}
+.action{font-size:15px;color:var(--txt1);padding:6px 2px 0;line-height:1.45}
+.ladder{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;padding:12px 2px 0}
+.ladder span{border-top:4px solid var(--c);padding-top:4px;font-size:13px;color:var(--muted);opacity:.55}
+.ladder span.on{opacity:1;color:var(--txt1)}
+.ladder small{display:block;font-size:12px;color:var(--muted)}
+.verdict{font-size:17px;line-height:1.5;color:var(--txt1);padding:8px 2px 0;text-wrap:pretty}
+.est{font-size:12px;color:var(--txt2);border:1px solid var(--line);background:var(--raised);border-radius:999px;padding:1px 8px;margin-left:4px;vertical-align:2px}
+.track{font-size:14px;color:var(--txt2);padding:8px 2px 0;line-height:1.45}
+.day .s.cap{color:var(--txt2);font-size:20px}
+.day .w{grid-column:2/5;font-size:13px}
+.push{background:var(--raised);border-radius:18px;padding:10px 12px;margin:0 0 10px;display:flex;flex-direction:column;gap:2px;box-shadow:0 8px 24px #0009}
+.pushapp{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.pushapp span:last-child{margin-left:auto}
+.pushicon{width:16px;height:16px;border-radius:4px;background:var(--brand)}
+.push b{font-size:15px}
+.push p{font-size:14px;color:var(--txt2);line-height:1.4}
 @media (prefers-reduced-motion:no-preference){.switch button,.seg button{transition:background .15s ease-out,border-color .15s ease-out}}
 </style>
 </head><body>
@@ -311,8 +331,128 @@ code{font-size:.92em;color:var(--txt2)}
     </div>
   </section>
 
+  <!-- ===================== Blocked by a rule ===================== -->
+  <section class="decision" aria-labelledby="d4">
+    <h2 id="d4">3. What the rules block, drawn</h2>
+    <p class="lede">Each of these breaks a rule in force today. They are drawn so you can judge them; building any one means changing the rule first.</p>
+    <div class="switch" role="group" aria-label="Blocked option" data-group="rb">
+      <button type="button" aria-pressed="true" data-v="R1">Word band</button>
+      <button type="button" aria-pressed="false" data-v="R2">Verdict sentence</button>
+      <button type="button" aria-pressed="false" data-v="R3">Marked as an estimate</button>
+      <button type="button" aria-pressed="false" data-v="R4">Alerts</button>
+    </div>
+    <div class="wrap">
+      <div class="phone" aria-label="Overview with a blocked option, phone width">
+        <div data-rb="R4" class="push">
+          <div class="pushapp"><span class="pushicon" aria-hidden="true"></span>WeatherTeam6<span>now</span></div>
+          <b>Taylors Falls reaches 88 on Saturday</b>
+          <p>From 10 AM to 5 PM. Thursday's rain dries off Friday afternoon.</p>
+        </div>
+        <div class="bar"><button class="back" type="button" aria-label="Back">‹</button><button class="fb" type="button">Feedback</button></div>
+        <div class="tabs"><span class="on">Overview</span><span>Daily</span><span>Hourly</span><span>Precip</span><span>Rock</span><span>Crag</span></div>
+        <div class="name">Taylors Falls</div>
+
+        <!-- R1 word band -->
+        <div data-rb="R1">
+          <div class="hero">
+            <div class="big" style="color:var(--good)">92</div>
+            <div class="band"><b class="word" style="color:var(--good);border-color:var(--good)">Good</b><p>Score at 10 AM<br>Dry · 41°F · good 10 AM–6 PM<br><span>Basalt</span></p></div>
+          </div>
+          <p class="action">Rock should be dry and cool enough for friction.</p>
+          <div class="ladder" aria-label="Band scale">
+            <span style="--c:var(--poor)">Poor<small>under 40</small></span>
+            <span style="--c:var(--fair)">Caution<small>40–59</small></span>
+            <span style="--c:var(--good);opacity:.7">Fair<small>60–79</small></span>
+            <span style="--c:var(--good)" class="on">Good<small>80+</small></span>
+          </div>
+        </div>
+
+        <!-- R2 verdict sentence -->
+        <div data-rb="R2">
+          <div class="hero">
+            <div class="big" style="color:var(--good)">92</div>
+            <p>Score at 10 AM<br><span>Basalt</span></p>
+          </div>
+          <p class="verdict">Dry and cool now, good until 6 PM. Dry through Wednesday; rain Thursday 2 to 6 PM, about 0.2 in. The rock should be dry again by Friday afternoon.</p>
+        </div>
+
+        <!-- R3 marked as an estimate -->
+        <div data-rb="R3">
+          <div class="hero">
+            <div class="big" style="color:var(--good)">92</div>
+            <p>Score at 10 AM <span class="est">Estimate</span><br>Dry · 41°F · good 10 AM–6 PM<br><span>Basalt</span></p>
+          </div>
+          <p class="track">Your checks here: 4 of 5 matched the score. The last one, Sat Nov 21, said dry at 90.</p>
+        </div>
+
+        <!-- R4 alerts: hero as built -->
+        <div data-rb="R4">
+          <div class="hero">
+            <div class="big" style="color:var(--good)">92</div>
+            <p>Score at 10 AM<br>Dry · 41°F · good 10 AM–6 PM<br><span>Basalt</span></p>
+          </div>
+        </div>
+
+        <section class="sec">
+          <h4>Next days</h4>
+          <div class="days" id="rbDays"></div>
+          <p class="src" data-rb="R3">80+ means the model reads above 80 but no forecast check within 3 days backs it. A check that matches lifts the cap.</p>
+        </section>
+
+        <section class="sec" data-rb="R4">
+          <h4>Alert me</h4>
+          <div class="kv">
+            <div><span>When the score reaches</span><b>80</b></div>
+            <div><span>On</span><b>Sat, Sun</b></div>
+            <div><span>Within your climbing hours</span><b>8 AM–6 PM</b></div>
+            <div><span>Look ahead</span><b>4 days</b></div>
+          </div>
+        </section>
+      </div>
+
+      <div class="notes">
+        <div data-rb="R1">
+          <h3>Word band</h3>
+          <ul>
+            <li><b>A word beside the number</b>, in four rungs with fixed colours, and one action line per rung. Every climbing app found does this: ClimbingWeather (Prime to Skip), CragReport (four colour bands), Climbing Forecast UK (Good, Caution, Poor), the avalanche danger scale.</li>
+            <li>The action lines would be: Good "Rock should be dry and cool enough for friction"; Fair "Climbable, conditions not ideal"; Caution "Check the rock is dry before you climb"; Poor "Wet or too warm, likely not worth the drive".</li>
+          </ul>
+          <p class="rule"><b>Breaks</b> copy rule 1 (no word mapped from the score; no opinion on whether to climb). The rule exists because a word graded an unvalidated estimate: friction once read "Great" on wet rock.</p>
+          <p class="data"><b>Evidence against:</b> the Met Office game (n=8,220) found numbers beat low/medium/high at equal information. A word band adds a second, coarser claim on top of the number, and any wrong "Good" is a stronger miss than a wrong 85. Thursday shows the risk: "Good" on a day it rains from 2 PM.</p>
+        </div>
+        <div data-rb="R2">
+          <h3>Verdict sentence</h3>
+          <ul>
+            <li><b>One generated sentence</b> under the score, replacing the figure line: now, the rest of today, the next rain and when the rock is dry again. Dark Sky's "light rain starting in 4 minutes" is the feature users remember.</li>
+            <li>Built from the same fields as variant A's Rain rows, by a template, never by an AI summary.</li>
+          </ul>
+          <p class="rule"><b>Breaks</b> copy rule 3 (a reading is a label and a value, never a sentence) and edges rule 1: "the rock should be dry again" is a claim about the rock in prose. "Dry and cool now, good until 6 PM" reads as advice.</p>
+          <p class="data"><b>Compare:</b> Overview variant A carries every fact in this sentence as three rows. The sentence is faster to read; the rows are easier to check one by one.</p>
+        </div>
+        <div data-rb="R3">
+          <h3>Marked as an estimate</h3>
+          <ul>
+            <li><b>An "Estimate" tag</b> on the score and a <b>track record line</b>: how many of your checks here matched.</li>
+            <li><b>The top held back</b>: a day over 80 prints "80+" until a check within three days backs it, the way Surfline lets only an observing forecaster award "Good". Today keeps 92 because Saturday's check matched.</li>
+          </ul>
+          <p class="rule"><b>Breaks</b> the score rules: the score is labelled "Score at", never qualified, and nothing reaches past <code>score</code>. "80+" also hides a number the model has, which runs against "withhold, never inflate" in the other direction: it withholds a real figure. Safety and product call.</p>
+          <p class="data"><b>Data:</b> your own checks exist. "Matched" needs a rule for what counts as a match (a dry report at 60 or more?), which is #143's open question.</p>
+        </div>
+        <div data-rb="R4">
+          <h3>Alerts</h3>
+          <ul>
+            <li><b>A push when a crag crosses your threshold</b> on the days and hours you set, a few days ahead. CragReport and Acme offer this.</li>
+            <li>The settings sit on the crag's Overview; they could live on Profile instead.</li>
+          </ul>
+          <p class="rule"><b>Parked:</b> there is no notification channel (owner's parked decision, <code>architecture.md</code>). A PWA can push on Android and on iOS 16.4+ once installed to the home screen; it needs a push service, stored subscriptions and a cron to evaluate thresholds.</p>
+          <p class="data"><b>Risk:</b> notification spam is 12% of weather app complaints. A threshold alert that fires on a score the forecast later drops would be the loudest miss the app could make.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section class="conflicts" aria-labelledby="d3">
-    <h2 id="d3">Research options not drawn, because a rule says no</h2>
+    <h2 id="d3">The rules behind section 3</h2>
     <ul>
       <li><b>A word band beside the score</b> (Good, Caution, Poor), which every climbing app found uses. Copy rule 1: no word is mapped from the score. The Met Office game also found numbers beat low/medium/high at equal information, so the rule and the evidence agree here.</li>
       <li><b>A verdict sentence</b> ("Dry until 2 PM, showers to 6 PM"). Copy rule 3: a reading is a label and a value. Variant A carries the same facts as rows; a sentence would need the rule changed.</li>
@@ -468,14 +608,29 @@ code{font-size:.92em;color:var(--txt2)}
       g.querySelectorAll("button").forEach(function(x){x.setAttribute("aria-pressed",x===b?"true":"false")});
       state[key]=b.dataset.v;
       applyVis("data-"+key,b.dataset.v);
-      if(key==="ov")renderDays(); else renderHourly();
+      if(key==="ov")renderDays(); else if(key==="rb")renderRb(); else renderHourly();
       try{localStorage.setItem("wt6-research-"+key,b.dataset.v)}catch(e){}
     })});
   });
 
+  // section 3: blocked options
+  state.rb="R1";
+  function word(s){return s>=80?"Good":s>=60?"Fair":s>=40?"Caution":"Poor"}
+  function renderRb(){
+    var h="",capped={Wed:1,Thu:1,Sat:1,Sun:1};
+    DAYS.forEach(function(r){
+      var s='<b class="s" style="color:'+col(r.s)+'">'+r.s+'</b>',extra="";
+      if(state.rb==="R1")extra='<span class="w" style="color:'+col(r.s)+'">'+word(r.s)+'</span>';
+      if(state.rb==="R3"&&r.s>80&&capped[r.d])s='<b class="s cap">80+</b>';
+      h+='<div class="day"><span class="d">'+r.d+'</span><span class="t">'+r.t+'</span><span class="c">'+(r.c||"")+'</span>'+s+extra+'</div>';
+    });
+    document.getElementById("rbDays").innerHTML=h;
+  }
+  window.renderRb=renderRb;
+
   renderOvToday();renderWeek();
-  ["ov","hr"].forEach(function(k){var v=null;try{v=localStorage.getItem("wt6-research-"+k)}catch(e){}if(v){var b=document.querySelector('.switch[data-group="'+k+'"] button[data-v="'+v+'"]');if(b){b.click();return}}applyVis("data-"+k,state[k]);});
-  renderDays();renderHourly();
+  ["ov","hr","rb"].forEach(function(k){var v=null;try{v=localStorage.getItem("wt6-research-"+k)}catch(e){}if(v){var b=document.querySelector('.switch[data-group="'+k+'"] button[data-v="'+v+'"]');if(b){b.click();return}}applyVis("data-"+k,state[k]);});
+  renderDays();renderHourly();renderRb();
 })();
 </script>
 </body></html>
