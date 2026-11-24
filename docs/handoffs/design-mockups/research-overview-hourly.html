@@ -248,19 +248,20 @@ code{font-size:.92em;color:var(--txt2)}
       <button type="button" aria-pressed="true" data-v="H0">Current</button>
       <button type="button" aria-pressed="false" data-v="H1">A · Day strip, one chart</button>
       <button type="button" aria-pressed="false" data-v="H2">B · Spread shown</button>
+      <button type="button" aria-pressed="false" data-v="H3">A + B</button>
     </div>
     <div class="wrap">
       <div class="phone" aria-label="Hourly, phone width">
         <div class="bar"><button class="back" type="button" aria-label="Back">‹</button><button class="fb" type="button">Feedback</button></div>
         <div class="tabs"><span>Overview</span><span>Daily</span><span class="on">Hourly</span><span>Precip</span><span>Rock</span><span>Crag</span></div>
         <div class="hhead">
-          <div><div class="name">Taylors Falls</div><p class="fresh" data-hr="H2">Forecast checked 10:05 AM</p></div>
+          <div><div class="name">Taylors Falls</div><p class="fresh" data-hr="H2 H3">Forecast checked 10:05 AM</p></div>
           <div class="hs"><small id="hrWhen">Score at Thu 3 PM</small><b id="hrScore">12</b></div>
         </div>
         <div class="week" id="week"></div>
 
         <!-- A: day strip + summary + one chart -->
-        <section class="sec" data-hr="H1">
+        <section class="sec" data-hr="H1 H3">
           <h4>Thursday<small>each block one hour, 6 AM–9 PM</small></h4>
           <div class="strip" id="strip"></div>
           <div class="rainrow" id="rainrow"></div>
@@ -278,6 +279,7 @@ code{font-size:.92em;color:var(--txt2)}
           </div>
           <h4 style="font-size:17px"><span id="oneTitle">Score</span><span class="chip" id="oneChip"></span></h4>
           <svg class="chart scrub" id="oneChart" viewBox="0 0 358 130" role="img" aria-label="One chart for the chosen measure"></svg>
+          <div class="legend" id="oneLegend" data-hr="H3"></div>
         </section>
 
         <!-- Current and B: card stack -->
@@ -317,6 +319,17 @@ code{font-size:.92em;color:var(--txt2)}
           <p class="rule"><b>Decide:</b> an hourly score as a chart. The owner removed the score bars from Overview's Today chart (2026-10-20) because they repeated the hero; here the score is the day's shape, not a repeat. And the switch hides three of four charts, which the card reorder (<code>CardStack</code>) would no longer arrange.</p>
           <p class="data"><b>Data:</b> all exists on <code>/hourly</code>.</p>
         </div>
+        <div data-hr="H3" hidden>
+          <h3>A + B</h3>
+          <ul>
+            <li><b>A's shape</b>: the day strip, good hours and the rain window, then one chart with a switch.</li>
+            <li><b>B's spread inside that one chart</b>: Rain draws each model's line behind the median columns, Temperature draws the band. Score and Wind are as in A.</li>
+            <li><b>Freshness under the name</b>, from B.</li>
+            <li>The rain window row says "3 of 4 models"; switching to Rain shows which three and when each puts the shower. The claim and its evidence are one tap apart.</li>
+          </ul>
+          <p class="data"><b>Data:</b> as A, plus the one new field from B: per-model hourly rain on <code>/hourly</code>. Without it, ship A + B with the temperature band only and leave the rain chart as medians.</p>
+          <p class="rule"><b>Decide:</b> both of A's open questions carry over: an hourly score chart, and a switch that hides three charts.</p>
+        </div>
         <div data-hr="H2" hidden>
           <h3>B · Spread shown</h3>
           <ul>
@@ -325,7 +338,7 @@ code{font-size:.92em;color:var(--txt2)}
             <li><b>Freshness under the name.</b></li>
           </ul>
           <p class="data"><b>Research:</b> Acme's founding idea is alternate forecasts as faint lines; Windy shows predictability per day. Fan charts biased readers optimistic in one study, so the band is soft-edged and the median stays the brightest mark (report option 5).</p>
-          <p class="data"><b>Data:</b> the temperature band exists (<code>temp_c_p10</code>, <code>temp_c_p90</code>; <code>--rangeFrost</code> is already a token). <b>Per-model hourly rain is not on the response</b>: the server reads it for the median and the split, then drops it. It would be a new field on <code>/hourly</code>.</p>
+          <p class="data"><b>Data (B):</b> the temperature band exists (<code>temp_c_p10</code>, <code>temp_c_p90</code>; <code>--rangeFrost</code> is already a token). <b>Per-model hourly rain is not on the response</b>: the server reads it for the median and the split, then drops it. It would be a new field on <code>/hourly</code>.</p>
         </div>
       </div>
     </div>
@@ -579,7 +592,15 @@ code{font-size:.92em;color:var(--txt2)}
     var m=state.metric,titles={score:"Score",rain:"Rain",temp:"Temperature",wind:"Wind"};
     document.getElementById("oneTitle").textContent=titles[m];
     document.getElementById("oneChip").textContent=c[m];
-    document.getElementById("oneChart").innerHTML=m==="score"?scoreSvg():m==="rain"?rainSvg(false):m==="temp"?tempSvg(false):windSvg130();
+    var both=state.hr==="H3";
+    document.getElementById("oneChart").innerHTML=m==="score"?scoreSvg():m==="rain"?rainSvg(both):m==="temp"?tempSvg(both):windSvg130();
+    var legends={
+      score:'<span>Hours scored 60 or more are lime; 40–59 amber; under 40 red.</span>',
+      rain:'<span><i style="border-color:var(--rainAmount);border-top-width:6px"></i>median of 4</span><span><i style="border-color:var(--rainMark);border-top-style:dashed"></i>GFS, ECMWF, ICON (wet)</span><span><i style="border-color:var(--muted);border-top-style:dotted"></i>GEM (dry)</span>',
+      temp:'<span><i style="border-color:var(--air)"></i>median</span><span><i style="border-top:8px solid rgba(207,232,255,.22)"></i>8 in 10 runs fall inside</span>',
+      wind:'<span><i style="border-color:var(--wind)"></i>wind</span><span><i style="border-color:var(--gust);border-top-style:dashed"></i>gusts</span>'
+    };
+    document.getElementById("oneLegend").innerHTML=legends[m];
     var st="";SCORE.forEach(function(v,k){st+='<i style="background:'+col(v)+';opacity:'+(HRS[k]>=8&&HRS[k]<18?1:.35)+'"class="'+(k===i?"read":"")+'" title="'+hl(HRS[k])+' · '+v+'"></i>'});
     document.getElementById("strip").innerHTML=st;
     var rr="";RAIN.forEach(function(v){rr+='<i style="background:'+(v>0?"var(--rainAmount)":"transparent")+';opacity:'+(v>0?Math.min(1,.35+v*9):0)+'"></i>'});
