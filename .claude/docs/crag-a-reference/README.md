@@ -74,6 +74,10 @@ explained overhang flag at Joshua Tree, and one explained `H5 step in rain amoun
 sandstone 24 h after rain, 5 points at 0.018"). Fresh crag was 17/18 (F17) until the
 fragile-rock rate cap below, and the H5 flag arrived with it.
 
+The "No sun" (`f0`) view feeds 0 W/m² to every hour since 2026-11-24, when the app deleted
+the `includeSun` option it used. The surface temperature is the same; an hour with no wind
+reading now withholds, as every other view's does.
+
 The H5 flag is a slope, not a jump. Swept in 0.002" steps, the score runs 86, 83, 78, 73, 69
 from 0.014" to 0.022", which is where a sprinkle stops drying out inside the 24 h. Storm sizing
 is `√(storm / 0.4")`, steepest near zero. Before the cap the same slope sat at 0.07", where it
