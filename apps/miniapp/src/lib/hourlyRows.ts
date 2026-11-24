@@ -9,6 +9,7 @@ import {
 } from '@weatherteam6/types'
 import { HOUR_MS } from '../components/charts/hourlySeries.js'
 import { mmToIn } from '../components/charts/rainBlocks.js'
+import { dryHours } from './hourlyDay.js'
 
 /**
  * The Hourly tab as rows (owner, 2026-11-24; mockup
@@ -78,6 +79,11 @@ export type HourRows = {
    * did not answer, is a gap, not a day without good hours (defect class 2).
    */
   noGood: boolean
+  /**
+   * No member wet in any row's hour, read from the same end-of-hour samples the
+   * rows print (`dryHours`). A row without its end sample is not dry.
+   */
+  dry: boolean
   /** True for a crag whose readings arrived; false for a city or a response without readings. */
   scored: boolean
 }
@@ -166,6 +172,9 @@ export function hourRows(
       }
     })
 
+  const ends = rows.map((r) => byMs.get(r.ms + HOUR_MS))
+  const dry = ends.every((e) => e !== undefined) && dryHours(ends.filter((e) => e !== undefined))
+
   const lows = rows.map((r) => r.lowF ?? r.tempF).filter((v): v is number => v !== null)
   const highs = rows.map((r) => r.highF ?? r.tempF).filter((v): v is number => v !== null)
   const maxRain = Math.max(0, ...rows.map((r) => r.rainIn ?? 0))
@@ -204,6 +213,7 @@ export function hourRows(
     good,
     noGood,
     scored,
+    dry,
   }
 }
 

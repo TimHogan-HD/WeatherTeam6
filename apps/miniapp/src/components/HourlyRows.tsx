@@ -5,7 +5,7 @@ import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton } from '../theme/styles.js'
 import { selection } from '../theme/glass.js'
 import { useNow } from '../hooks/useNow.js'
-import { dayChips, dryDay } from '../lib/hourlyDay.js'
+import { dayChips } from '../lib/hourlyDay.js'
 import { formatLocalHour } from '../lib/format.js'
 import {
   HOURLY_VIEWS,
@@ -66,11 +66,19 @@ function Num({ v, suffix, style }: { v: number | string | null; suffix?: string;
 }
 
 /** A bar on a printed scale; `from`/`to` are 0–1 of the track. Nothing but the track when there is no value. */
-function Bar({ from = 0, to, color, outline = false, children }: { from?: number; to: number | null; color: string; outline?: boolean; children?: ReactNode }) {
+/**
+ * A row's bar on its track. `gap` draws the track dashed: an unanswered hour must
+ * not look like a measured zero, which is the solid track with no bar (`readings.md`).
+ */
+function Bar({ from = 0, to, color, outline = false, gap = false, children }: { from?: number; to: number | null; color: string; outline?: boolean; gap?: boolean; children?: ReactNode }) {
   const clamp = (x: number) => Math.max(0, Math.min(1, x))
   return (
     <span aria-hidden="true" style={{ position: 'relative', height: 16, display: 'block' }}>
-      <i style={{ position: 'absolute', left: 0, right: 0, top: 6, height: 4, borderRadius: BAR_RADIUS, background: colorsV2.tempBarTrack }} />
+      {gap ? (
+        <i data-gap="" style={{ position: 'absolute', left: 0, right: 0, top: 7, height: 0, borderTop: `2px dashed ${colorsV2.tempBarTrack}` }} />
+      ) : (
+        <i style={{ position: 'absolute', left: 0, right: 0, top: 6, height: 4, borderRadius: BAR_RADIUS, background: colorsV2.tempBarTrack }} />
+      )}
       {to === null ? null : (
         <i
           style={{
@@ -123,7 +131,7 @@ export function HourlyRows({ series, selectedDate, onSelectDate, readMs, onRead,
   const offset = series.utc_offset_seconds
   const hourLabel = (ms: number) => formatLocalHour(ms, offset) ?? EM_DASH
 
-  const { rows, scale, good, noGood, scored } = hourRows(series, selectedDate, { showScore }, (w) => windowValue(w, offset))
+  const { rows, scale, good, noGood, scored, dry } = hourRows(series, selectedDate, { showScore }, (w) => windowValue(w, offset))
   const chips = dayChips(series.days)
   const isToday = chips[0]?.local_date === selectedDate
   const ahead = isToday ? firstAhead(rows, now) : 0
@@ -188,7 +196,7 @@ export function HourlyRows({ series, selectedDate, onSelectDate, readMs, onRead,
         const t = span(r.tempF, r.tempF)
         return [
           <Num key="t" v={r.tempF === null ? null : `${r.tempF}°`} style={typeV2.weekScore} />,
-          <Bar key="b" from={s?.[0] ?? 0} to={s?.[1] ?? null} color={chartColorsV2.airBand}>
+          <Bar key="b" from={s?.[0] ?? 0} to={s?.[1] ?? null} color={chartColorsV2.airBand} gap={r.tempF === null}>
             {t?.[0] == null ? null : (
               <i style={{ position: 'absolute', top: 3, width: 10, height: 10, borderRadius: '50%', background: chartColorsV2.air, left: `calc(${t[0] * 100}% - 5px)` }} />
             )}
@@ -200,13 +208,13 @@ export function HourlyRows({ series, selectedDate, onSelectDate, readMs, onRead,
       case 'rain':
         return [
           <Num key="c" v={r.chancePct} suffix="%" style={{ color: r.chancePct !== null && r.chancePct >= 20 ? colorsV2.rain : colorsV2.txtMuted }} />,
-          <Bar key="b" to={r.rainIn === null || r.rainIn === 0 ? null : r.rainIn / scale.rainTopIn} color={colorsV2.rainAmount} />,
+          <Bar key="b" to={r.rainIn === null || r.rainIn === 0 ? null : r.rainIn / scale.rainTopIn} color={colorsV2.rainAmount} gap={r.rainIn === null} />,
           <Num key="a" v={rowInches(r.rainIn)} style={r.rainIn !== null && r.rainIn > 0 ? { color: colorsV2.rainAmount } : muted} />,
         ]
       case 'wind':
         return [
           <span key="w" style={figure}>{r.windMph === null ? dash : <><Arrow fromDeg={r.windFromDeg} />{r.windMph}</>}</span>,
-          <Bar key="b" to={r.windMph === null ? null : r.windMph / scale.windTopMph} color={colorsV2.wind}>
+          <Bar key="b" to={r.windMph === null ? null : r.windMph / scale.windTopMph} color={colorsV2.wind} gap={r.windMph === null}>
             {r.gustMph === null ? null : (
               <i style={{ position: 'absolute', top: 4, height: 8, borderRadius: BAR_RADIUS, left: 0, width: `${Math.min(1, r.gustMph / scale.windTopMph) * 100}%`, boxShadow: `inset 0 0 0 1.5px ${colorsV2.gust}`, opacity: 0.55 }} />
             )}
@@ -217,14 +225,13 @@ export function HourlyRows({ series, selectedDate, onSelectDate, readMs, onRead,
         return r.daylight === false
           ? [<Bar key="b" to={null} color={colorsV2.sun} />, <span key="n" style={{ ...figure, ...muted }}>dark</span>]
           : [
-              <Bar key="b" to={r.sunMin === null || r.sunMin === 0 ? null : r.sunMin / 60} color={colorsV2.sun} />,
+              <Bar key="b" to={r.sunMin === null || r.sunMin === 0 ? null : r.sunMin / 60} color={colorsV2.sun} gap={r.sunMin === null} />,
               <Num key="m" v={r.sunMin} style={r.sunMin === 0 ? muted : {}} />,
             ]
     }
   }
 
   const dayName = chips.find((c) => c.local_date === selectedDate)?.label ?? null
-  const dry = dryDay(series.hours, selectedDate)
 
   return (
     <div>

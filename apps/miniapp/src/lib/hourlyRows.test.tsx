@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   windowValue,
   type HourlyDay,
@@ -113,6 +113,17 @@ describe('hourRows — which sample a figure comes from', () => {
     expect(hourRows(series(cut), DAY_1, CITY, label).rows[23]).toMatchObject({ chancePct: null, rainIn: null })
   })
 
+  it('calls a day dry from the same end-of-hour samples the rows print', () => {
+    // Wet only at the next midnight: that is this day's 11 PM hour.
+    const lateWet = twoDays.map((h, i) => (i === 24 ? { ...h, precip_chance_pct: 30 } : h))
+    expect(hourRows(series(lateWet), DAY_1, CITY, label).dry).toBe(false)
+    // Wet only at this day's midnight: that is yesterday's 11 PM hour.
+    const earlyWet = twoDays.map((h, i) => (i === 0 ? { ...h, precip_chance_pct: 30 } : h))
+    expect(hourRows(series(earlyWet), DAY_1, CITY, label).dry).toBe(true)
+    // A row without its end sample is not dry.
+    expect(hourRows(series(twoDays.slice(0, 24)), DAY_1, CITY, label).dry).toBe(false)
+  })
+
   it('keeps every gap a null, never a zero', () => {
     const gaps = twoDays.map((h) => ({ ...h, temp_c_p50: null, wind_kmh_p50: null, wind_gust_kmh: null, humidity_pct: null, precip_chance_pct: null, precip_mm_mean: null }))
     const r = hourRows(series(gaps), DAY_1, CITY, label).rows[3]!
@@ -218,6 +229,17 @@ describe('HourlyRows — on screen', () => {
   it('prints a gap as a dash', () => {
     const gaps = twoDays.map((h) => (h.local_date === DAY_2 ? { ...h, temp_c_p50: null } : h))
     expect(render(series(gaps), false)).toContain('>—<')
+  })
+
+  it('draws an unanswered hour’s track dashed, and a measured zero solid', () => {
+    // The day after, so the 11 PM row has the stamp that closes its hour.
+    const full = [...twoDays, hour(48, { local_date: '2026-09-17' })]
+    // The All view draws no bars; open the Temp view as a remembered choice.
+    vi.stubGlobal('window', { localStorage: { getItem: () => 'temp', setItem: () => {} } })
+    expect(render(series(full), false)).not.toContain('data-gap')
+    const gaps = full.map((h) => (h.local_date === DAY_2 ? { ...h, temp_c_p50: null } : h))
+    expect(render(series(gaps), false)).toContain('data-gap')
+    vi.unstubAllGlobals()
   })
 
   it('opens the hour the header reads, with every figure labelled', () => {
