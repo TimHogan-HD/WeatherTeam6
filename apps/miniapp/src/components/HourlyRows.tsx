@@ -13,11 +13,15 @@ import {
   firstAhead,
   hourRows,
   rowInches,
+  savedMode,
   savedView,
+  saveMode,
   saveView,
   type HourRow,
+  type HourlyMode,
   type HourlyView,
 } from '../lib/hourlyRows.js'
+import { HourlyCharts } from './charts/HourlyCharts.js'
 import { BAR_RADIUS, chartColorsV2, scoreColor } from './charts/chartStyle.js'
 import { HOUR_MS } from './charts/hourlySeries.js'
 import { NightIcon, SkyIcon } from './Icons.js'
@@ -35,6 +39,13 @@ import { SelectionIndicator, useSelectedRect } from './SelectionIndicator.js'
  * hour and makes it the hour the slim header reads.
  *
  * The join of figures to rows, and every null, is `lib/hourlyRows.ts`'s.
+ *
+ * **List or Chart** (owner, 2026-11-24: mockup
+ * `docs/handoffs/design-mockups/hourly-chart-view.html`, variant A): a switch
+ * at the end of the chip row draws the same rows as the charts Hourly had
+ * before (`charts/HourlyCharts.tsx`). The chips keep their meaning: All stacks
+ * the four charts, any other view draws its one chart with the read hour's
+ * figures under it. One read hour serves both, so switching keeps the place.
  */
 
 export type HourlyRowsProps = {
@@ -130,6 +141,8 @@ const VIEW_COLS: Record<HourlyView, string> = {
 export function HourlyRows({ series, selectedDate, onSelectDate, readMs, onRead, showScore }: HourlyRowsProps) {
   const now = useNow()
   const [view, setView] = useState<HourlyView>(savedView)
+  const [mode, setMode] = useState<HourlyMode>(savedMode)
+  const chart = mode === 'chart'
   // Open follows the hour the header reads; tapping the open row closes it without moving the header.
   const [closed, setClosed] = useState<number | null>(null)
   const [earlier, setEarlier] = useState<string | null>(null)
@@ -163,6 +176,12 @@ export function HourlyRows({ series, selectedDate, onSelectDate, readMs, onRead,
   const pick = (v: HourlyView) => {
     setView(v)
     saveView(v)
+  }
+  const switchMode = (m: HourlyMode) => {
+    setMode(m)
+    saveMode(m)
+    // The chart reads an hour, so it opens on the one the header reads, even after its row was closed.
+    setClosed(null)
   }
   const tap = (ms: number) => {
     if (ms === openMs) {
@@ -253,7 +272,8 @@ export function HourlyRows({ series, selectedDate, onSelectDate, readMs, onRead,
         }}
       >
         <DayStrip series={series} selectedDate={selectedDate} onSelectDate={onSelectDate} />
-        <div role="group" aria-label="Show" style={{ display: 'grid', gridTemplateColumns: `repeat(${HOURLY_VIEWS.length}, minmax(0,1fr))`, gap: 4, padding: '8px 0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 0' }}>
+        <div role="group" aria-label="Show" style={{ flex: 1, minWidth: 0, display: 'grid', gridTemplateColumns: `repeat(${HOURLY_VIEWS.length}, minmax(0,1fr))`, gap: 4 }}>
           {HOURLY_VIEWS.map((o) => {
             const on = o.key === view
             return (
@@ -278,12 +298,16 @@ export function HourlyRows({ series, selectedDate, onSelectDate, readMs, onRead,
             )
           })}
         </div>
+        <ModeSwitch mode={mode} onChange={switchMode} />
+        </div>
+        {chart ? null : (
         <div aria-hidden="true" style={{ ...grid, ...typeV2.daySmall, alignItems: 'end', padding: '2px 0 6px', lineHeight: 1.2 }}>
           <span>Hour</span>
           <span />
           {scored ? head('Score') : null}
           {heads[view].map((n, i) => <Fragment key={i}>{n}</Fragment>)}
         </div>
+        )}
       </div>
 
       {good !== null || noGood ? (
@@ -303,7 +327,38 @@ export function HourlyRows({ series, selectedDate, onSelectDate, readMs, onRead,
         <p style={{ ...typeV2.daySub, margin: 0, padding: '8px 0 4px' }}>Dry all day: no ensemble member has measurable rain in any hour.</p>
       ) : null}
 
-      {isToday && ahead > 0 && !showEarlier ? (
+      {chart ? (
+        rows.length === 0 ? (
+          <p style={{ ...typeV2.daySub, margin: '12px 0' }}>No hour-by-hour forecast for this day.</p>
+        ) : (
+          <>
+            <HourlyCharts
+              rows={rows}
+              rainTopIn={scale.rainTopIn}
+              good={good}
+              scored={scored}
+              view={view}
+              utcOffsetSeconds={offset}
+              nowMs={now}
+              readMs={readMs}
+              onRead={onRead}
+            />
+            {view === 'all' ? null : (() => {
+              const r = readMs === null ? undefined : rows.find((x) => x.ms === readMs)
+              return r === undefined ? (
+                <p style={{ ...typeV2.daySub, margin: '8px 0' }}>Drag across the chart to read an hour.</p>
+              ) : (
+                <>
+                  <p style={{ ...typeV2.hourPick, color: colorsV2.txt1, margin: '12px 0 6px' }}>{dayName === null ? '' : `${dayName} `}{hourLabel(r.ms)}</p>
+                  <Detail row={r} scored={scored} hourLabel={hourLabel} />
+                </>
+              )
+            })()}
+          </>
+        )
+      ) : null}
+
+      {!chart && isToday && ahead > 0 && !showEarlier ? (
         <button
           type="button"
           onClick={() => setEarlier(selectedDate)}
@@ -313,7 +368,7 @@ export function HourlyRows({ series, selectedDate, onSelectDate, readMs, onRead,
         </button>
       ) : null}
 
-      {shown.length === 0 ? (
+      {chart ? null : shown.length === 0 ? (
         <p style={{ ...typeV2.daySub, margin: '12px 0' }}>No hour-by-hour forecast for this day.</p>
       ) : (
         <ol style={{ listStyle: 'none', margin: 0, padding: 0 }}>
@@ -350,11 +405,63 @@ export function HourlyRows({ series, selectedDate, onSelectDate, readMs, onRead,
       )}
 
       <p style={{ ...typeV2.note, margin: '14px 0 0' }}>
-        A row is the hour that starts at its time. Temperature, rain and wind are the ensemble: the middle of its members,
-        the likely range in an opened hour, rain as their mean. Chance of rain is the share of members wet in the hour.
+        {chart ? 'A chart’s hour is the one that starts at its time; a line marks that hour’s start, a bar covers the hour. ' : 'A row is the hour that starts at its time. '}Temperature, rain and wind are the ensemble: the middle of its members,
+        {chart ? ' the likely range shaded,' : ' the likely range in an opened hour,'} rain as their mean. Chance of rain is the share of members wet in the hour.
         {model === null ? '' : ` Humidity, dew point, gusts and wind direction are ${model}’s.`}
         {sunModel === null ? '' : ` Sun is ${sunModel}’s minutes of bright sun, on flat ground.`}
       </p>
+    </div>
+  )
+}
+
+const LIST_ICON = (
+  <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+    <path d="M3 4.5h12M3 9h12M3 13.5h12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+  </svg>
+)
+const CHART_ICON = (
+  <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+    <path d="M2.5 13.5 6.5 8l3.5 3 5.5-7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
+/**
+ * List or Chart: two icons in one pill, so it reads as a different kind of
+ * control from the view chips beside it. Pressed buttons, as the chips are.
+ */
+function ModeSwitch({ mode, onChange }: { mode: HourlyMode; onChange: (m: HourlyMode) => void }) {
+  const option = (m: HourlyMode, label: string, icon: ReactNode) => {
+    const on = mode === m
+    return (
+      <button
+        type="button"
+        aria-pressed={on}
+        aria-label={label}
+        title={label}
+        onClick={() => onChange(m)}
+        style={{
+          ...bareButton,
+          width: 38,
+          height: 36,
+          borderRadius: radius.full,
+          display: 'grid',
+          placeItems: 'center',
+          background: on ? selection.fill : 'none',
+          color: on ? colorsV2.brandInk : colorsV2.txtTab,
+        }}
+      >
+        {icon}
+      </button>
+    )
+  }
+  return (
+    <div
+      role="group"
+      aria-label="Show as"
+      style={{ flex: 'none', display: 'flex', padding: 1, borderRadius: radius.full, border: `1px solid ${colorsV2.line}`, background: colorsV2.surface }}
+    >
+      {option('list', 'List', LIST_ICON)}
+      {option('chart', 'Chart', CHART_ICON)}
     </div>
   )
 }

@@ -53,7 +53,9 @@ Upstream fetches, ensemble statistics, and how runs are stored, read and pruned.
   amount scale made a trace look like a downpour; a rain amount on screen has a scale.
   **Hourly prints rain per hour** (owner, 2026-11-24, superseding 2026-10-30's threes there;
   mockup `hourly-rows.html`): each row prints its inches, and the Rain view's bar runs on a
-  scale printed in its column head (0 to 0.10 in, growing to hold the wettest hour).
+  scale printed in its column head (0 to 0.10 in, growing to hold the wettest hour). Its
+  Chart mode draws the same per-hour inches on that same scale, under a row of chance cells
+  (owner's pick C, `hourly-chart-view.html`).
 - **A deterministic multi-model response labels its columns only while more than one model
   has coverage.** `parseDeterministicHourly` trusts a bare column only when exactly one model
   was requested; otherwise it reports `ambiguous` and `fetchDeterministicHourly` re-asks one

@@ -53,12 +53,17 @@ export type HourRow = {
   rainIn: number | null
   /** Ensemble median, mph. */
   windMph: number | null
+  /** Ensemble p10 and p90, mph: the wind chart's likely range. */
+  windLowMph: number | null
+  windHighMph: number | null
   /** The deterministic gust, never below the median it sits over (`gustSeries`), mph. */
   gustMph: number | null
   /** Where the wind blows from, degrees. Deterministic. */
   windFromDeg: number | null
   /** Minutes of bright sun in the hour; null is no answer. */
   sunMin: number | null
+  /** Share of the sky in cloud over the hour, 0–100 (`THERMAL_MODEL`'s, beside the sun). */
+  cloudPct: number | null
   /** The sun is up for some of the hour. Null when the sky series has no such hour. */
   daylight: boolean | null
   sky: SkyCondition | null
@@ -162,11 +167,14 @@ export function hourRows(
         chancePct: round(end?.precip_chance_pct ?? null),
         rainIn: rainMm === null ? null : mmToIn(rainMm),
         windMph: round(wind),
+        windLowMph: round(mph(h.wind_kmh_p10)),
+        windHighMph: round(mph(h.wind_kmh_p90)),
         gustMph: round(gust),
         windFromDeg: h.wind_dir_deg ?? null,
         // Night is `daylight: false`, said as a word; no minutes figure stands in for it.
         sunMin: sun === undefined || !sun.daylight ? null : round(sun.sun_min),
         daylight: sun === undefined ? null : sun.daylight,
+        cloudPct: round(sun?.cloud_pct ?? null),
         sky: skyByMs.get(ms + HOUR_MS) ?? null,
         score: scoreOf(h.valid_at),
       }
@@ -238,6 +246,27 @@ export function compass(deg: number | null): string | null {
 }
 
 const VIEW_KEY = 'wt6.hourlyView'
+const MODE_KEY = 'wt6.hourlyMode'
+
+/** Hourly as rows or as charts (owner, 2026-11-24: mockup `hourly-chart-view.html`, variant A). */
+export type HourlyMode = 'list' | 'chart'
+
+/** The List / Chart switch, remembered on this device; anything else reads as the list. */
+export function savedMode(): HourlyMode {
+  try {
+    return window.localStorage.getItem(MODE_KEY) === 'chart' ? 'chart' : 'list'
+  } catch {
+    return 'list'
+  }
+}
+
+export function saveMode(mode: HourlyMode): void {
+  try {
+    window.localStorage.setItem(MODE_KEY, mode)
+  } catch {
+    // Unavailable storage costs only the mode on the next open.
+  }
+}
 
 /** The picker's view, remembered on this device; storage that throws or holds junk reads as `all`. */
 export function savedView(): HourlyView {

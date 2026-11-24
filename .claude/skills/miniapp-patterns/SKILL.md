@@ -134,6 +134,9 @@ renders wrong-but-plausible if broken:
   wind direction are `HourlySeries.model`'s deterministic columns, and the footnote names
   that model from the response. A row is the hour starting at its label: its chance, rain,
   sun and sky come from the stamp an hour later, the 11 PM row's from the next midnight.
+  Its Chart mode (`charts/HourlyCharts.tsx`) draws those same `HourRow`s, never the raw
+  samples, so a chart and its row cannot disagree; a line marks a row's start, a bar covers
+  its hour, and the frame reads with `snap="floor"`.
 - **The Precip tab (`PrecipTab.tsx`, decisions in `lib/precipHistory.ts`) is model
   estimates, checked against NOAA radar at a US crag, and says so.** It names radar only
   when `rain_radar` is true and says what radar dried or added (#468, `scoring.md`); it

@@ -102,7 +102,7 @@ describe('hourRows — which sample a figure comes from', () => {
     const sun: SunHour[] = [{ valid_at: at(7), local_date: DAY_1, daylight: true, sun_min: 25, shortwave_wm2: 300, cloud_pct: 40 }]
     const { rows } = hourRows(series(hours, { sky: { model: 'gfs_seamless', hours: [], sun, days: [] } }), DAY_1, CITY, label)
     // The 6 AM row is 6 to 7 AM: the rain stamped 7:00 fell in it.
-    expect(rows[6]).toMatchObject({ chancePct: 70, rainIn: 0.1, sunMin: 25, tempF: 59 })
+    expect(rows[6]).toMatchObject({ chancePct: 70, rainIn: 0.1, sunMin: 25, cloudPct: 40, tempF: 59 })
     // The 7 AM row's temperature is the 7:00 sample's; its rain is the 8:00 stamp's.
     expect(rows[7]).toMatchObject({ tempF: 50, chancePct: 0, rainIn: 0 })
   })
