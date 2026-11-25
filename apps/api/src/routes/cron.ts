@@ -7,6 +7,7 @@ import { collectWeatherRuns } from '../lib/runs/collectRuns.js'
 import { pruneWeatherRuns } from '../lib/runs/pruneRuns.js'
 import { recordTripDays } from '../lib/trips/recordTripDays.js'
 import { collectRadarRain } from '../lib/runs/radarRain.js'
+import { collectSensors } from '../lib/sensors/collectSensors.js'
 import type { ApiResponse } from '@weatherteam6/types'
 
 export const cronRouter = Router()
@@ -171,5 +172,28 @@ cronRouter.post('/collect-radar', async (req: Request, res: Response) => {
     res.status(200).json(response)
   } catch (err) {
     sendServerError(res, err, 'POST /api/cron/collect-radar')
+  }
+})
+
+/**
+ * Store a reading from each of the owner's Govee thermometers (owner,
+ * 2026-11-25; `collectSensors`). Schedule it every 30 minutes. Fail-closed like
+ * the gate: no `GOVEE_API_KEY` is a 503, never a quiet `devices: 0`. An
+ * unreadable device list is a 500; one device failing is `failed` in a 200.
+ */
+cronRouter.post('/collect-sensors', async (req: Request, res: Response) => {
+  if (cronGateFailed(req, res)) return
+  const key = process.env['GOVEE_API_KEY']
+  if (!key) {
+    res.status(503).json({ data: null, error: 'Sensor collection unavailable: GOVEE_API_KEY is not configured', status: 503 })
+    return
+  }
+
+  try {
+    const result = await collectSensors(key)
+    const response: ApiResponse<typeof result> = { data: result, error: null, status: 200 }
+    res.status(200).json(response)
+  } catch (err) {
+    sendServerError(res, err, 'POST /api/cron/collect-sensors')
   }
 })

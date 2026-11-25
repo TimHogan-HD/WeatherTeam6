@@ -64,7 +64,8 @@ it is how env vars get set, because the Vercel MCP's `projectEnvVars` 403s.
 
 **cron-job.org** calls `check-alerts`, `collect-runs` and `prune-runs`. `record-trips` and
 `collect-radar` exist too; confirm in cron-job.org that they are registered before relying on
-their rows.
+their rows. `collect-sensors` (the owner's thermometer, every 30 minutes) needs `GOVEE_API_KEY`
+on this project and answers 503 without it.
 
 **Function CPU is the limit this project hits first.** On 2026-11-14 the Hobby team was paused
 after using its 4 h a month of Fluid Active CPU, about 8 min a day, all of it this function; the

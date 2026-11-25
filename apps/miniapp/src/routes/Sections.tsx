@@ -7,6 +7,7 @@ import { FeedbackButton } from '../components/FeedbackButton.js'
 import { Settings } from '../components/Settings.js'
 import { InviteCard } from '../components/InviteCard.js'
 import { EveryonesFeedbackCard } from '../components/EveryonesFeedbackCard.js'
+import { ThermometerCard } from '../components/ThermometerCard.js'
 import { ScoreExplainer } from '../components/ScoreExplainer.js'
 import { usePreferences } from '../hooks/usePreferences.js'
 import { draftFromPreferences } from '../lib/preferencesForm.js'
@@ -67,6 +68,7 @@ export function Profile() {
     <SectionScreen title="Profile" action={<FeedbackButton />}>
       <Settings />
       <EveryonesFeedbackCard />
+      <ThermometerCard />
       <InviteCard />
       <ScoreExplainer rangeF={range === null ? null : { low: range.lowF, high: range.highF }} />
       <button type="button" style={{ ...quietButton, alignSelf: 'flex-start', minHeight: '44px' }} onClick={() => navigate('/welcome', { state: welcome })}>

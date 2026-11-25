@@ -31,6 +31,7 @@ weather_runs              -- one fetch of one model at one place (point_key, no 
 weather_run_hours         -- a deterministic run's hours, keyed off run_id
 weather_ensemble_hours    -- an ensemble run's hours as percentiles, keyed off run_id
 radar_rain_hours          -- observed rain per radar cell (no location_id); /api/cron/collect-radar
+sensor_readings           -- the owner's Govee thermometer, one row per online reading (no location_id, no user_id); /api/cron/collect-sensors
 ```
 
 ## Key relationships

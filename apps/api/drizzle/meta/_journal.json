@@ -344,6 +344,13 @@
       "when": 1795563790904,
       "tag": "0048_drop_phase0_preferences",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1795608697144,
+      "tag": "0049_sensor_readings",
+      "breakpoints": true
     }
   ]
 }

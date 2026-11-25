@@ -28,6 +28,7 @@ import { rainGaugesRouter } from './routes/rainGauges.js'
 import { visitsRouter } from './routes/visits.js'
 import { soilRouter } from './routes/soil.js'
 import { usageRouter } from './routes/usage.js'
+import { sensorsRouter } from './routes/sensors.js'
 import { allowedOriginPatterns, originAllowed } from './lib/cors.js';
 
 /**
@@ -137,6 +138,7 @@ export function createApp(): Express {
     visitsRouter,
     soilRouter,
     usageRouter,
+    sensorsRouter,
   );
 
   app.use((_req: Request, res: Response) => {
