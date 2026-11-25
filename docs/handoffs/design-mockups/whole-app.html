@@ -1170,7 +1170,7 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid #fff;outline-off
    Motion: nothing loops while the page sits still. The grain is a fixed texture, the lights hold
    their place, the dial glow and the trip water stop swelling. Transitions on a tap stay. */
 .phone::after{animation:none}
-.light,.gw .light,.app .wglow i,.lr .water .cau,.lr .men,.tkd .glow,.lw .wt svg,.lw .wt::after{animation:none!important}
+.light,.gw .light,.app .wglow i,.app .rnow i,.lr .water .cau,.lr .water::before,.lr .surf,.lr .men,.tkd .glow,.lw .wt svg,.lw .wt::after{animation:none!important}
 .halo{animation:none;transform:scale(1.5);opacity:.22}
 /* Targets: 44 px for every control at the screen's edges */
 .back,.find,.head .back,.head .find,.app .rb{width:44px;height:44px}
@@ -1545,7 +1545,7 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid #fff;outline-off
 <li><b>Header:</b> one line under the crag's name ("Updated 9:12 AM"). The rock is on Now and Rock.</li>
 <li><b>Footer:</b> Sources, Check this forecast and Edit crag on every crag tab. Remove location is on Edit crag only, not in red on six tabs. Rock's button is called Check this forecast too, so one action has one name.</li>
 <li><b>Grades are a neutral ramp</b>, lighter as harder. Lime, orange and red now mean a score and nothing else. Grade bars draw without a pick (they were the ground colour and read as empty), and the bar animation no longer takes three seconds to reach them.</li>
-<li><b>Nothing loops while the page sits still:</b> the grain is a fixed texture, the lights hold their place, the dial glow and trip water stop swelling, and the chart's dot keeps a still ring. Taps and transitions still move.</li>
+<li><b>Nothing loops while the page sits still:</b> the grain is a fixed texture, the lights hold their place, the dial glow and trip water stop swelling, the Last rain water settles flat a few seconds after it fills or is tapped, and the chart's dot keeps a still ring. Taps and transitions still move.</li>
 <li><b>Rain:</b> Rain gauges is one tap away, under its verdict ("Matched"), rather than a second headline under Last rain.</li>
 <li><b>Rock:</b> Walls comes before the sun dial, since the question on Rock is which wall.</li>
 <li><b>Crag:</b> leads with Now and Walls today; the route counts are a row of figures under them, not the hero.</li>
@@ -1855,7 +1855,7 @@ function fillGauge(){window.__slosh&&window.__slosh(13);if(RM){setLevel(LAST);re
  const draw=now=>{const W=cv.clientWidth,H=cv.clientHeight,d=devicePixelRatio||1;if(!W)return;
    if(cv.width!==Math.round(W*d)||cv.height!==Math.round(H*d)){cv.width=Math.round(W*d);cv.height=Math.round(H*d)}
    g.setTransform(d,0,0,d,0,0);g.clearRect(0,0,W,H);const t=RM?0:now/1000,wl=level();
-   amp+=(2.4-amp)*.018;const k=Math.max(0,kick-t)*0;
+   amp+=(0-amp)*.018;const k=Math.max(0,kick-t)*0;
    const back=x=>wl-4+amp*.9*Math.sin(x*.017+t*1.25)+amp*.5*Math.sin(x*.043-t*.8);
    const front=x=>wl+amp*Math.sin(x*.021-t*1.55)+amp*.45*Math.sin(x*.052+t*1.05)+amp*.22*Math.sin(x*.11-t*2.4);
    const body=(f,fill)=>{g.beginPath();g.moveTo(0,H);for(let x=0;x<=W;x+=4)g.lineTo(x,f(x));g.lineTo(W,H);g.closePath();g.fillStyle=fill;g.fill()};
@@ -1871,7 +1871,7 @@ function fillGauge(){window.__slosh&&window.__slosh(13);if(RM){setLevel(LAST);re
    /* the lit edge */
    g.beginPath();for(let x=0;x<=W;x+=3){const y=front(x);x?g.lineTo(x,y):g.moveTo(x,y)}
    g.strokeStyle='rgba(238,242,255,.92)';g.lineWidth=1.6;g.shadowColor='rgba(200,212,255,.9)';g.shadowBlur=8;g.stroke();g.shadowBlur=0};
- const loop=now=>{draw(now);if(!$('pg2').hidden&&!RM)raf=requestAnimationFrame(loop);else raf=0};
+ const loop=now=>{draw(now);if(!$('pg2').hidden&&!RM&&amp>.05)raf=requestAnimationFrame(loop);else raf=0};
  window.__slosh=a=>{amp=Math.max(amp,a);if(!raf)raf=requestAnimationFrame(loop)};
  lr.addEventListener('pointerdown',()=>window.__slosh(11));
  new ResizeObserver(()=>draw(performance.now())).observe(lr)}
