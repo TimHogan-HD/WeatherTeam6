@@ -58,13 +58,16 @@ export function isValidUsername(value: string): boolean {
 }
 
 /**
- * `GET /me`. Both flags are true for the owner alone: `can_invite` gates the
- * invite card, `can_read_all_feedback` the card of everyone's feedback.
+ * `GET /me`. Every flag is true for the owner alone: `can_invite` gates the
+ * invite card, `can_read_all_feedback` the card of everyone's feedback,
+ * `can_read_sensors` the thermometer card (the owner's Govee key, the owner's
+ * device: a home thermometer says when someone is home).
  */
 export type Account = {
   username: string | null
   can_invite: boolean
   can_read_all_feedback: boolean
+  can_read_sensors: boolean
 }
 
 /**

@@ -730,3 +730,4 @@ export * from './riverGauges.js'
 export * from './soilStations.js'
 
 export * from './usage.js'
+export * from './sensors.js'

@@ -888,3 +888,27 @@ export const usageEvents = pgTable(
   },
   (t) => [index('usage_events_created_idx').on(t.created_at)],
 )
+
+/**
+ * **The owner's thermometer** (owner, 2026-11-25): one row per online reading
+ * of each Govee thermometer on the owner's Govee account, collected by
+ * `/api/cron/collect-sensors` for data building. Nothing scores from it.
+ * **No location** (owner, 2026-11-25): the device is portable and places are
+ * tagged later. **No account column**: the key is the owner's, so every row is
+ * the owner's (`isOwner` gates `GET /sensors`). No foreign keys, so no delete
+ * has to clear it. `recorded_at` is the minute the server asked (Govee reports
+ * no measurement time), which makes a retried collection a no-op. An offline
+ * device is not stored: Govee returns its last value, which is not a reading.
+ */
+export const sensorReadings = pgTable(
+  'sensor_readings',
+  {
+    device: text('device').notNull(),
+    sku: text('sku').notNull(),
+    device_name: text('device_name'),
+    recorded_at: timestamp('recorded_at', { withTimezone: true }).notNull(),
+    temp_c: doublePrecision('temp_c'),
+    humidity_pct: doublePrecision('humidity_pct'),
+  },
+  (t) => [primaryKey({ columns: [t.device, t.recorded_at] })],
+)

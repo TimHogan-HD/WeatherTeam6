@@ -150,7 +150,7 @@ jobs:
             npx tsx --import ./src/scripts/localPostgresPreload.ts $file
           }
           run_with_proxy db:seed
-          for c in auth invites edit-location delete-trip edit-trip feedback logbook preferences usage; do
+          for c in auth invites edit-location delete-trip edit-trip feedback logbook preferences usage sensors; do
             echo "::group::check:$c"
             run_with_proxy "check:$c"
             echo "::endgroup::"

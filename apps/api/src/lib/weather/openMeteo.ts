@@ -128,12 +128,15 @@ export const MIN_ATTEMPT_MS = 2_000
  * no room for a first attempt. A 5xx or 429 is retried and then thrown, so a test
  * that mocks 503 to reach a caller's `!res.ok` branch reaches its `catch` instead:
  * mock 403 for that.
+ * @param body when given, the request is a POST carrying it (Govee's state call);
+ * every other caller GETs, and its request is unchanged.
  */
 export async function fetchWithRetry(
   url: string,
   maxAttempts = 4,
   headers?: Record<string, string>,
   deadline: number = Date.now() + FETCH_BUDGET_MS,
+  body?: string,
 ): Promise<Response> {
   let lastErr: Error = new Error('fetch budget spent')
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -141,7 +144,8 @@ export async function fetchWithRetry(
     if (remaining < MIN_ATTEMPT_MS) break
     try {
       const signal = AbortSignal.timeout(Math.min(FETCH_TIMEOUT_MS, remaining))
-      const res = await fetch(url, headers ? { headers, signal } : { signal })
+      const init: RequestInit = headers ? { headers, signal } : { signal }
+      const res = await fetch(url, body === undefined ? init : { ...init, method: 'POST', body })
       if (res.ok) return res
       if (res.status !== 429 && res.status < 500) return res
       lastErr = new Error(`HTTP ${res.status}`)

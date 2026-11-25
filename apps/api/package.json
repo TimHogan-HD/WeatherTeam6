@@ -41,6 +41,7 @@
     "feedback": "tsx src/scripts/feedback.ts",
     "usage": "tsx src/scripts/usage.ts",
     "check:usage": "tsx src/scripts/checkUsage.ts",
+    "check:sensors": "tsx src/scripts/checkSensors.ts",
     "check:logbook": "tsx src/scripts/checkLogbook.ts",
     "check:preferences": "tsx src/scripts/checkPreferences.ts",
     "check:weather-runs": "tsx src/scripts/checkWeatherRuns.ts",

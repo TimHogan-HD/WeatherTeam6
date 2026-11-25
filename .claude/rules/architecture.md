@@ -47,7 +47,7 @@ seen them.
 - Route helpers live in `lib/http.ts`. Validate `uuid` params with `isUuid` (404, not a 500);
   funnel caught errors through `sendServerError`, which logs via `describeError` — never widen
   it to serialise an error object.
-- `/api/cron/collect-runs`, `/api/cron/prune-runs`, `/api/cron/record-trips` and `/api/cron/collect-radar` are gated on `CRON_SECRET` through
+- `/api/cron/collect-runs`, `/api/cron/prune-runs`, `/api/cron/record-trips`, `/api/cron/collect-radar` and `/api/cron/collect-sensors` are gated on `CRON_SECRET` through
   `cronGateFailed`, with `Promise.allSettled` across locations.
 - **Fetches run a 25 s per-attempt timeout (`FETCH_TIMEOUT_MS`) inside a 45 s budget** for all
   of a `fetchWithRetry` call's attempts (`FETCH_BUDGET_MS`). **The budget is per call, not per
