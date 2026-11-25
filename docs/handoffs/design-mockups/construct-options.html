@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Construct Options</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Four ideas from the Construct Design library, each applied to one WeatherTeam6 screen with Red Wing's sample day.
+   Same tokens as whole-app.html: Barlow / Barlow Condensed, #0c0d0f page, score colours only for scores. */
+:root{
+  color-scheme:dark;
+  --page:#0c0d0f; --card:#16181b; --hair:rgba(255,255,255,.1);
+  --t1:#ffffff; --t2:#c2c3c8; --t3:#9c9da3;
+  --good:#b8f542; --fair:#f6ad55; --poor:#fc8181;
+  --rain:#a5b4fc; --sun:#ffd36b;
+  --font:'Barlow',ui-sans-serif,system-ui,sans-serif; --disp:'Barlow Condensed','Barlow',ui-sans-serif,sans-serif;
+  --land:cubic-bezier(.3,1.25,.4,1); --roll:cubic-bezier(.3,.86,.3,1);
+}
+:root[data-theme="light"]{color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--t1);font-family:var(--font);font-variant-numeric:tabular-nums;
+  padding:24px max(16px,env(safe-area-inset-right,0px)) 56px max(16px,env(safe-area-inset-left,0px))}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:focus-visible,[tabindex]:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.top{max-width:1000px;margin:0 auto 20px;display:flex;flex-direction:column;gap:12px}
+.top h1{margin:0;font:700 34px/1 var(--disp)}
+.top p{margin:0;color:var(--t2);font-size:15px;line-height:1.5;max-width:640px}
+.opts{display:flex;gap:6px;flex-wrap:wrap}
+.opts button{min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--hair);font:600 15px/1 var(--disp);color:var(--t2)}
+.opts button[aria-selected="true"]{background:#fff;color:#0c0d0f;border-color:#fff}
+.wrap{max-width:1000px;margin:0 auto;display:flex;flex-wrap:wrap;gap:32px;justify-content:center;align-items:flex-start}
+.phone{width:390px;max-width:100%;height:844px;border-radius:44px;overflow:hidden;position:relative;background:var(--page);
+  box-shadow:0 0 0 8px #040506,0 30px 80px #000c;display:flex;flex-direction:column}
+.sb{height:50px;flex:none;display:flex;justify-content:space-between;align-items:flex-end;padding:0 30px 6px;font:600 15px/1 var(--font)}
+.hd{flex:none;display:flex;align-items:center;gap:12px;padding:8px 18px 4px}
+.hd .bk{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.08);display:grid;place-items:center}
+.hd h2{margin:0;font:600 20px/1.1 var(--disp)}
+.hd small{display:block;font-size:13px;color:var(--t3);margin-top:2px}
+#scr{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;position:relative;scrollbar-width:none}
+#scr::-webkit-scrollbar{display:none}
+.notes{flex:1 1 300px;min-width:0;max-width:460px;display:flex;flex-direction:column;gap:12px}
+.notes h3{margin:0;font:700 24px/1.1 var(--disp)}
+.notes h4{margin:8px 0 0;font:600 17px/1.2 var(--disp);color:var(--t1)}
+.notes p,.notes li{margin:0;color:var(--t2);line-height:1.55;font-size:15px}
+.notes ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.notes b{color:var(--t1);font-weight:600}
+.notes .src{font-size:13px;color:var(--t3)}
+.lbl{font:500 13px/1.2 var(--font);color:var(--t3)}
+.cap{font:500 17px/1.3 var(--font);color:var(--t2)}
+
+/* A rolling figure: the old value leaves upward while the new one comes from below, one curve (Margin). */
+.roll{position:relative;display:inline-block;overflow:hidden;padding:.06em .04em;margin:-.06em -.04em;vertical-align:top}
+.roll span{display:block;transition:transform .56s var(--roll)}
+.roll span.out{position:absolute;left:.04em;top:.06em}
+.big{font:700 96px/.9 var(--disp);letter-spacing:-.01em}
+.rule{height:2px;background:#fff;margin:12px 0 10px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 8px}
+.stats b{display:block;font:600 24px/1 var(--disp)}
+.stats b small{font-size:15px;font-weight:500;color:var(--t2);margin-left:2px}
+
+/* ---------- A: hour tape ---------- */
+.ta{padding:6px 20px 24px}
+.tape{position:relative;height:178px;margin:8px -20px 0;overflow:hidden;touch-action:pan-y;cursor:grab;user-select:none;
+  -webkit-mask:linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent);mask:linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent)}
+.tape.held{cursor:grabbing}
+.strip{position:absolute;left:0;top:0;height:100%;will-change:transform}
+.strip .b{position:absolute;bottom:62px;width:30px;border-radius:9px;background:#2a2d31;transition:background-color .25s}
+.strip .b.night{background:#1c1e21}
+.strip .b.on{background:var(--c)}
+.strip .t{position:absolute;bottom:38px;width:2px;border-radius:1px;background:rgba(255,255,255,.35)}
+.strip .t.h{background:rgba(255,255,255,.6)}
+.strip .hl{position:absolute;bottom:12px;width:40px;margin-left:-20px;text-align:center;font:500 13px/1 var(--font);color:var(--t3)}
+.strip .sun{position:absolute;bottom:38px;width:2px;height:120px;background:repeating-linear-gradient(var(--sun) 0 3px,transparent 3px 7px);opacity:.55}
+.strip .sl{position:absolute;top:0;font:500 12px/1 var(--font);color:var(--sun);white-space:nowrap;transform:translateX(-50%)}
+.needle{position:absolute;left:50%;top:10px;bottom:30px;width:2px;margin-left:-1px;background:#fff;pointer-events:none}
+.needle::after{content:"";position:absolute;left:50%;bottom:-6px;width:10px;height:10px;margin-left:-5px;border-radius:50%;background:#fff}
+.tw{display:flex;justify-content:space-between;margin-top:6px}
+
+/* ---------- B: day ring ---------- */
+.rb{padding:0 20px 24px;position:relative}
+.ringw{position:relative;width:350px;max-width:100%;aspect-ratio:1;margin:4px auto 0;touch-action:none;user-select:none}
+.ringw svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.glow{position:absolute;inset:8%;border-radius:50%;background:radial-gradient(closest-side,var(--gc) 0,transparent 100%);opacity:.22;transition:background .5s;pointer-events:none}
+.ctr{position:absolute;left:0;right:0;top:27%;text-align:center;pointer-events:none}
+.ctr .big{font-size:96px}
+.ctr .cap{margin-top:4px}
+.chord{position:absolute;left:0;right:0;display:flex;justify-content:space-between;pointer-events:none}
+.scale{margin-top:18px}
+.scale .r{display:flex;justify-content:space-between;align-items:baseline}
+.scale .r b{font:600 17px/1 var(--disp)}
+.ticks{position:relative;height:22px;margin-top:8px;display:flex;justify-content:space-between}
+.ticks i{width:1px;height:10px;background:rgba(255,255,255,.3);align-self:flex-end}
+.ticks .pin{position:absolute;bottom:0;width:3px;height:22px;margin-left:-1.5px;border-radius:2px;background:#fff;transition:left .5s var(--land)}
+
+/* ---------- C: card stack ---------- */
+.cs{position:relative;height:640px;margin:6px 8px 0}
+.cd{position:absolute;left:0;right:0;height:380px;border-radius:28px;background:var(--card);overflow:hidden;
+  box-shadow:0 -14px 30px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.12);transition:top .64s var(--land)}
+.cd::before{content:"";position:absolute;left:-10%;top:-60px;width:80%;height:220px;border-radius:50%;
+  background:radial-gradient(closest-side,var(--h) 0,transparent 100%);opacity:.28;pointer-events:none}
+.cd>button{position:relative;width:100%;min-height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;text-align:left}
+.cd>button .n{font:700 24px/1 var(--disp)}
+.cd>button .v{display:flex;align-items:center;gap:10px;font:600 20px/1 var(--disp)}
+.cd>button .v svg{transition:transform .4s var(--land);opacity:.7}
+.cd[data-open="true"]>button .v svg{transform:rotate(180deg)}
+.cd .body{position:relative;padding:4px 20px 20px;opacity:0;transform:translateY(6px);transition:opacity .25s,transform .35s var(--land)}
+.cd[data-open="true"] .body{opacity:1;transform:none}
+.hrs{display:flex;justify-content:space-between;margin-top:6px}
+.hrs div{text-align:center}
+.hrs b{display:block;font:600 24px/1 var(--disp)}
+.sent{font-size:15px;line-height:1.45;color:var(--t2);margin:14px 0 0}
+.comet{position:relative;height:14px;margin:16px 0 6px;border-radius:7px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.22) 0 1px,transparent 1px 4px)}
+.comet i{position:absolute;left:0;top:0;bottom:0;border-radius:7px;background:linear-gradient(90deg,transparent,#eceef2 60%)}
+.comet s{position:absolute;top:-6px;bottom:-6px;width:2px;background:#fff}
+.lr2{display:flex;justify-content:space-between}
+
+/* ---------- D: month of dots ---------- */
+.dm{padding:0 22px 24px}
+.dfig{font:700 150px/.8 var(--disp);letter-spacing:-.02em;margin-top:6px}
+.dline{display:flex;justify-content:space-between;align-items:baseline;margin-top:14px}
+.dline b{font:700 28px/1 var(--disp)}
+.dline span{font:600 28px/1 var(--disp);color:var(--t3)}
+.wkd,.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:18px}
+.wkd{margin-top:22px}
+.wkd span{text-align:center;font:500 12px/1 var(--font);color:var(--t3)}
+.grid{margin-top:8px;position:relative}
+.dot{aspect-ratio:1;border-radius:50%;display:grid;place-items:center;font:600 13px/1 var(--disp);min-width:44px;min-height:44px;
+  transition:transform .62s var(--land),box-shadow .2s}
+.dot.f{background:var(--c);color:#0c0d0f}
+.dot.r{box-shadow:inset 0 0 0 2px var(--c);color:var(--t1)}
+.dot.g{background:#202226;color:var(--t3)}
+.dot.p{box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);color:#6b6d72}
+.dot[aria-pressed="true"]{outline:2px solid #fff;outline-offset:3px}
+.dot.dip{transform:scale(.8)}
+.trip{position:absolute;border:1.5px solid #fff;border-radius:30px;pointer-events:none}
+.trip span{position:absolute;top:-10px;left:14px;padding:0 6px;background:var(--page);font:600 12px/1.2 var(--disp);letter-spacing:.06em;text-transform:uppercase}
+.leg{display:flex;gap:16px;flex-wrap:wrap;margin-top:16px}
+.leg span{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--t3)}
+.leg i{width:12px;height:12px;border-radius:50%}
+.dcard{margin-top:16px;padding:16px 18px;border-radius:22px;background:var(--card);min-height:104px}
+.dcard .row{display:flex;justify-content:space-between;align-items:baseline}
+.dcard .row b{font:700 34px/1 var(--disp)}
+.dcard p{margin:8px 0 0;font-size:15px;line-height:1.45;color:var(--t2)}
+
+@media (prefers-reduced-motion:reduce){
+  *{transition-duration:.01ms!important}
+}
+</style></head>
+<body>
+<header class="top">
+  <h1>More UI options, from Construct</h1>
+  <p>Four ideas from the Construct Design library, each built as one WeatherTeam6 screen with Red Wing's sample day (score 52 at 9 AM, good 10 AM to 6 PM, rain likely Saturday). They are options to react to, not a plan: pick, mix or throw out.</p>
+  <div class="opts" role="tablist" aria-label="Option">
+    <button role="tab" data-o="a" aria-selected="true">A · Hour tape</button>
+    <button role="tab" data-o="b" aria-selected="false">B · Day ring</button>
+    <button role="tab" data-o="c" aria-selected="false">C · Card stack</button>
+    <button role="tab" data-o="d" aria-selected="false">D · Month of dots</button>
+  </div>
+</header>
+<div class="wrap">
+  <div class="phone">
+    <div class="sb"><span>9:41</span><span aria-hidden="true">●●● ▭</span></div>
+    <div class="hd" id="hd"><span class="bk" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M7.5 2.5 4 6l3.5 3.5" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div><h2 id="hdT">Red Wing</h2><small id="hdS">Hours · updated 9:12 AM</small></div></div>
+    <div id="scr" role="tabpanel"></div>
+  </div>
+  <aside class="notes" id="notes"></aside>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+/* Red Wing's sample day, hour 0 to 23, matching whole-app.html (3a 31, 6a 38, 9a 52, 12p 76, 3p 83, 6p 55). */
+const SC=[26,27,29,31,33,35,38,42,47,52,61,69,76,80,82,83,78,66,55,46,40,35,31,28];
+const AIR=[25,24,24,23,23,23,23,24,26,29,32,35,37,39,40,41,40,38,35,33,31,30,29,28];
+const DEW=[22,22,21,21,21,21,21,22,22,23,23,23,23,22,22,22,22,22,22,22,22,22,22,22];
+const WIND=[5,5,4,4,4,5,6,7,7,8,9,10,11,12,12,13,12,10,8,7,6,6,5,5];
+const SUNM=[0,0,0,0,0,0,0,48,60,52,60,60,60,60,60,60,36,0,0,0,0,0,0,0];
+const RISE=7.2,SET=16.6,NOW=9;
+const band=s=>s==null?'#8a8e96':s>=60?'#b8f542':s>=40?'#f6ad55':'#fc8181';
+const hh=h=>{h=((h%24)+24)%24;const a=h%12||12;return a+(h<12?' AM':' PM')};
+const hs=h=>{h=((h%24)+24)%24;const a=h%12||12;return a+(h<12?'a':'p')};
+const word=s=>s>=60?'Good':s>=40?'Fair':'Poor';
+/* rolling figure */
+function roll(el,v){const cur=el.querySelector('span:not(.out)');if(cur&&cur.textContent===String(v))return;
+  if(!cur||RM){el.innerHTML=`<span>${v}</span>`;return}
+  el.querySelectorAll('.out').forEach(o=>o.remove());
+  const nu=document.createElement('span');nu.textContent=v;nu.style.transform='translateY(104%)';
+  cur.classList.add('out');el.appendChild(nu);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{cur.style.transform='translateY(-104%)';nu.style.transform='none'}));
+  setTimeout(()=>cur.remove(),600)}
+function statsHtml(h){return `
+  <div class="stat"><b>${AIR[h]}<small>°F</small></b><span class="lbl">Air</span></div>
+  <div class="stat"><b>${DEW[h]}<small>°F</small></b><span class="lbl">Dew point</span></div>
+  <div class="stat"><b>${WIND[h]}<small>mph</small></b><span class="lbl">Wind from NW</span></div>
+  <div class="stat"><b>0<small>%</small></b><span class="lbl">Chance of rain</span></div>
+  <div class="stat"><b>${SUNM[h]}<small>min</small></b><span class="lbl">Sun this hour</span></div>
+  <div class="stat"><b>${h>=RISE&&h<SET?'Day':'Night'}</b><span class="lbl">${h>=RISE&&h<SET?'Sun up':'Sun down'}</span></div>`}
+
+/* ================= A: hour tape ================= */
+const A={hd:'Hours · updated 9:12 AM',html:`<div class="ta">
+  <div class="tape" id="tape" tabindex="0" role="slider" aria-label="Hour" aria-valuemin="0" aria-valuemax="23">
+    <div class="strip" id="strip"></div><span class="needle" aria-hidden="true"></span></div>
+  <div class="tw"><span class="lbl">Drag the day under the line</span><span class="lbl">Good 10 AM–6 PM</span></div>
+  <div style="margin-top:22px"><div class="lbl" id="aWhen">Score now, 9 AM</div>
+  <div class="big" style="margin-top:8px"><span class="roll" id="aBig"></span></div>
+  <div class="rule"></div><div class="cap" id="aCap"></div></div>
+  <div class="stats" id="aStats" style="margin-top:22px"></div></div>`,
+ init(){const PX=56,tape=$('tape'),strip=$('strip');let W=tape.clientWidth,v=NOW,vel=0,raf=0,held=false,lastX=0,lastT=0,shown=-1;
+  let h='';for(let k=0;k<24;k++){const x=k*PX;h+=`<i class="b${k<RISE-.5||k>=SET?' night':''}" data-k="${k}" style="left:${x-15}px;height:${18+SC[k]*.9}px;--c:${band(SC[k])}"></i><span class="hl" style="left:${x}px">${k%3===0?hs(k):''}</span>`}
+  for(let k=0;k<48;k++){const x=k*PX/2;h+=`<i class="t${k%2?'':' h'}" style="left:${x-1}px;height:${k%2?8:14}px"></i>`}
+  h+=`<i class="sun" style="left:${RISE*PX}px"></i><span class="sl" style="left:${RISE*PX}px">Sunrise 7:12</span><i class="sun" style="left:${SET*PX}px"></i><span class="sl" style="left:${SET*PX}px">Sunset 4:36</span>`;
+  strip.innerHTML=h;strip.style.width=24*PX+'px';const bars=[...strip.querySelectorAll('.b')];
+  const show=k=>{if(k===shown)return;shown=k;bars.forEach((b,i)=>b.classList.toggle('on',i===k));roll($('aBig'),SC[k]);
+    $('aWhen').textContent=(k===NOW?'Score now, ':'Score at ')+hh(k);$('aCap').textContent=`${word(SC[k])} · ${k>=10&&k<18?'in the good hours':'outside the good hours'}`;
+    $('aStats').innerHTML=statsHtml(k);tape.setAttribute('aria-valuenow',k);tape.setAttribute('aria-valuetext',hh(k)+', score '+SC[k])};
+  const place=()=>{strip.style.transform=`translateX(${W/2-v*PX}px)`;show(Math.max(0,Math.min(23,Math.round(v))))};
+  const settle=()=>{cancelAnimationFrame(raf);const to=Math.max(0,Math.min(23,Math.round(v)));if(RM){v=to;place();return}
+    const step=()=>{v+=(to-v)*.22;if(Math.abs(to-v)<.002){v=to;place();raf=0;return}place();raf=requestAnimationFrame(step)};raf=requestAnimationFrame(step)};
+  const fling=()=>{cancelAnimationFrame(raf);let t0=performance.now();const step=t=>{const dt=Math.min(.05,(t-t0)/1000);t0=t;v+=vel*dt;vel*=Math.exp(-4*dt);
+    if(v<0||v>23){v=Math.max(0,Math.min(23,v));vel=0}place();if(Math.abs(vel)>.6)raf=requestAnimationFrame(step);else settle()};raf=requestAnimationFrame(step)};
+  tape.addEventListener('pointerdown',e=>{held=true;tape.classList.add('held');tape.setPointerCapture(e.pointerId);cancelAnimationFrame(raf);lastX=e.clientX;lastT=performance.now();vel=0});
+  tape.addEventListener('pointermove',e=>{if(!held)return;const t=performance.now(),dx=e.clientX-lastX;v=Math.max(-.4,Math.min(23.4,v-dx/PX));vel=-dx/PX/Math.max(.008,(t-lastT)/1000);lastX=e.clientX;lastT=t;place()});
+  const up=()=>{if(!held)return;held=false;tape.classList.remove('held');if(RM||Math.abs(vel)<1)settle();else fling()};
+  tape.addEventListener('pointerup',up);tape.addEventListener('pointercancel',up);
+  tape.addEventListener('keydown',e=>{const to=e.key==='ArrowRight'?Math.round(v)+1:e.key==='ArrowLeft'?Math.round(v)-1:e.key==='Home'?0:e.key==='End'?23:null;if(to===null)return;e.preventDefault();v=Math.max(0,Math.min(23,to))-.001+.001;settle();v=Math.max(0,Math.min(23,to));place()});
+  new ResizeObserver(()=>{W=tape.clientWidth;place()}).observe(tape);place()},
+ notes:`<h3>A · Hour tape</h3>
+ <p class="src">From Construct's <b>Weather</b> component: a day on a tape that slides under a fixed needle, with momentum.</p>
+ <p>This is the Hours tab's bar chart, which you asked to keep above the score, turned into something you drag. The day slides under one white line; the bar under it lights in its score colour, and the score rolls to the new hour with the readings under it.</p>
+ <h4>What it changes</h4>
+ <ul><li><b>Scrubbing gets bigger.</b> Today's strip asks you to hit a 14 px bar; the tape takes a drag anywhere across the full width, and a flick carries on and settles on an hour.</li>
+ <li><b>Sunrise and sunset are on the tape</b> as dotted lines, and night bars are darker, so "is it light then" needs no second chart.</li>
+ <li><b>The chart stays above the score</b>, as on v6 after your comments.</li></ul>
+ <h4>Trade-offs</h4>
+ <ul><li>About 6 hours show at once instead of 18, so the shape of the whole day is less visible. A thin full-day strip above the tape would restore it.</li>
+ <li>A tape is less discoverable than tapping bars; the hint line under it has to stay.</li></ul>
+ <p><b>My pick for Hours.</b> It keeps your layout and makes the one interaction on the tab easier.</p>`};
+
+/* ================= B: day ring ================= */
+const B={hd:'Now · updated 9:12 AM',html:`<div class="rb">
+  <div class="ringw" id="ring" tabindex="0" role="slider" aria-label="Hour" aria-valuemin="0" aria-valuemax="23">
+   <div class="glow" id="glow"></div><svg viewBox="0 0 350 350" id="rsv"></svg>
+   <div class="ctr"><div class="lbl" id="bWhen">Score now, 9 AM</div><div class="big" style="margin-top:4px"><span class="roll" id="bBig"></span></div><div class="cap" id="bCap"></div></div>
+  </div>
+  <div class="scale"><div class="r"><span class="lbl">Chance of rain</span><b id="bRain">0%</b></div><div class="ticks" id="tkR"></div></div>
+  <div class="scale"><div class="r"><span class="lbl">Wind from NW</span><b id="bWind"></b></div><div class="ticks" id="tkW"></div></div>
+  </div>`,
+ init(){const sv=$('rsv'),C=175,R=134,NOON=11.9,ring=$('ring');let v=NOW,drag=false,shown=-1;
+  const ang=h=>((h-NOON)/24*360-90)*Math.PI/180,pt=(h,r)=>[C+r*Math.cos(ang(h)),C+r*Math.sin(ang(h))];
+  const arc=(a,b,r)=>{const[p,q]=[pt(a,r),pt(b,r)];return `M${p[0].toFixed(1)} ${p[1].toFixed(1)}A${r} ${r} 0 0 1 ${q[0].toFixed(1)} ${q[1].toFixed(1)}`};
+  let s='';for(let k=0;k<96;k++){const h=k/4,on=h>=RISE&&h<SET,L=k%4?5:10,[x1,y1]=pt(h,R+14),[x2,y2]=pt(h,R+14+L);s+=`<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#fff" stroke-opacity="${on?.5:.2}" stroke-width="1.2"/>`}
+  for(let k=0;k<24;k+=3){const[x,y]=pt(k,R+40);s+=`<text x="${x.toFixed(1)}" y="${(y+4).toFixed(1)}" text-anchor="middle" fill="#9c9da3" font-size="12" font-family="Barlow">${hs(k)}</text>`}
+  for(let k=0;k<24;k++){const night=k<RISE-.5||k>=SET;s+=`<path d="${arc(k+.08,k+.92,R)}" fill="none" stroke="${band(SC[k])}" stroke-opacity="${night?.32:.9}" stroke-width="12" stroke-linecap="round" data-k="${k}"/>`}
+  const[r1,r2]=[pt(RISE,R-24),pt(SET,R-24)];s+=`<line x1="${r1[0]}" y1="${r1[1]}" x2="${r2[0]}" y2="${r2[1]}" stroke="#fff" stroke-opacity=".25"/>`;
+  s+=`<text x="${r1[0]-4}" y="${r1[1]+18}" text-anchor="end" fill="#ffd36b" font-size="12" font-family="Barlow">Sunrise 7:12</text><text x="${r2[0]+4}" y="${r2[1]+18}" fill="#ffd36b" font-size="12" font-family="Barlow">Sunset 4:36</text>`;
+  s+=`<g id="bead"><circle r="16" fill="rgba(255,255,255,.18)" stroke="rgba(255,255,255,.6)"/><circle r="6" fill="#fff"/></g>`;sv.innerHTML=s;
+  $('tkR').innerHTML=Array(23).fill('<i></i>').join('')+'<span class="pin" id="pR"></span>';$('tkW').innerHTML=Array(23).fill('<i></i>').join('')+'<span class="pin" id="pW"></span>';
+  const segs=[...sv.querySelectorAll('path[data-k]')];
+  const place=()=>{const[x,y]=pt(v+.5,R);$('bead').setAttribute('transform',`translate(${x.toFixed(1)} ${y.toFixed(1)})`);const k=Math.max(0,Math.min(23,Math.floor(v)));if(k===shown)return;shown=k;
+    segs.forEach((p,i)=>p.setAttribute('stroke-width',i===k?18:12));$('glow').style.setProperty('--gc',band(SC[k]));roll($('bBig'),SC[k]);
+    $('bWhen').textContent=(k===NOW?'Score now, ':'Score at ')+hh(k);$('bCap').textContent=`${word(SC[k])} · ${AIR[k]}°F air`;
+    $('bWind').textContent=WIND[k]+' mph';$('pR').style.left='0%';$('pW').style.left=(WIND[k]/25*100)+'%';
+    ring.setAttribute('aria-valuenow',k);ring.setAttribute('aria-valuetext',hh(k)+', score '+SC[k])};
+  const at=e=>{const r=ring.getBoundingClientRect(),x=e.clientX-r.left-r.width/2,y=e.clientY-r.top-r.height/2;let a=Math.atan2(y,x)*180/Math.PI+90;a=(a+360)%360;return ((a/360*24+NOON-.5)%24+24)%24};
+  ring.addEventListener('pointerdown',e=>{drag=true;ring.setPointerCapture(e.pointerId);v=at(e);place()});
+  ring.addEventListener('pointermove',e=>{if(drag){v=at(e);place()}});
+  const up=()=>{drag=false;v=Math.floor(v);place()};ring.addEventListener('pointerup',up);ring.addEventListener('pointercancel',up);
+  ring.addEventListener('keydown',e=>{const d=e.key==='ArrowRight'||e.key==='ArrowUp'?1:e.key==='ArrowLeft'||e.key==='ArrowDown'?-1:0;if(!d)return;e.preventDefault();v=(Math.floor(v)+d+24)%24;place()});
+  place()},
+ notes:`<h3>B · Day ring</h3>
+ <p class="src">From Construct's <b>Vane</b>: the day as a 24-hour ring with solar noon at the top, and a bead you turn round it.</p>
+ <p>The Now tab as one object: the ring is the day, each hour's arc in its score colour, dimmer at night. Turn the bead and the score in the middle rolls to that hour; rain and wind sit under it as two hairline scales.</p>
+ <h4>What it changes</h4>
+ <ul><li><b>The whole day and the answer fit in one glance</b>: you can see the good arc (lime, early afternoon) round the score.</li>
+ <li><b>Sunrise and sunset are a chord</b> across the ring, so daylight is a shape, not two numbers.</li>
+ <li>Glow behind the ring takes the current hour's score colour, so the only colour on the page is the score.</li></ul>
+ <h4>Trade-offs</h4>
+ <ul><li><b>It replaces today's Now layout</b> (score with Dryness, Rock, Air, Good hours beside it), which you worked through over several rounds. Dryness and the rock would have to move under the scales.</li>
+ <li>Hours near midnight sit at the bottom of the ring, which reads oddly for a climber's day. A 6 AM to 9 PM half-ring would fix that and give more room per hour.</li>
+ <li>Dragging round a circle is harder one-handed than dragging along a line.</li></ul>`};
+
+/* ================= C: card stack ================= */
+const C={hd:'Now · updated 9:12 AM',cards:[
+  {n:'Score',v:'<span style="color:#f6ad55">52</span>',h:'#f6ad55',b:`<div class="hrs">${[6,9,12,15,18].map(k=>`<div><b style="color:${band(SC[k])}">${SC[k]}</b><span class="lbl">${hs(k)}</span></div>`).join('')}</div><p class="sent">Two things cost points now: cold air (29°F, below your 30°F) and rock still drying. Both ease by noon; good from 10 AM to 6 PM.</p>`},
+  {n:'Dryness',v:'Drying',h:'#eceef2',b:`<div class="comet"><i style="width:62%"></i><s style="left:24%"></s></div><div class="lr2"><span class="lbl">Rain stopped</span><span class="lbl">6 h earliest dry</span><span class="lbl">24 h</span></div><p class="sent">41 h since real rain. Dolomite or limestone with chert: dry 6–24 h after real rain, and it softens when wet.</p>`},
+  {n:'Sun',v:'6 h 55 min',h:'#ffd36b',b:`<div class="lr2" style="margin-top:6px"><div><b style="font:600 24px/1 var(--disp)">7:12 AM</b><div class="lbl">Sunrise</div></div><div style="text-align:right"><b style="font:600 24px/1 var(--disp)">4:36 PM</b><div class="lbl">Sunset</div></div></div><p class="sent">Winter Wall is in sun 10 AM–2 PM, Cyclops Area 1–4 PM. Four walls stay in shade under the trees all day.</p>`},
+  {n:'Wind',v:'8 mph',h:'#c9cbd0',b:`<p class="sent" style="margin-top:4px">From the northwest, gusts to 13 mph. Strongest at 3 PM (13 mph); calm again after dark.</p>`},
+  {n:'Rain',v:'Sat 90%',h:'#a5b4fc',b:`<p class="sent" style="margin-top:4px">Nothing today. A chance Thursday evening (45% at 6 PM; 0.18 in over the next 48 hours). Rain likely Saturday from 1 PM, 90%. Rock that gets wet needs 6–24 h.</p>`}],
+ html:'',open:-1,
+ init(){const cs=document.createElement('div');cs.className='cs';cs.id='cs';$('scr').innerHTML='';$('scr').appendChild(cs);const H=640,N=5,me=this;
+  cs.innerHTML=this.cards.map((c,i)=>`<div class="cd" style="--h:${c.h};z-index:${i+1}" data-i="${i}" data-open="false"><button aria-expanded="false" aria-controls="cb${i}"><span class="n">${c.n}</span><span class="v">${c.v}<svg width="14" height="14" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5 6 7.5l3-3" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button><div class="body" id="cb${i}">${c.b}</div></div>`).join('');
+  const cds=[...cs.querySelectorAll('.cd')];
+  const lay=()=>{let vis;if(me.open<0){vis=[112,112,112,112]}else{const o=280,rest=(H-o-120)/3;vis=[0,1,2,3].map(i=>i===me.open?o:rest);if(me.open===4)vis=[0,1,2,3].map(()=>(H-300)/4)}
+    let y=0;cds.forEach((c,i)=>{c.style.top=y+'px';c.dataset.open=String(i===me.open);c.querySelector('button').setAttribute('aria-expanded',String(i===me.open));if(i<4)y+=vis[i]});
+    cds[4].style.height=(H-y)+'px'};
+  cds.forEach((c,i)=>c.querySelector('button').addEventListener('click',()=>{me.open=me.open===i?-1:i;lay()}));
+  this.open=0;lay()},
+ notes:`<h3>C · Card stack</h3>
+ <p class="src">From Construct's <b>Almanac</b>: the day as cards lying over each other like folders; tap one and it opens while the rest tuck.</p>
+ <p>The Now tab as five folders: Score, Dryness, Sun, Wind, Rain. Each shows its one-word answer on its tab, so the closed stack is already the summary; open one for the detail. Score starts open.</p>
+ <h4>What it changes</h4>
+ <ul><li><b>Everything on Now is one tap deep</b> and the page never scrolls.</li>
+ <li><b>Each card's tint is its subject's colour</b> (the score's band, sun yellow, rain blue). Almanac uses saturated slabs of colour; I kept the app's dark cards with a tinted light at the top, so lime, orange and red still mean only the score.</li></ul>
+ <h4>Trade-offs</h4>
+ <ul><li><b>It hides what Now shows today.</b> The score with its four facts beside it is visible at once now; here you see five one-word answers and open one at a time.</li>
+ <li>No room for the Today chart, which would move to Hours.</li>
+ <li>It is the furthest from what you have, and repeats the "cards inside a page" pattern the design system moved away from.</li></ul>`};
+
+/* ================= D: month of dots ================= */
+/* Trip planning: Mon 23 Nov to Sun 27 Dec. Today is Wed 25 Nov. The forecast runs 16 days, so it ends Thu 10 Dec. */
+const DAYS=(()=>{const d=[],base=Date.UTC(2026,10,23);const s7=[78,70,50,20,38,60,75],s9=[[66,48,80],[58,40,74],[62,44,78],[70,52,82],[64,45,79],[55,36,72],[48,30,70],[60,38,76],[52,34,72]];
+  for(let i=0;i<35;i++){const t=new Date(base+i*864e5),o=i-2;let k,s=null,lo=null,hi=null;
+    if(o<0)k='p';else if(o<7){k='f';s=s7[o]}else if(o<16){k='r';[s,lo,hi]=s9[o-7]}else k='g';
+    d.push({i,o,t,k,s,lo,hi,day:t.getUTCDate(),mon:t.getUTCMonth(),wd:t.getUTCDay()})}return d})();
+const MON=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const WD=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const D={hd:'Trips · Red Wing',html:`<div class="dm">
+  <div class="dfig"><span class="roll" id="dFig"></span></div>
+  <div class="dline"><b id="dMon"></b><span id="dWd"></span></div>
+  <div class="wkd" aria-hidden="true"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div>
+  <div class="grid" id="dGrid" role="group" aria-label="Days, 23 November to 27 December"></div>
+  <div class="leg"><span><i style="background:#b8f542"></i>Forecast</span><span><i style="box-shadow:inset 0 0 0 2px #b8f542"></i>Rough, 8–16 days out</span><span><i style="background:#202226"></i>Not forecast yet</span></div>
+  <div class="dcard" id="dCard" aria-live="polite"></div></div>`,
+ sel:2,
+ init(){const g=$('dGrid'),me=this;
+  g.innerHTML=DAYS.map(d=>`<button class="dot ${d.k}" style="--c:${band(d.s)}" data-i="${d.i}" aria-pressed="false" aria-label="${WD[d.wd]} ${d.day} ${MON[d.mon]}${d.s!=null?', score '+d.s:''}">${d.day}</button>`).join('')+'<span class="trip" id="trip"><span>Trip</span></span>';
+  const dots=[...g.querySelectorAll('.dot')];
+  const tripBox=()=>{if(!$('trip')||!g.isConnected)return;const a=dots[11],b=dots[13],r=g.getBoundingClientRect(),ra=a.getBoundingClientRect(),rb=b.getBoundingClientRect(),t=$('trip');
+    t.style.left=(ra.left-r.left-4)+'px';t.style.top=(ra.top-r.top-4)+'px';t.style.width=(rb.right-ra.left+8)+'px';t.style.height=(ra.height+8)+'px'};
+  const pick=(i,ripple)=>{me.sel=i;const d=DAYS[i];dots.forEach((b,j)=>b.setAttribute('aria-pressed',String(j===i)));
+    roll($('dFig'),d.day);$('dMon').textContent=MON[d.mon];$('dWd').textContent=d.o===0?'Today':WD[d.wd];
+    const opens=new Date(d.t.getTime()-15*864e5);const away=d.o===1?'tomorrow':d.o+' days out';
+    $('dCard').innerHTML=d.k==='p'?`<div class="row"><span class="lbl">${WD[d.wd]} ${d.day} ${MON[d.mon].slice(0,3)}</span></div><p>Past. How it turned out lives on the crag's Rain tab.</p>`
+     :d.k==='g'?`<div class="row"><span class="lbl">${WD[d.wd]} ${d.day} ${MON[d.mon].slice(0,3)}</span><b style="color:#9c9da3">–</b></div><p>Forecast opens ${opens.getUTCDate()} ${MON[opens.getUTCMonth()].slice(0,3)}.</p>`
+     :d.k==='f'?`<div class="row"><span class="lbl">${WD[d.wd]} ${d.day} ${MON[d.mon].slice(0,3)} · ${d.o===0?'today':away}</span><b style="color:${band(d.s)}">${d.s}</b></div><p>${word(d.s)} day. ${d.s<40?'Rain likely; the rock needs 6–24 h after.':'Within a week, so this is the forecast to plan on.'}</p>`
+     :`<div class="row"><span class="lbl">${WD[d.wd]} ${d.day} ${MON[d.mon].slice(0,3)} · ${away}</span><b style="color:${band(d.s)}">${d.s}</b></div><p>Could land anywhere from ${d.lo} to ${d.hi}; the models still disagree. It firms up over the next week.</p>`;
+    if(ripple&&!RM){const r0=Math.floor(i/7),c0=i%7;dots.forEach((b,j)=>{const dd=Math.hypot(Math.floor(j/7)-r0,j%7-c0);setTimeout(()=>{b.classList.add('dip');setTimeout(()=>b.classList.remove('dip'),160)},dd*40)})}};
+  dots.forEach((b,i)=>b.addEventListener('click',()=>pick(i,true)));
+  g.addEventListener('keydown',e=>{const d={ArrowRight:1,ArrowLeft:-1,ArrowDown:7,ArrowUp:-7}[e.key];if(!d)return;e.preventDefault();const n=Math.max(0,Math.min(34,me.sel+d));pick(n,false);dots[n].focus()});
+  new ResizeObserver(tripBox).observe(g);pick(2,false)},
+ notes:`<h3>D · Month of dots</h3>
+ <p class="src">From Construct's <b>Margin</b>: a month as round dots under one huge date; press a dot and a ripple runs out from it.</p>
+ <p>Trip planning for Red Wing: five weeks as dots. The next 7 days are filled with their score colour, days 8 to 16 are rings (a rough forecast), and later days are grey until their forecast opens. The trip (Fri 4 to Sun 6 Dec) is drawn round its days. Tap a day for its reading.</p>
+ <h4>What it changes</h4>
+ <ul><li><b>Forecast confidence is a shape</b>: filled, ring, grey. "Weeks out, improving over time", the core purpose of trips, is visible before you read a number.</li>
+ <li><b>A rough day shows its range</b> ("anywhere from 52 to 82"), never one number dressed up as certain.</li>
+ <li>One huge date is the header; the dots carry the day numbers at 13 px.</li></ul>
+ <h4>Trade-offs</h4>
+ <ul><li>It shows one crag. Across a trip's three crags you would need one row per crag, or the best of the three per day.</li>
+ <li>The ring colour for a rough day is its middle score; someone could read the colour as certain. The range in the card is the honest part.</li></ul>
+ <p><b>My pick for Trips.</b> It is the clearest picture of "plan weeks out, firming up" of the four.</p>`};
+
+const OPTS={a:A,b:B,c:C,d:D};
+function show(o){const op=OPTS[o];document.querySelectorAll('.opts button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.o===o)));
+  $('hdS').textContent=op.hd;$('scr').innerHTML=op.html;$('scr').scrollTop=0;$('notes').innerHTML=op.notes+`
+  <h4>Also in the library, not built</h4>
+  <ul><li><b>Sereno</b>: light ground, a painted sun crossing the screen. Your app is dark (look C), so it would be a new look, not a screen.</li>
+  <li><b>Passo</b>'s comet bars and page lights and <b>Almanac</b>'s tick dial are already in the whole-app mockup.</li></ul>
+  <p class="src">Nothing here loops while you leave it alone; every motion starts with a touch.</p>`;op.init()}
+document.querySelectorAll('.opts button').forEach(b=>b.addEventListener('click',()=>show(b.dataset.o)));
+show('a');
+</script>
+</body></html>
