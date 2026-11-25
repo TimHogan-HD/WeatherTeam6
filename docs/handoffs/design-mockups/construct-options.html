@@ -193,7 +193,7 @@ function statsHtml(h){return `
   <div class="stat"><b>${WIND[h]}<small>mph</small></b><span class="lbl">Wind from NW</span></div>
   <div class="stat"><b>0<small>%</small></b><span class="lbl">Chance of rain</span></div>
   <div class="stat"><b>${SUNM[h]}<small>min</small></b><span class="lbl">Sun this hour</span></div>
-  <div class="stat"><b>${h>=RISE&&h<SET?'Day':'Night'}</b><span class="lbl">${h>=RISE&&h<SET?'Sun up':'Sun down'}</span></div>`}
+  <div class="stat"><b>${h+1>RISE&&h<SET?'Day':'Night'}</b><span class="lbl">${h+1>RISE&&h<SET?'Sun up':'Sun down'}</span></div>`}
 
 /* ================= A: hour tape ================= */
 const A={hd:'Hours · updated 9:12 AM',html:`<div class="ta">
