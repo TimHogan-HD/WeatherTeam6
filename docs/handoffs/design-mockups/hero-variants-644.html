@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>WT6 Hero Variants</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Hero variants for #644, on the open list (look-variants-644.html variant C, picked 2026-11-23).
+   One phone at 390 px with a switcher above it and notes beside it; stacks on a phone.
+   Only the hero changes between variants. Next days and Right now are variant C as picked. */
+:root{
+  color-scheme:dark;
+  /* colorsV2, packages/design/src/tokens.ts */
+  --bg:#07090c; --surface:#10161d; --card:#171f28; --raised:#1f2833; --line:#2a3644;
+  --txt1:#f4f7fa; --txt2:#d3e1e4; --muted:#bccad0; --tab:#7d8997;
+  --brand:#1DC5D2; --brandInk:#6fe3ec; --brandWash:rgba(29,197,210,.16);
+  --good:#b8f542; --fair:#f6ad55; --poor:#fc8181; --rain:#bcc7fd; --sun:#ffd76a;
+  --ground:#05070a;
+  --display:'Barlow Condensed','Arial Narrow',sans-serif; --body:'Barlow','Segoe UI',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--txt1);font-family:var(--body);font-variant-numeric:tabular-nums;padding-block:24px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--brandInk);outline-offset:2px}
+p{margin:0}
+
+/* ---------- page frame ---------- */
+.page{max-width:1000px;margin:0 auto;display:flex;flex-direction:column;gap:24px}
+.intro{display:flex;flex-direction:column;gap:8px;max-width:640px}
+.intro h1{margin:0;font-family:var(--display);font-weight:700;font-size:36px;line-height:1.05;text-wrap:balance}
+.intro p{color:var(--muted);font-size:15px;line-height:1.55}
+.switch{display:flex;gap:6px;flex-wrap:wrap}
+.switch button{min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-family:var(--display);font-weight:600;font-size:16px;color:var(--txt2)}
+.switch button[aria-pressed="true"]{border-color:var(--brand);color:var(--brandInk);background:var(--brandWash)}
+.wrap{display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start}
+.phone{width:390px;max-width:100%;border-radius:40px;overflow:hidden;box-shadow:0 0 0 8px #020304,0 30px 80px #000c;background:var(--bg);padding:18px 16px 28px}
+.notes{flex:1 1 300px;min-width:0;max-width:460px;display:flex;flex-direction:column;gap:12px}
+.notes h3{margin:0;font-family:var(--display);font-weight:700;font-size:24px;line-height:1.1}
+.notes p,.notes li{color:var(--muted);line-height:1.55;font-size:15px}
+.notes ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.notes b{color:var(--txt1);font-weight:600}
+.notes .data{border-left:2px solid var(--line);padding-left:12px}
+.notes .src{font-size:13px}
+[hidden]{display:none !important}
+
+/* ---------- phone: shared (variant C) ---------- */
+.bar{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px}
+.back{min-width:44px;min-height:44px;border:0;background:none;color:var(--brandInk);font-size:22px;padding:0;text-align:left}
+.fb{border:0;background:none;color:var(--muted);min-height:44px;padding:0 4px;font-size:15px}
+.name{font-family:var(--display);font-weight:700;font-size:28px;line-height:1.1;padding:10px 2px 6px}
+.good{color:var(--good)} .fair{color:var(--fair)} .poor{color:var(--poor)}
+section{padding:22px 2px 0}
+h4{margin:0 0 6px;font-family:var(--display);font-weight:600;font-size:20px}
+.list{display:flex;flex-direction:column}
+.list div{display:grid;grid-template-columns:5em 1fr auto;gap:10px;align-items:baseline;padding:9px 0;border-top:1px solid var(--line);font-size:15px}
+.list div:first-child{border-top:0}
+.list .d{font-weight:600}
+.list b{font-family:var(--display);font-weight:700;font-size:22px;text-align:right}
+.list .t{color:var(--txt2)}
+.kv{display:flex;flex-direction:column}
+.kv div{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--line);font-size:15px}
+.kv div:first-child{border-top:0}
+.kv span{color:var(--muted)}
+
+/* ---------- hero 1: as picked (variant C) ---------- */
+.h1{display:flex;align-items:baseline;gap:12px;padding:6px 2px 4px}
+.h1 .big{font-family:var(--display);font-weight:700;font-size:88px;line-height:.9}
+.h1 p{font-size:15px;color:var(--txt2);line-height:1.4}
+.h1 p span{color:var(--muted)}
+
+/* ---------- hero 2: figure on a rule (Sereno's hierarchy) ---------- */
+.h2{padding:4px 2px 0}
+.h2 .fig{display:flex;align-items:baseline;gap:8px}
+.h2 .big{font-family:var(--display);font-weight:700;font-size:120px;line-height:.82;letter-spacing:-.02em}
+.h2 .of{font-family:var(--display);font-weight:500;font-size:28px;color:var(--muted)}
+.h2 hr{border:0;border-top:2px solid var(--txt1);margin:12px 0 10px}
+.h2 .say{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.h2 .say span{font-size:15px;color:var(--muted)}
+.h2 .say b{font-family:var(--display);font-weight:600;font-size:28px;color:var(--txt1)}
+.h2 .meta{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px;font-size:13px;color:var(--muted)}
+.h2 .meta b{display:block;color:var(--txt1);font-weight:600;font-size:15px}
+.h2 .warn{font-size:13px;color:var(--muted);margin-top:10px}
+
+/* ---------- hero 3: hour tape (Weather's tape under a needle) ---------- */
+.h3{padding:4px 2px 0}
+.h3 .read{display:flex;align-items:baseline;gap:12px}
+.h3 .big{font-family:var(--display);font-weight:700;font-size:88px;line-height:.9;transition:color .2s}
+.h3 .read p{font-size:15px;color:var(--txt2);line-height:1.4}
+.h3 .read p span{color:var(--muted)}
+.tapebox{position:relative;margin:14px -18px 0}
+.tape{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;padding:0 calc(50% - 22px);outline-offset:-2px}
+.tape::-webkit-scrollbar{display:none}
+.tape .hr{flex:0 0 44px;scroll-snap-align:center;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px;height:96px}
+.tape .col{width:16px;border-radius:3px 3px 0 0;opacity:.55}
+.tape .hr.win .col{opacity:1}
+.tape .lbl{font-size:12px;color:var(--muted);height:16px}
+.tape .base{position:absolute;left:0;right:0;bottom:22px;border-top:1px solid var(--line);pointer-events:none}
+.needle{position:absolute;left:50%;top:-4px;bottom:20px;width:2px;margin-left:-1px;background:var(--txt1);pointer-events:none}
+.needle::after{content:"";position:absolute;left:-4px;top:-2px;width:10px;height:10px;border-radius:50%;background:var(--txt1)}
+.fade{position:absolute;top:0;bottom:0;width:48px;pointer-events:none}
+.fade.l{left:0;background:linear-gradient(90deg,var(--bg),transparent)}
+.fade.r{right:0;background:linear-gradient(270deg,var(--bg),transparent)}
+.tapekey{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:4px}
+
+/* ---------- hero 4: sun on the wall (Red Wing) ---------- */
+.h4{padding:4px 2px 0}
+.h4 .pair{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.h4 .side{padding:0 0 4px}
+.h4 .side + .side{border-left:1px solid var(--line);padding-left:16px}
+.h4 .k{font-size:15px;color:var(--txt2);display:flex;align-items:center;gap:6px}
+.h4 .big{font-family:var(--display);font-weight:700;font-size:72px;line-height:.95}
+.h4 .w{font-size:13px;color:var(--muted)}
+.h4 .arc{display:block;width:100%;height:auto;margin-top:14px}
+.h4 .cap{font-size:13px;color:var(--muted);margin-top:2px}
+.h4 .pick{margin-top:8px;min-height:44px;width:100%;display:flex;justify-content:space-between;align-items:center;border:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:none;padding:0 2px;font-size:15px;color:var(--txt2);text-align:left}
+.h4 .pick span{color:var(--brandInk)}
+
+@media (prefers-reduced-motion:reduce){ .tape{scroll-behavior:auto} .h3 .big{transition:none} }
+</style></head>
+<body>
+<div class="page">
+  <div class="intro">
+    <h1>Hero variants for #644</h1>
+    <p>What leads the Overview, on the open list you picked (variant C). Only the hero changes; Next days and Right now stay as picked. Each variant borrows one idea from the Construct Design library and is rebuilt here on the app's own tokens: no glass, no glow, two type families. Taylors Falls figures are the 2026-11-23 screenshot; the hour-by-hour scores and the Red Wing wall figures are examples.</p>
+  </div>
+
+  <div class="switch" role="group" aria-label="Hero variant">
+    <button type="button" data-v="1" aria-pressed="true">1 · As picked</button>
+    <button type="button" data-v="2" aria-pressed="false">2 · Figure on a rule</button>
+    <button type="button" data-v="3" aria-pressed="false">3 · Hour tape</button>
+    <button type="button" data-v="4" aria-pressed="false">4 · Sun on the wall</button>
+  </div>
+
+  <div class="wrap">
+    <div class="phone">
+      <div class="bar"><button class="back" type="button" aria-label="Back">‹</button><button class="fb" type="button">Feedback</button></div>
+      <div class="name" id="crag">Taylors Falls</div>
+
+      <!-- 1 -->
+      <div class="h1" data-v="1">
+        <div class="big good">95</div>
+        <p>Score at 4 PM<br>Dry · 29°F · good 4–11 PM<br><span>Basalt · warnings not checked recently</span></p>
+      </div>
+
+      <!-- 2 -->
+      <div class="h2" data-v="2" hidden>
+        <div class="fig"><span class="big good">95</span><span class="of">at 4 PM</span></div>
+        <hr>
+        <div class="say"><span>Good window</span><b>4–11 PM</b></div>
+        <div class="meta">
+          <div>Dryness<b>Dry</b></div>
+          <div>Air<b>29°F</b></div>
+          <div>Rock<b>Basalt</b></div>
+        </div>
+        <p class="warn">Warnings not checked recently</p>
+      </div>
+
+      <!-- 3 -->
+      <div class="h3" data-v="3" hidden>
+        <div class="read">
+          <div class="big good" id="tScore">95</div>
+          <p id="tLine">Score at 4 PM<br>Air 29°F<br><span>Good window 4–11 PM</span></p>
+        </div>
+        <div class="tapebox">
+          <div class="tape" id="tape" tabindex="0" role="slider" aria-label="Hour" aria-valuemin="6" aria-valuemax="23" aria-valuenow="16" aria-valuetext="4 PM, score 95"></div>
+          <div class="base"></div>
+          <div class="needle"></div>
+          <div class="fade l"></div><div class="fade r"></div>
+        </div>
+        <div class="tapekey"><span>Drag the hours or use ← →</span><span>Bright bars: the good window</span></div>
+      </div>
+
+      <!-- 4 -->
+      <div class="h4" data-v="4" hidden>
+        <div class="pair">
+          <div class="side">
+            <div class="k"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="var(--sun)"/></svg>In the sun</div>
+            <div class="big fair">54</div>
+            <div class="w">Winter Wall</div>
+          </div>
+          <div class="side">
+            <div class="k"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="var(--txt2)" stroke-width="1.5"/><path d="M7 2a5 5 0 0 1 0 10z" fill="var(--txt2)"/></svg>In the shade</div>
+            <div class="big good">96</div>
+            <div class="w">Bank Wall</div>
+          </div>
+        </div>
+        <svg class="arc" viewBox="0 0 356 92" role="img" aria-label="Sun across the day: on Winter Wall from 10 AM to 4 PM, now 1 PM">
+          <!-- day from 7 AM (x=8) to 7 PM (x=348); 28.3 px per hour -->
+          <line x1="8" y1="70" x2="348" y2="70" stroke="var(--line)" stroke-width="1"/>
+          <path d="M8 70 Q178 -30 348 70" fill="none" stroke="var(--tab)" stroke-width="1" stroke-dasharray="2 4"/>
+          <!-- Winter Wall in sun 10 AM to 4 PM -->
+          <rect x="93" y="74" width="170" height="6" rx="3" fill="var(--sun)"/>
+          <rect x="8" y="74" width="85" height="6" rx="3" fill="var(--raised)"/>
+          <rect x="263" y="74" width="85" height="6" rx="3" fill="var(--raised)"/>
+          <!-- now, 1 PM -->
+          <circle cx="178" cy="20" r="7" fill="var(--sun)"/>
+          <line x1="178" y1="28" x2="178" y2="70" stroke="var(--sun)" stroke-width="1" stroke-dasharray="2 3"/>
+          <text x="8" y="91" fill="var(--muted)" font-size="12" font-family="Barlow,sans-serif">7 AM</text>
+          <text x="93" y="91" fill="var(--muted)" font-size="12" font-family="Barlow,sans-serif" text-anchor="middle">10</text>
+          <text x="178" y="91" fill="var(--txt1)" font-size="12" font-family="Barlow,sans-serif" text-anchor="middle">Now</text>
+          <text x="263" y="91" fill="var(--muted)" font-size="12" font-family="Barlow,sans-serif" text-anchor="middle">4 PM</text>
+          <text x="348" y="91" fill="var(--muted)" font-size="12" font-family="Barlow,sans-serif" text-anchor="end">7 PM</text>
+        </svg>
+        <p class="cap">Sun on Winter Wall: 10 AM–4 PM</p>
+        <button class="pick" type="button">Pick a wall <span>Auto</span></button>
+      </div>
+
+      <section>
+        <h4>Next days</h4>
+        <div class="list" id="days"></div>
+      </section>
+      <section>
+        <h4>Right now</h4>
+        <div class="kv">
+          <div><span>Last rain</span><b>0.12 in, Sunday</b></div>
+          <div><span>Next rain</span><b>None likely through Sunday</b></div>
+          <div><span>Wind</span><b>9 mph, gusts 13</b></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="notes">
+      <div data-v="1">
+        <h3>1 · As picked</h3>
+        <ul>
+          <li><b>The baseline:</b> variant C's hero, a number and three short lines.</li>
+          <li>It answers "is it good now", but the line is still three dot-separated strings, which #644 asks to turn into label and value pairs.</li>
+          <li>Nothing in it is specific to this crag except the rock type.</li>
+        </ul>
+      </div>
+      <div data-v="2" hidden>
+        <h3>2 · Figure on a rule</h3>
+        <ul>
+          <li><b>From Sereno:</b> a big figure on a 2 px rule is the whole hierarchy. No tiles, no dot strings.</li>
+          <li><b>The good window is promoted</b> to the line under the rule, because "when" is the next question after "how good".</li>
+          <li>The rest is label over value, which clears the ` · ` item in #644.</li>
+          <li><b>Not taken from Sereno:</b> its sentence under the rule. A reading is a label and a value, never a sentence (readings.md, 2026-09-21). Also kept out: the painted, grainy sun, because it is decoration and colour here means a score.</li>
+        </ul>
+        <p class="data"><b>Cost:</b> small. Restyles the hero; no data change.</p>
+      </div>
+      <div data-v="3" hidden>
+        <h3>3 · Hour tape</h3>
+        <ul>
+          <li><b>From Weather:</b> the day's hours slide under a fixed needle, and the reading above follows the hour you land on. Try it: drag the bars, or focus them and use the arrow keys.</li>
+          <li><b>Leads with when,</b> which is the question a climber asks after "is it good". The good window is the bright bars, so "good 4–11 PM" is shown, not written.</li>
+          <li>Each bar is that hour's score in its score colour, so the tape doubles as a chart. It overlaps the Hourly chart lower down; if this wins, Hourly could start collapsed.</li>
+          <li>Kept out: the photo sky, the momentum fling and the auto-run.</li>
+        </ul>
+        <p class="data"><b>Cost:</b> medium. Hourly scores are already on <code>/hourly</code>; the tape is a new component with scroll-snap and keyboard handling.</p>
+      </div>
+      <div data-v="4" hidden>
+        <h3>4 · Sun on the wall</h3>
+        <ul>
+          <li><b>The most crag-specific hero:</b> where the sun is right now and what that does to each side. Red Wing only, since it is the one crag with wall data.</li>
+          <li><b>Two scores side by side,</b> the best sun wall and the best shade wall, each named, so the 10/19 case (100 overall, Winter Wall unbearable) cannot hide.</li>
+          <li>The arc and the yellow bar draw when the sun is on the leading sun wall; <code>sunWarmingC</code> and the walls' sun hours are already published.</li>
+          <li><b>This reopens a decision:</b> on 2026-11-02 you chose one tappable line under the hero (idea 4, <code>overview-34.html</code>). This moves sun and shade into the hero itself. Rule 1 still applies: within about 10 points, crags show variant 1 or 2 instead.</li>
+          <li>Loose from Grain sun and Sereno: a sun that moves across the day, drawn flat.</li>
+        </ul>
+        <p class="data"><b>Cost:</b> medium, and it only covers crags with walls. Crags without walls need one of the other heroes too.</p>
+      </div>
+      <p class="src">Sources: Construct Design library (<code>sereno</code>, <code>weather</code>, <code>grain-sun</code>), rebuilt as plain HTML; no library code is used here.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// Score bands: packages/types/src/conditionsCopy.ts SCORE_BANDS (good >= 60, fair >= 40, else poor).
+const tone = s => s >= 60 ? 'good' : s >= 40 ? 'fair' : 'poor';
+const color = s => `var(--${tone(s)})`;
+
+// Taylors Falls next days, 2026-11-23 screenshot.
+const TF_DAYS = [['Today','31° / 22°',92],['Tue','33° / 21°',100],['Wed','37° / 25°',100],['Thu','38° / 25°',100],['Fri','40° / 26°',100],['Sat','39° / 31°',100]];
+// Red Wing, examples (best wall per day).
+const RW_DAYS = [['Today','81° / 58°',96],['Tue','76° / 55°',100],['Wed','70° / 52°',88],['Thu','64° / 49°',41],['Fri','66° / 47°',72],['Sat','71° / 50°',100]];
+
+function days(rows){
+  const el = document.getElementById('days');
+  el.replaceChildren(...rows.map(([d,t,s]) => {
+    const r = document.createElement('div');
+    r.innerHTML = `<span class="d">${d}</span><span class="t">${t}</span><b class="${tone(s)}">${s}</b>`;
+    return r;
+  }));
+}
+
+// Hour tape. Example hourly scores, 6 AM to 11 PM; the good window is 4–11 PM as on the screenshot.
+const HOURS = [];
+const SCORES = [22,26,31,38,44,50,54,52,49,47,95,96,97,96,94,92,90,88];
+const TEMPS  = [18,18,19,21,23,25,27,28,29,30,29,27,26,25,24,23,23,22];
+for (let i = 0; i < SCORES.length; i++) HOURS.push({h: 6 + i, s: SCORES[i], t: TEMPS[i], win: 6 + i >= 16});
+const hl = h => h === 12 ? '12 PM' : h > 12 ? `${h-12} PM` : `${h} AM`;
+const short = h => h === 12 ? '12' : h > 12 ? `${h-12}p` : `${h}a`;
+
+const tape = document.getElementById('tape');
+tape.innerHTML = HOURS.map(o => `<div class="hr${o.win ? ' win' : ''}"><div class="col" style="height:${Math.round(o.s*0.6)}px;background:${color(o.s)}"></div><div class="lbl">${short(o.h)}</div></div>`).join('');
+let cur = 10;
+function setHour(i){
+  cur = Math.max(0, Math.min(HOURS.length - 1, i));
+  const o = HOURS[cur];
+  const sc = document.getElementById('tScore');
+  sc.textContent = o.s; sc.className = 'big ' + tone(o.s);
+  document.getElementById('tLine').innerHTML = `Score at ${hl(o.h)}<br>Air ${o.t}°F<br><span>Good window 4–11 PM</span>`;
+  tape.setAttribute('aria-valuenow', o.h);
+  tape.setAttribute('aria-valuetext', `${hl(o.h)}, score ${o.s}`);
+}
+const step = () => tape.firstElementChild.getBoundingClientRect().width;
+function goTo(i, smooth){ tape.scrollTo({left: i * step(), behavior: smooth && !matchMedia('(prefers-reduced-motion: reduce)').matches ? 'smooth' : 'auto'}); }
+tape.addEventListener('scroll', () => setHour(Math.round(tape.scrollLeft / step())), {passive:true});
+tape.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === 'ArrowLeft'){ e.preventDefault(); goTo(cur + (e.key === 'ArrowRight' ? 1 : -1), true); }
+});
+// Mouse drag (touch scrolls natively).
+let drag = null;
+tape.addEventListener('pointerdown', e => { if (e.pointerType === 'mouse'){ drag = {x:e.clientX, l:tape.scrollLeft}; tape.style.scrollSnapType='none'; tape.setPointerCapture(e.pointerId); }});
+tape.addEventListener('pointermove', e => { if (drag) tape.scrollLeft = drag.l - (e.clientX - drag.x); });
+tape.addEventListener('pointerup', () => { if (drag){ drag = null; tape.style.scrollSnapType=''; goTo(Math.round(tape.scrollLeft / step()), true); }});
+
+// Switcher.
+function show(v){
+  document.querySelectorAll('.switch button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === v)));
+  document.querySelectorAll('.phone [data-v], .notes [data-v]').forEach(el => el.hidden = el.dataset.v !== v);
+  const rw = v === '4';
+  document.getElementById('crag').textContent = rw ? 'Red Wing' : 'Taylors Falls';
+  days(rw ? RW_DAYS : TF_DAYS);
+  if (v === '3') requestAnimationFrame(() => { goTo(cur, false); setHour(cur); });
+  try { localStorage.setItem('wt6-hero-v', v); } catch {}
+}
+document.querySelectorAll('.switch button').forEach(b => b.addEventListener('click', () => show(b.dataset.v)));
+let start = '1';
+try { start = localStorage.getItem('wt6-hero-v') || '1'; } catch {}
+show(['1','2','3','4'].includes(start) ? start : '1');
+</script>
+</body></html>
