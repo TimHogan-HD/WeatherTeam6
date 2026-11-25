@@ -1214,6 +1214,10 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid #fff;outline-off
 .gx>summary .gs::after{content:"";width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg) translateY(-2px);transition:transform .3s}
 .gx[open]>summary .gs::after{transform:rotate(225deg) translateY(-2px)}
 .gx .gv{font-size:34px}
+/* closed, the gauges are one ruled row between the two charts, not a band of empty space */
+.gg.gx{margin-top:20px;border-top:1px solid rgba(255,255,255,.08);border-bottom:1px solid rgba(255,255,255,.08)}
+.gg.gx+.sec{margin-top:24px}
+.gg.gx[open]{padding-bottom:20px}
 </style>
 </head>
 <body>
@@ -1297,13 +1301,13 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid #fff;outline-off
     <div class="light" id="h1" style="left:-30px;top:150px;width:450px;height:230px;opacity:.5;filter:blur(52px);animation:drift1 7s ease-in-out infinite alternate"></div>
     <div class="light" id="h2" style="left:-60px;top:190px;width:100px;height:140px;opacity:.45;filter:blur(32px);transition:left .5s var(--slide),background-color .6s"></div>
     <div class="dsel" id="hDays"></div>
-    <div class="card hcard" id="hCard" style="margin-top:18px">
+    <div class="hstrip" id="hStrip" tabindex="0" role="slider" aria-label="Hour" aria-valuemin="0" aria-valuemax="17" style="margin-top:18px"></div>
+    <div class="gwin" id="hWin"></div>
+    <div class="card hcard" id="hCard" style="margin-top:30px">
       <div class="lbl" id="hWhen">Score now, 9 AM</div>
       <div class="big" id="hBig" style="margin-top:8px"></div>
       <div class="stats3" id="hStats"></div>
     </div>
-    <div class="hstrip" id="hStrip" tabindex="0" role="slider" aria-label="Hour" aria-valuemin="0" aria-valuemax="17" style="margin-top:30px"></div>
-    <div class="gwin" id="hWin"></div>
     <div class="hsec"><h2>Every hour</h2>
       <div class="seg" role="group" aria-label="Show as">
         <button data-m="list" aria-pressed="true" aria-label="List"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 4h12M2 8h12M2 12h12"/></svg></button>
@@ -1322,7 +1326,10 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid #fff;outline-off
     <div class="light" id="d1" style="left:-30px;top:120px;width:450px;height:250px;opacity:.5;filter:blur(52px);animation:drift1 7s ease-in-out infinite alternate"></div>
     <div class="light" id="d2" style="left:-60px;top:190px;width:100px;height:130px;opacity:.45;filter:blur(32px);transition:left .5s var(--slide),background-color .6s"></div>
 
-    <div class="card" id="dCard">
+    <div class="bars" id="bars">
+      <div class="scale"><span style="top:0">100</span><span style="top:19.3%">80</span><span style="top:38.6%">60</span><span style="top:57.9%">40</span><span style="top:77.2%">20</span></div>
+    </div>
+    <div class="card" id="dCard" style="margin-top:30px">
       <div class="lbl" id="dWhen">Today</div>
       <div class="big" id="dBig" style="margin-top:8px"></div>
       <div class="stats">
@@ -1330,9 +1337,6 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid #fff;outline-off
         <div class="stat"><b id="dRock">Drying</b><span class="lbl f">Rock</span></div>
         <div class="stat"><b id="dSun">6<small>h</small></b><span class="lbl f">Sun</span></div>
       </div>
-    </div>
-    <div class="bars" id="bars" style="margin-top:30px">
-      <div class="scale"><span style="top:0">100</span><span style="top:19.3%">80</span><span style="top:38.6%">60</span><span style="top:57.9%">40</span><span style="top:77.2%">20</span></div>
     </div>
     <div class="sec">
       <h2>Seven days</h2>
@@ -1434,6 +1438,17 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid #fff;outline-off
 
     <div class="warn" role="note"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M9 2 16.5 15h-15z" fill="none" stroke="#ffd36b" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 7v3.6" stroke="#ffd36b" stroke-width="1.6" stroke-linecap="round"/><circle cx="9" cy="12.7" r=".95" fill="#ffd36b"/></svg>
       <div><b>Winter Weather Advisory</b><span class="lbl">National Weather Service · until Thu 6 AM</span></div></div>
+    <div class="tkd" id="tkd" style="margin-top:34px">
+      <span class="glow" aria-hidden="true"></span>
+      <div class="face" id="tkdFace" role="slider" tabindex="0" aria-label="Time of day, sunrise to sunset">
+        <span class="dial" id="tkdDial" aria-hidden="true"></span><span class="hub" id="tkdHub" aria-hidden="true"></span>
+        <span class="read" aria-hidden="true"><span class="val" id="tkdVal"></span><span class="note" id="tkdNote"></span></span>
+        <span class="ends" aria-hidden="true"><span><b>7:12 AM</b><span class="lbl f">Sunrise</span></span><span><b>4:36 PM</b><span class="lbl f">Sunset</span></span></span>
+      </div>
+      <button class="back" id="tkdBack" type="button">Back to now</button>
+    </div>
+    <div class="stats" style="margin:26px 24px 0"><div class="stat"><b>29<small>°F</small></b><span class="lbl f">Air</span></div><div class="stat"><b>41<small>°F</small></b><span class="lbl f">High</span></div><div class="stat"><b>23<small>°F</small></b><span class="lbl f">Dew point</span></div></div>
+
     <div class="wl">
       <div class="hd"><h2>Walls</h2><span class="lbl f">Sun today</span></div>
       <div id="walls">
@@ -1464,17 +1479,6 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid #fff;outline-off
       </div>
       <div class="sx" style="margin:6px 20px 0"><span class="lbl f">6 AM</span><span class="lbl f">Noon</span><span class="lbl f">6 PM</span></div>
     </div>
-
-    <div class="tkd" id="tkd" style="margin-top:34px">
-      <span class="glow" aria-hidden="true"></span>
-      <div class="face" id="tkdFace" role="slider" tabindex="0" aria-label="Time of day, sunrise to sunset">
-        <span class="dial" id="tkdDial" aria-hidden="true"></span><span class="hub" id="tkdHub" aria-hidden="true"></span>
-        <span class="read" aria-hidden="true"><span class="val" id="tkdVal"></span><span class="note" id="tkdNote"></span></span>
-        <span class="ends" aria-hidden="true"><span><b>7:12 AM</b><span class="lbl f">Sunrise</span></span><span><b>4:36 PM</b><span class="lbl f">Sunset</span></span></span>
-      </div>
-      <button class="back" id="tkdBack" type="button">Back to now</button>
-    </div>
-    <div class="stats" style="margin:26px 24px 0"><div class="stat"><b>29<small>°F</small></b><span class="lbl f">Air</span></div><div class="stat"><b>41<small>°F</small></b><span class="lbl f">High</span></div><div class="stat"><b>23<small>°F</small></b><span class="lbl f">Dew point</span></div></div>
 
     <div class="sec">
       <h2>Condensation</h2><div class="lbl f">Air minus dew point, next 42 h</div>
@@ -1539,15 +1543,15 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid #fff;outline-off
 <h3>v6: the UI/UX pass</h3>
 <ul>
 <li><b>Conditions list:</b> one line per crag. Name, then the Dryness word and rock under it, the good hours, and the score at the right edge. All five places fit on one screen; v5 showed three and a half. The 24-hour track is gone: it said the good hours a second time.</li>
-<li><b>The answer comes first on every crag tab.</b> Days and Hours lead with the picked day or hour on its rule, and the chart follows. Every hero figure is one size, 96 px (it was 76 to 128).</li>
+<li><b>Every hero figure is one size</b>, 96 px (it was 76 to 128). Days and Hours keep the bar chart above the score (your comments on v6).</li>
 <li><b>Nine type sizes for the whole app:</b> 12, 13, 15, 17, 20, 24, 34, 56 and 96. A screen used 9 to 15; now it uses 6 or 7. Nothing is under 12 px, and the light (300) weight is gone.</li>
 <li><b>Dock:</b> words, not icons: Now · Days · Hours · Rain · Rock · Crag, on crags and Minneapolis. Every tab says its name. Tabs, header buttons, footer rows and the Hours day picker are 44 px tall.</li>
 <li><b>Header:</b> one line under the crag's name ("Updated 9:12 AM"). The rock is on Now and Rock.</li>
 <li><b>Footer:</b> Sources, Check this forecast and Edit crag on every crag tab. Remove location is on Edit crag only, not in red on six tabs. Rock's button is called Check this forecast too, so one action has one name.</li>
 <li><b>Grades are a neutral ramp</b>, lighter as harder. Lime, orange and red now mean a score and nothing else. Grade bars draw without a pick (they were the ground colour and read as empty), and the bar animation no longer takes three seconds to reach them.</li>
 <li><b>Nothing loops while the page sits still:</b> the grain is a fixed texture, the lights hold their place, the dial glow and trip water stop swelling, the Last rain water settles flat a few seconds after it fills or is tapped, and the chart's dot keeps a still ring. Taps and transitions still move.</li>
-<li><b>Rain:</b> Rain gauges is one tap away, under its verdict ("Matched"), rather than a second headline under Last rain.</li>
-<li><b>Rock:</b> Walls comes before the sun dial, since the question on Rock is which wall.</li>
+<li><b>Rain:</b> Rain gauges is one tap away, under its verdict ("Matched"), rather than a second headline under Last rain. Closed, it is a single ruled row between the two charts, not a band of empty space (your comment on v6).</li>
+<li><b>Rock:</b> the sun dial stays at the top, with Walls under the day's temperatures (your comment on v6).</li>
 <li><b>Crag:</b> leads with Now and Walls today; the route counts are a row of figures under them, not the hero.</li>
 <li><b>Profile:</b> How the score works is its own page (Profile and Now both link to it), and Everyone's feedback folds under its count.</li>
 <li><b>Copy:</b> Red Wing's rock "softens when wet" on Now, as the app's rock guide says. v5 said "holds up when wet".</li>
