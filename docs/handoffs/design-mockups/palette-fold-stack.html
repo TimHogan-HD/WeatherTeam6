@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>WT6 Palette and Folds</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Palette roles, and the Construct Design fold stack as Right now. One phone at 390 px with a
+   switcher and notes beside it; stacks on a phone. Tokens are colorsV2 as of 2026-11-25
+   (packages/design/src/tokens.ts), ground pick G. */
+:root{
+  color-scheme:dark;
+  --bg:#121416; --surface:#1a1d1f; --card:#1d2022; --raised:#282b2e; --line:#26292c;
+  --txt1:#f4f7fa; --txt2:#d3e1e4; --muted:#bccad0; --tab:#959ca3;
+  --brand:#1DC5D2; --brandInk:#6fe3ec; --brandWash:rgba(29,197,210,.16);
+  --good:#b8f542; --fair:#f6ad55; --poor:#fc8181;
+  /* reading hues: existing tokens */
+  --rainMark:#a5b4fc; --wind:#7fd1c4; --airNeutral:#dfe6ec; --soil:#d9b98a; --humidity:#ee9fe0;
+  --display:'Barlow Condensed','Arial Narrow',sans-serif; --body:'Barlow','Segoe UI',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#0c0d0f;color:var(--txt1);font-family:var(--body);font-variant-numeric:tabular-nums;padding-block:24px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--brandInk);outline-offset:2px}
+p{margin:0}
+[hidden]{display:none !important}
+code{font-size:.92em}
+
+.page{max-width:1000px;margin:0 auto;display:flex;flex-direction:column;gap:24px}
+.intro{display:flex;flex-direction:column;gap:8px;max-width:660px}
+.intro h1{margin:0;font-family:var(--display);font-weight:700;font-size:36px;line-height:1.05;text-wrap:balance}
+.intro p{color:var(--muted);font-size:15px;line-height:1.55}
+.switch{display:flex;gap:6px;flex-wrap:wrap}
+.switch button{min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-family:var(--display);font-weight:600;font-size:16px;color:var(--txt2)}
+.switch button[aria-pressed="true"]{border-color:var(--brand);color:var(--brandInk);background:var(--brandWash)}
+.wrap{display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start}
+.phone{width:390px;max-width:100%;border-radius:40px;overflow:hidden;box-shadow:0 0 0 8px #020304,0 30px 80px #000c;background:var(--bg);padding:18px 16px 28px}
+.notes{flex:1 1 300px;min-width:0;max-width:480px;display:flex;flex-direction:column;gap:12px}
+.notes h3{margin:0;font-family:var(--display);font-weight:700;font-size:24px;line-height:1.1}
+.notes h5{margin:8px 0 0;font-family:var(--display);font-weight:600;font-size:18px}
+.notes p,.notes li{color:var(--muted);line-height:1.55;font-size:15px}
+.notes ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.notes b{color:var(--txt1);font-weight:600}
+.notes .data{border-left:2px solid var(--line);padding-left:12px}
+
+/* swatch board */
+.roles{display:flex;flex-direction:column;gap:10px}
+.role{display:grid;grid-template-columns:7.5em 1fr;gap:10px;align-items:start;font-size:13px;color:var(--muted)}
+.role > span{padding-top:4px}
+.sw{display:flex;flex-wrap:wrap;gap:6px}
+.sw i{display:flex;flex-direction:column;gap:3px;font-style:normal;font-size:12px;color:var(--muted);width:56px}
+.sw i::before{content:"";height:24px;border-radius:6px;background:var(--c);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+
+/* ---------- phone: Overview, open sections (variant C as built) ---------- */
+.bar{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px}
+.back{min-width:44px;min-height:44px;border:0;background:none;color:var(--brandInk);font-size:22px;padding:0;text-align:left}
+.fb{border:0;background:none;color:var(--muted);min-height:44px;padding:0 4px;font-size:15px}
+.name{font-family:var(--display);font-weight:700;font-size:28px;line-height:1.1;padding:10px 2px 6px}
+.hero{display:flex;align-items:baseline;gap:12px;padding:6px 2px 4px}
+.hero .big{font-family:var(--display);font-weight:700;font-size:88px;line-height:.9;color:var(--good)}
+.hero p{font-size:15px;color:var(--txt2);line-height:1.4}
+.hero p span{color:var(--muted)}
+section{padding:22px 2px 0}
+section + section{margin-top:22px;border-top:1px solid var(--line)}
+h4{margin:0 0 6px;font-family:var(--display);font-weight:600;font-size:20px}
+.list div{display:grid;grid-template-columns:5em 1fr auto;gap:10px;align-items:baseline;padding:9px 0;border-top:1px solid var(--line);font-size:15px}
+.list div:first-child{border-top:0}
+.list .d{font-weight:600}
+.list b{font-family:var(--display);font-weight:700;font-size:22px;color:var(--good);text-align:right}
+.list .t{color:var(--txt2)}
+.kv div{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--line);font-size:15px}
+.kv div:first-child{border-top:0}
+.kv span{color:var(--muted)}
+.kv b{display:flex;align-items:center;gap:6px}
+.kv b::after{content:"";width:7px;height:7px;border-top:1.5px solid var(--tab);border-right:1.5px solid var(--tab);transform:rotate(45deg);margin-left:4px}
+
+/* ---------- fold stack ---------- */
+.folds{display:flex;flex-direction:column;margin-top:4px}
+.fold{all:unset;box-sizing:border-box;position:relative;display:block;width:100%;cursor:pointer;border-radius:22px;padding:0 18px;height:58px;overflow:hidden;
+  background:var(--f-bg);color:var(--f-ink);transition:height .42s cubic-bezier(.34,1.32,.5,1),background-color .25s}
+.fold + .fold{margin-top:-12px}
+.fold:focus-visible{outline:2px solid var(--brandInk);outline-offset:2px;z-index:5}
+.fold[aria-selected="true"]{height:188px;background:var(--f-bg-open)}
+.fold .head{display:flex;justify-content:space-between;align-items:center;height:46px;gap:12px}
+.fold .nm{display:flex;align-items:center;gap:8px;font-family:var(--display);font-weight:600;font-size:18px;color:var(--f-name)}
+.fold .nm::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--f-dot)}
+.fold .rd{font-size:15px;color:var(--f-sub)}
+.fold[aria-selected="true"] .rd{visibility:hidden}
+.fold .body{display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:end;opacity:0;transform:translateY(8px);transition:opacity .2s,transform .35s}
+.fold[aria-selected="true"] .body{opacity:1;transform:none;transition-delay:.08s}
+.fold .val{font-family:var(--display);font-weight:700;font-size:52px;line-height:.95}
+.fold .val small{font-size:22px;font-weight:500;margin-left:3px;color:var(--f-sub)}
+.fold .cap{grid-column:1/-1;font-size:13px;color:var(--f-sub);margin-top:-2px}
+.fold .pair{grid-column:1/-1;display:flex;gap:18px;font-size:13px;color:var(--f-sub)}
+.fold .pair b{display:block;font-size:15px;font-weight:600;color:var(--f-ink)}
+.meter{display:grid;grid-template-columns:repeat(10,7px);gap:4px;align-self:center}
+.meter i{width:7px;height:7px;border-radius:50%;background:var(--f-off);transition:background-color .2s}
+.meter i.on{background:var(--f-on)}
+.fold[aria-selected="true"] .meter i.on{transition-delay:calc(var(--k) * 18ms + .12s)}
+.openTab{margin-top:10px;min-height:44px;border:0;background:none;padding:0 2px;color:var(--brandInk);font-size:15px}
+
+/* colour treatments, per fold: --hue is the reading's own token */
+.tonal .fold{--f-bg:var(--card);--f-bg-open:var(--raised);--f-ink:var(--txt1);--f-name:var(--txt1);--f-sub:var(--muted);--f-dot:var(--hue);--f-on:var(--hue);--f-off:#3a3e42;box-shadow:0 -1px 0 var(--line)}
+.tint .fold{--f-bg:var(--card);--f-bg-open:color-mix(in srgb,var(--hue) 16%,var(--card));--f-ink:var(--txt1);--f-name:var(--hue);--f-sub:var(--txt2);--f-dot:var(--hue);--f-on:var(--hue);--f-off:color-mix(in srgb,var(--hue) 22%,var(--card));box-shadow:0 -1px 0 var(--line)}
+.loud .fold{--f-bg:var(--deep);--f-bg-open:var(--deep);--f-ink:#fff;--f-name:#fff;--f-sub:rgba(255,255,255,.86);--f-dot:#fff;--f-on:#eaf20c;--f-off:rgba(0,0,0,.28);box-shadow:0 -6px 16px rgba(0,0,0,.35)}
+
+@media (prefers-reduced-motion:reduce){ .fold,.fold .body,.meter i{transition:none !important} }
+</style></head>
+<body>
+<div class="page">
+  <div class="intro">
+    <h1>Palette roles, and the fold stack</h1>
+    <p>The fold stack from the Construct Design library, rebuilt in plain HTML as the Overview's Right now, in three colour treatments next to today's rows. The treatments differ on one thing: how much colour a reading owns. The notes hold a palette proposal that any of them would sit on. Taylors Falls figures are the 2026-11-23 screenshot; humidity and the 24-hour chance of rain are examples.</p>
+  </div>
+
+  <div class="switch" role="group" aria-label="Right now treatment">
+    <button type="button" data-v="rows" aria-pressed="true">Current rows</button>
+    <button type="button" data-v="loud" aria-pressed="false">A · Folds, library colours</button>
+    <button type="button" data-v="tint" aria-pressed="false">B · Folds, tinted</button>
+    <button type="button" data-v="tonal" aria-pressed="false">C · Folds, tonal</button>
+    <button type="button" data-v="palette" aria-pressed="false">Palette roles</button>
+  </div>
+
+  <div class="wrap">
+    <div class="phone">
+      <div class="bar"><button class="back" type="button" aria-label="Back">‹</button><button class="fb" type="button">Feedback</button></div>
+      <div class="name">Taylors Falls</div>
+      <div class="hero">
+        <div class="big">95</div>
+        <p>Score at 4 PM<br>Dry · 29°F · good 4–11 PM<br><span>Basalt</span></p>
+      </div>
+      <section>
+        <h4>Next days</h4>
+        <div class="list">
+          <div><span class="d">Today</span><span class="t">31° / 22°</span><b>92</b></div>
+          <div><span class="d">Tue</span><span class="t">33° / 21°</span><b>100</b></div>
+          <div><span class="d">Wed</span><span class="t">37° / 25°</span><b>100</b></div>
+        </div>
+      </section>
+      <section>
+        <h4>Right now</h4>
+        <div class="kv" id="rows">
+          <div><span>Last rain</span><b>0.12 in, Sunday</b></div>
+          <div><span>Next rain</span><b>None likely through Sunday</b></div>
+          <div><span>Wind</span><b>9 mph, gusts 13</b></div>
+          <div><span>Air</span><b>29°F</b></div>
+        </div>
+        <div id="foldWrap" hidden>
+          <div class="folds" id="folds" role="tablist" aria-label="Right now" aria-orientation="vertical"></div>
+          <button class="openTab" type="button" id="openTab">Open Rain</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="notes">
+      <div data-n="rows">
+        <h3>Current rows</h3>
+        <ul>
+          <li><b>As built since 2026-11-23:</b> label and value rows, each opening its tab.</li>
+          <li>Every reading is visible at once, in one colour. Nothing says rain is rain except the word.</li>
+        </ul>
+      </div>
+      <div data-n="loud" hidden>
+        <h3>A · Folds, library colours</h3>
+        <ul>
+          <li><b>As the library draws it:</b> each reading owns a deep, saturated card, white type, lime dots.</li>
+          <li><b>It breaks the score ladder.</b> The lime meter is <code>good</code>'s hue, the brick Ground card reads as <code>poor</code>, the orange Air card as <code>fair</code>. On this screen a colour would no longer mean a score. There are only so many hues left once green, amber and red are taken.</li>
+          <li>It also puts four saturated slabs under a lime 95: the loudest thing on the screen stops being the answer.</li>
+        </ul>
+        <p class="data">Shown so the choice is concrete. Not recommended.</p>
+      </div>
+      <div data-n="tint" hidden>
+        <h3>B · Folds, tinted</h3>
+        <ul>
+          <li><b>Each reading's own hue,</b> the one its charts already use: rain periwinkle, wind teal, ground tan, air pale grey. The open fold takes a 16% wash of it; the closed ones stay neutral.</li>
+          <li>The name is set in the hue too, so Rain is the same blue here as on the Precip tab.</li>
+          <li>Colour stays away from the score ladder; lime is still only a score.</li>
+        </ul>
+        <p class="data"><b>Cost:</b> a new component with tab keyboard handling; no data change. Humidity and the 24-hour chance would need fields the Overview does not read today.</p>
+      </div>
+      <div data-n="tonal" hidden>
+        <h3>C · Folds, tonal</h3>
+        <ul>
+          <li><b>The folds are surface steps,</b> not colours: <code>card</code> closed, <code>raised</code> open. The reading's hue is only its dot and its meter, small and at full strength (the library's own rule: 10% colour, in small objects).</li>
+          <li>The quietest of the three, and the closest to #644's direction.</li>
+        </ul>
+        <p class="data"><b>Cost:</b> as B.</p>
+      </div>
+      <div data-n="loud tint tonal" hidden>
+        <h5>What changes in all three folds</h5>
+        <ul>
+          <li><b>Every closed fold still shows its reading,</b> so the glance is kept; only the detail waits for a tap.</li>
+          <li><b>A meter appears only where the big value is itself a fraction:</b> here, only Rain's chance. Wind, dryness and temperature have no honest 0 to 1, so they get none; a meter on wind would be a plausible number with nothing behind it (defect class 1). Humidity is a fraction, but a meter beside 29°F would read as the temperature's.</li>
+          <li><b>Opening a tab</b> moves to a link under the stack (Open Rain), because a link inside a fold button is a nested control (defect class 6).</li>
+          <li>Taken out from the library: autoplay, sound, the walking choice.</li>
+        </ul>
+      </div>
+      <div data-n="palette" hidden>
+        <h3>Palette roles</h3>
+        <p>A proposal for <code>colorsV2</code>: every colour belongs to one role, and a reading's hue is the same on every screen. Today there are 43 colour tokens, 24 of them saturated, and one hue does three jobs: <code>#7fd1c4</code> is <code>wind</code>, <code>tempBarCool</code> and <code>dewMargin</code>.</p>
+        <div class="roles">
+          <div class="role"><span>Ground, 5</span><div class="sw">
+            <i style="--c:#121416">bg</i><i style="--c:#1a1d1f">surface</i><i style="--c:#1d2022">card</i><i style="--c:#282b2e">raised</i><i style="--c:#26292c">line</i></div></div>
+          <div class="role"><span>Ink, 4</span><div class="sw">
+            <i style="--c:#f4f7fa">txt1</i><i style="--c:#d3e1e4">txt2</i><i style="--c:#bccad0">muted</i><i style="--c:#959ca3">tab</i></div></div>
+          <div class="role"><span>Action, 2<br>what you can press or have chosen</span><div class="sw">
+            <i style="--c:#1DC5D2">brand</i><i style="--c:#6fe3ec">brandInk</i></div></div>
+          <div class="role"><span>Score, 3<br>conditions only</span><div class="sw">
+            <i style="--c:#b8f542">good</i><i style="--c:#f6ad55">fair</i><i style="--c:#fc8181">poor</i></div></div>
+          <div class="role"><span>Readings, 6<br>one hue each, everywhere</span><div class="sw">
+            <i style="--c:#a5b4fc">rain</i><i style="--c:#7fd1c4">wind</i><i style="--c:#ffd36b">warm</i><i style="--c:#ee9fe0">humidity</i><i style="--c:#d9b98a">ground</i><i style="--c:#f3e08a">sun</i></div></div>
+        </div>
+        <ul>
+          <li><b>20 base colours.</b> Everything else becomes a step of one of them: <code>rainLine</code>, the capsule ends and the precip steps are steps of rain; <code>gust</code> a step of wind; <code>rangeFrost</code> a step of the air line.</li>
+          <li><b>One hue, one job:</b> the Daily bar's cool end and the dew-margin line get their own steps rather than wind's teal.</li>
+          <li><b>Kept on purpose:</b> the score ladder, per-series chart hues, the model-agreement dots, the rock swatches (decoration, outside the palette).</li>
+        </ul>
+        <p class="data"><b>Cost:</b> a token PR that renames and derives; every screen moves at once, so it goes after you pick, with <code>check:ui</code> screenshots before and after.</p>
+      </div>
+      <p class="data" style="font-size:13px">Source: Construct Design <code>fold-stack</code>, and its colour guide for apps. Rebuilt here; no library code is used.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// Right now as folds. `level` is drawn only where it is a real fraction; null means no meter.
+const FOLDS = [
+  {name:'Ground', tab:'Rock', hue:'--soil', deep:'#9c4a2a', read:'Dry', value:'Dry', pairs:[['Last rain','0.12 in, Sunday']], level:null},
+  {name:'Rain', tab:'Rain', hue:'--rainMark', deep:'#2f4fd0', read:'None likely', value:'5', unit:'%', cap:'Chance of rain, next 24 h', pairs:[['Next rain','None likely through Sunday']], level:.05},
+  {name:'Wind', tab:'Wind', hue:'--wind', deep:'#127272', read:'9 mph', value:'9', unit:'mph', pairs:[['Gusts','13 mph']], level:null},
+  {name:'Air', tab:'Air', hue:'--airNeutral', deep:'#b8571d', read:'29°F', value:'29', unit:'°F', pairs:[['Humidity','62%']], level:null},
+];
+const wrap = document.getElementById('folds');
+wrap.innerHTML = FOLDS.map((f,i) => `
+  <button class="fold" role="tab" id="fold-${i}" aria-selected="false" tabindex="-1" style="--hue:var(${f.hue});--deep:${f.deep};z-index:${i+1}">
+    <span class="head"><span class="nm">${f.name}</span><span class="rd">${f.read}</span></span>
+    <span class="body">
+      <span class="val">${f.value}${f.unit ? `<small>${f.unit}</small>` : ''}</span>
+      ${f.level === null ? '<span></span>' : `<span class="meter" aria-hidden="true">${Array.from({length:20},(_,k)=>`<i class="${k < Math.round(f.level*20) ? 'on' : ''}" style="--k:${k}"></i>`).join('')}</span>`}
+      ${f.cap ? `<span class="cap">${f.cap}</span>` : ''}
+      <span class="pair">${f.pairs.map(([l,v]) => `<span>${l}<b>${v}</b></span>`).join('')}</span>
+    </span>
+  </button>`).join('');
+const tabs = [...wrap.querySelectorAll('.fold')];
+let sel = 1;
+function choose(i, focus){
+  sel = (i + tabs.length) % tabs.length;
+  tabs.forEach((t,k) => { t.setAttribute('aria-selected', String(k === sel)); t.tabIndex = k === sel ? 0 : -1; });
+  document.getElementById('openTab').textContent = `Open ${FOLDS[sel].tab}`;
+  if (focus) tabs[sel].focus();
+}
+tabs.forEach((t,k) => t.addEventListener('click', () => choose(k)));
+wrap.addEventListener('keydown', e => {
+  const m = {ArrowDown:1, ArrowRight:1, ArrowUp:-1, ArrowLeft:-1}[e.key];
+  if (m){ e.preventDefault(); choose(sel + m, true); }
+  if (e.key === 'Home'){ e.preventDefault(); choose(0, true); }
+  if (e.key === 'End'){ e.preventDefault(); choose(tabs.length - 1, true); }
+});
+choose(1);
+
+function show(v){
+  document.querySelectorAll('.switch button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === v)));
+  document.querySelectorAll('.notes [data-n]').forEach(el => el.hidden = !el.dataset.n.split(' ').includes(v));
+  const folds = ['loud','tint','tonal'].includes(v);
+  document.getElementById('rows').hidden = folds;
+  document.getElementById('foldWrap').hidden = !folds;
+  document.getElementById('foldWrap').className = folds ? v : '';
+  try { localStorage.setItem('wt6-folds-v', v); } catch {}
+}
+document.querySelectorAll('.switch button').forEach(b => b.addEventListener('click', () => show(b.dataset.v)));
+let start = 'rows';
+try { start = localStorage.getItem('wt6-folds-v') || 'rows'; } catch {}
+show(['rows','loud','tint','tonal','palette'].includes(start) ? start : 'rows');
+</script>
+</body></html>
