@@ -98,6 +98,12 @@ the current look. `look-variants-644.html` holds the #644 variants; the owner pi
 the model dots (U1) on 2026-11-23, and C was carried to every screen on 2026-11-24
 (`sectionV2` and `surfaceV2` in `theme/styles.ts`).
 
+`whole-app.html` (built from `whole-app-src/` on top of `passo-feel-644.html`, "v26") is
+every screen redrawn in the crag design worked out for #644 on 2026-11-25: lit glow, figures
+on a rule, rolling numbers, a glass dock, Barlow Condensed and Barlow. It is **in review,
+not approved**: `docs/handoffs/whole-app-mockup-v1.md` records the owner's corrections, what
+is still open, and how to rebuild it.
+
 `background-variants.html` holds the background options; the owner picked G, tonal steps
 on a flat `#121416`, on 2026-11-24 (`colorsV2` in `packages/design`).
 
