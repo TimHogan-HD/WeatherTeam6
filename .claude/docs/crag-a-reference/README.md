@@ -17,7 +17,7 @@ directory is the research record; the port has diverged from it since 2026-11-02
 **The port diverges from `model.ts` on purpose since 2026-11-02** (owner, after field checks
 at Red Wing and Sandstone on 10/31–11/1 found dry rock through 15 hours the app scored 0):
 condensation is read per wall (`T_mass + (T_surface − air) − dew`, median of the eight, floored
-at 0.5; the sun term became the lagged solar gain alone on 2026-11-09, below), and every dry hour credits at least one hour of drying. `model.ts` is unchanged.
+at 0.5, unscored since 2026-11-27; the sun term became the lagged solar gain alone on 2026-11-09, below), and every dry hour credits at least one hour of drying. `model.ts` is unchanged.
 Measured here with both ported behind a switch: the drying floor alone passes every check
 (moves F3 45 → 67, F12 28 → 54, F17 39 → 48, all in band). With the condensation change too:
 crag 24/28, fresh crag 17/18, wall WA 29/33. C11 (warm humid air after a cold snap) 0 → 47,
@@ -36,6 +36,14 @@ figure, turns it back into rain at each wetting, adds the hour's rain and sizes 
 to `accuracy()`: every line unchanged, crag 28/28, fresh crag 18/18, wall WA 33/33 (CA 32/33,
 A3), fresh wall 8/10 (G5, G10). No test day has rain after a partial dry-out, so the test days
 neither argue for nor against it; the argument is the step.
+
+**Fifth divergence, 2026-11-27: condensation is not scored** (owner). The per-wall margin above
+is still computed and published (Rock tab, the `condensing` qualifier) and still gates the hour
+(no `T_mass` or no measured sun withholds), but friction is heat × humidity × cold.
+`compare:condensation-margin` (USCRN measured surfaces, April to November 2026) found the
+margin docking 2–8% of climbing hours, wrong on 48–86% of them, against measured surfaces
+under the dew point in 0–2% (none in June to August). Not rerun against the judged test days
+here: C11, C14, C17, C19 and F9 can only rise or hold. `scoring.md` holds the rule.
 
 **Fourth divergence, 2026-11-10: no exponent on dryness** (#536, owner). `model.ts` scores
 `dryness^0.55`, which on the squared ramp is drying progress to the power 1.1: the curve #137
@@ -95,6 +103,7 @@ printing. One alone, with `NODE_OPTIONS=--max-old-space-size=8000`, finished in 
 through in v2). The port drops the 0.55 too since 2026-11-10 (#536, below).
 
 **Friction (Crag A's grip, "H"):** `condensation(T_mass − Td, 0→1 over 2 °C) × heat × humidity × cold`
+  in `model.ts`; the port drops the condensation factor since 2026-11-27 (fifth divergence, above).
 - heat `exp(−max(0, Ta − 60 °F)/12 °C)`, humidity `exp(−max(0, Td − 54 °F)/10 °C)`,
   cold `exp(−max(0, 30 °F − Ta)/12 °C)`. Air temperature and dew point only, so it ignores sun
   and still scores when shortwave is missing (v2 returns null).
