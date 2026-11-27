@@ -115,9 +115,15 @@ humidity     = exp(−max(0, Td − 54 °F) / 10 °C)
 cold         = exp(−max(0, 30 °F − Ta) / 12 °C)
 ```
 
+60 °F and 30 °F are the default range (`TEMP_RANGE_DEFAULT_F`). Heat and cold actually start
+at each reader's own range top and bottom (Profile, `readerScoringFor`), and Wall A adds the
+wall's sun warming to `Ta`. The 54 °F dew edge is global. 60 °F was set in the 2026-09-24
+benchmark's shipped option (`crag-a-reference/model.ts`, `KH`; its generic default was 72 °F);
+the reason for 60 over 72 was not recorded. Neither edge has a measured source (#690).
+
 **Condensation is not scored** (owner, 2026-11-27). From 2026-11-02 it was a fourth factor,
 `max(0.5, clamp(median over walls of (T_mass + gain_wall − Td) / 2 °C, 0, 1))`, and it came
-out on the evidence: it halved Sandstone on 2026-11-28, a dry 44 °F day after a cold week;
+out on the evidence: it halved Sandstone's forecast for Saturday 2026-11-28 (read on 2026-11-27), a dry 44 °F day after a cold week;
 both forecast checks that met it found climbable rock; and `compare:condensation-margin`
 found measured ground surfaces under the dew point in 0–2% of climbing hours (none in
 June–August at 13 USCRN stations) while the margin docked 2–8%, wrong on most and catching

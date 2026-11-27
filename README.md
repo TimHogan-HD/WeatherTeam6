@@ -107,7 +107,7 @@ Think of dryness as two timers: one for water on the surface, and one for water 
 
 ![Grip: heat 0.48, dampness 1.0 and cold 1.0 multiply to about 0.48](docs/images/crag-a-2-grip.png)
 
-Grip asks three simple questions: is it too hot, is the air damp, or is it too cold? A value of 1.0 means that check does not reduce the estimate. Condensation is not one of them: the app estimates whether the rock is near its dew point and shows it on the Rock tab, but since 2026-11-27 it no longer lowers the score, because the evidence so far found it wrong far more often than right. The heat formula uses a gradual penalty: `exp` means the factor falls smoothly as air temperature rises above 60°F, rather than dropping suddenly. The damp-air penalty starts above a 54°F dew point; the cold penalty starts below 30°F. Grip is an estimate, not a direct measurement.
+Grip asks three simple questions: is it too hot, is the air damp, or is it too cold? A value of 1.0 means that check does not reduce the estimate. Condensation is not one of them: the app estimates whether the rock is near its dew point and shows it on the Rock tab, but since 2026-11-27 it no longer lowers the score, because the evidence so far found it wrong far more often than right. The heat formula uses a gradual penalty: `exp` means the factor falls smoothly as air temperature rises above 60°F, rather than dropping suddenly. The damp-air penalty starts above a 54°F dew point; the cold penalty starts below 30°F. The 60°F and 30°F edges are defaults: each person's Temperature range in Profile moves them for their own scores. The 54°F dew point is the same for everyone. Grip is an estimate, not a direct measurement.
 
 #### 3. Turn hourly estimates into a daily score
 
