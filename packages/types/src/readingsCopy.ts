@@ -152,7 +152,6 @@ export const HELD_BACK_LABEL = 'Score breakdown';
 
 export const SCORE_LIMIT_LABELS: Record<ScoreLimit, string> = {
   wet_rock: 'Wet rock',
-  condensation: 'Condensation',
   heat: 'Heat',
   humidity: 'Humidity',
   cold: 'Cold',
@@ -166,10 +165,11 @@ export const SCORE_LIMIT_LABELS: Record<ScoreLimit, string> = {
 export const SCORE_MODEL_FACTS = {
   /** Dew point, °F, above which the humidity penalty starts. */
   dewStartF: 54,
-  /** Margin, °C, between the rock and its dew point below which condensation costs grip. */
+  /**
+   * Margin, °C, between the rock and its dew point that the Condensation card
+   * calls near. Not a penalty: condensation left the score on 2026-11-27.
+   */
   condensationClearMarginC: 2,
-  /** The most condensation can take off the score, as a fraction of it. */
-  condensationMaxCut: 0.5,
   /** A day's score: the worst hour of its best run of this many hours… */
   dayRunHours: 3,
   /** …between these local hours, inclusive. */
@@ -203,8 +203,6 @@ export function heldBackReason(limit: ScoreLimit, rock: RockReading | null, rang
   switch (limit) {
     case 'wet_rock':
       return rock?.level === 'wet' ? 'wet' : 'drying';
-    case 'condensation':
-      return 'rock near dew point';
     case 'heat':
       return range === null ? 'above your range' : `above ${range.high}°F`;
     case 'humidity':
@@ -220,13 +218,23 @@ export function heldBackReason(limit: ScoreLimit, rock: RockReading | null, rang
  * none. **Words and order only**: how much each one costs is a judgement call
  * the screen does not print.
  */
+/**
+ * The causes this client can name, in the API's order. **API and client deploy
+ * separately**: an API from before 2026-11-27, or a cached response, still sends
+ * `condensation`, which is no longer a penalty. A cause the client has no words
+ * for is left out rather than printed as `undefined`.
+ */
+export function knownScoreLimits(limits: readonly string[]): ScoreLimit[] {
+  return limits.filter((l): l is ScoreLimit => Object.hasOwn(SCORE_LIMIT_LABELS, l));
+}
+
 export function heldBackFields(
   limits: readonly ScoreLimit[],
   rock: RockReading | null,
   range: RangeF,
 ): ReadingField[] {
   // Empty when nothing costs a point on its own; the surface then shows no breakdown at all.
-  return limits.map((l) => ({ label: SCORE_LIMIT_LABELS[l], value: heldBackReason(l, rock, range) }));
+  return knownScoreLimits(limits).map((l) => ({ label: SCORE_LIMIT_LABELS[l], value: heldBackReason(l, rock, range) }));
 }
 
 /**
@@ -361,11 +369,12 @@ export const UNRECORDED_ASPECT_NOTE = 'Wall direction not set, so sunny hours ma
  * and it is worth naming because it is the case a climber can act on — the wall
  * is wet with condensation, not with rain, and it will clear when the air does.
  *
- * **"Likely", because the wall's temperature is modelled** (#436): the physics
- * is uncontested, the input is not. The same word the Condensation card's
- * headline uses for the same estimate.
+ * **"Possible", not "likely"** (2026-11-27): the wall's temperature is
+ * modelled (#436), and the forecast checks and `compare:condensation-margin`
+ * found it condensing far less often than this margin says. The same word the
+ * Condensation card's headline uses. It never changes the score.
  */
-export const CONDENSING_NOTE = 'Condensation likely on the rock';
+export const CONDENSING_NOTE = 'Condensation possible on the rock';
 
 export type ReadingsSummaryInput = {
   /** The hour being summarised — normally the hour covering now. */

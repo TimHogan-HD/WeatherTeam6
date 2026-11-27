@@ -17,6 +17,7 @@ import type {
   HourlyReading,
   ReadingsUnavailableReason,
   RockReading,
+  ScoreLimit,
 } from './hourly.js';
 
 const rock = (over: Partial<RockReading> = {}): RockReading => ({
@@ -314,10 +315,11 @@ describe('what is holding the score down', () => {
     expect(summary({ reading: drying }).heldBack?.[0]?.value).toBe('drying');
   });
 
-  it('names condensation as the rock near its dew point', () => {
-    expect(summary({ reading: reading({ held_back_by: ['condensation'] }) }).heldBack?.[0]?.value).toBe(
-      'rock near dew point',
-    );
+  it('leaves out a cause an older API still sends, condensation, rather than printing undefined', () => {
+    const older = ['condensation', 'humidity'] as unknown as ScoreLimit[];
+    expect(summary({ reading: reading({ held_back_by: older }) }).heldBack).toEqual([
+      { label: 'Humidity', value: 'dew point over 54°F' },
+    ]);
   });
 
   it('has no breakdown rows when the API named nothing, rather than a row saying so', () => {

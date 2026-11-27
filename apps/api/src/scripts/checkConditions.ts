@@ -305,7 +305,7 @@ async function run(): Promise<void> {
 
     const held = readings.now.held_back_by
     info('held_back_by', held == null ? '(none)' : held.length === 0 ? '(nothing)' : held.join(' > '))
-    const known = ['wet_rock', 'condensation', 'heat', 'humidity', 'cold']
+    const known = ['wet_rock', 'heat', 'humidity', 'cold']
     check(
       'what holds the score down arrives as names, with the score and only with it (#218)',
       readings.now.score === null

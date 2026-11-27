@@ -268,12 +268,13 @@ export type FrictionLevel = 'poor' | 'fair' | 'good' | 'great';
 export type RockReading = { level: RockLevel; qualified: boolean };
 
 /**
- * One of Crag A's five multiplicative penalties: the rock's wetness, then
- * friction's condensation, heat, humidity and cold. **A name, never a value** —
+ * One of Crag A's four multiplicative penalties: the rock's wetness, then
+ * friction's heat, humidity and cold. Condensation was one until 2026-11-27
+ * (`cragModel.condensationMarginA`). **A name, never a value** —
  * the magnitude fence lets the ordering reach a screen and keeps the 0-1
  * factor in `diagnostics`.
  */
-export type ScoreLimit = 'wet_rock' | 'condensation' | 'heat' | 'humidity' | 'cold';
+export type ScoreLimit = 'wet_rock' | 'heat' | 'humidity' | 'cold';
 
 export type FrictionReading = {
   level: FrictionLevel;
@@ -290,12 +291,12 @@ export type HourlyReading = {
   friction: FrictionReading | null;
   /**
    * 0-100. **Null means an input could not be measured — never 0.** 0 is a real
-   * score and it means the wall is wet or running with condensation.
+   * score and it means the wall is wet.
    */
   score: number | null;
   /** Rock surface temperature, °C. A derived measurement, not a guess about grip. */
   t_surface_c: number | null;
-  /** How far the wall's bulk sits above its dew point, °C. Below 0 it is condensing. */
+  /** How far the wall's bulk sits above its dew point, °C. Below 0 the model reads it condensing. Not scored. */
   condensation_margin_c: number | null;
   /**
    * What is holding `score` below 100, most limiting first. Only penalties that

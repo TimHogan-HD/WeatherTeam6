@@ -244,10 +244,10 @@ export function rockLevel(
  * humidity mean opposite things depending on what the rock has been sitting at
  * (`scoring-findings.md` §3.1).
  *
- * The score does not read it this way any more: Crag A and Wall A pass each
- * wall's margin with that wall's sun added and floor the median at half
- * (`cragModel.condensationA`, 2026-11-02), and publish that median wall's
- * margin as `condensation_margin_c`.
+ * Only v2's own, discarded score reads it. Crag A and Wall A publish each
+ * wall's margin with that wall's sun added (`cragModel.condensationMarginA`)
+ * as `condensation_margin_c`, and **score no condensation at all** (owner,
+ * 2026-11-27; the evidence is on `condensationMarginA`).
  */
 export function condensationFactor(marginC: number | null): number | null {
   if (marginC === null || !Number.isFinite(marginC)) return null

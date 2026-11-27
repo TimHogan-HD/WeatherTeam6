@@ -54,8 +54,8 @@ import { Stats } from './StatTiles.js'
  * air's temperature minus its dew point over the next 42 hours, with the hours
  * the model reads the rock near or under its dew point shaded (#436).
  *
- * **The shading's edge is the score's own**: `SCORE_MODEL_FACTS
- * .condensationClearMarginC`, under which Crag A starts taking grip away. The
+ * **The shading's edge is `SCORE_MODEL_FACTS.condensationClearMarginC`**, the
+ * margin the card calls near. It is not scored (2026-11-27). The
  * rock's gap behind it prints nowhere as a figure: it is modelled, and misses
  * ground-surface sensors by about 9°F in daytime (`compare:rock-temp`).
  */
@@ -129,7 +129,7 @@ export function condensationNote(source: string | null): string {
   return (
     `Air temperature minus dew point, from the ${source === null ? '' : `${source} `}forecast. ` +
     'Rock colder than the dew point gets wet with no rain, and rock lags the air, so after a cold night it can be wet while the air reads a few degrees clear. ' +
-    'Shaded hours are where the score counts condensation against grip: an estimate, because the rock’s temperature is modelled, not measured.'
+    'Shaded hours are where the model reads the rock near its dew point. The score doesn’t count them: the rock’s temperature is modelled, not measured, and the forecast checks so far found the rock climbable through them.'
   )
 }
 

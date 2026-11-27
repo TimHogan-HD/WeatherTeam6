@@ -11,6 +11,7 @@ import {
   formatPrecipIn,
   formatTempF,
   kmhToMph,
+  knownScoreLimits,
   modelName,
   readingNow,
   seamlessModelName,
@@ -378,7 +379,7 @@ function Breakdown({ props, now }: { props: OverviewTabProps; now: Now }) {
   const navigate = useNavigate()
   const held = now.summary.heldBack
   const reading = now.conditions.readings?.now ?? null
-  const limits = reading?.held_back_by ?? null
+  const limits = reading?.held_back_by == null ? null : knownScoreLimits(reading.held_back_by)
   if (held === null || held.length === 0 || reading === null || limits == null) return null
   const series = props.hourly.data
   const rows = breakdownRows({

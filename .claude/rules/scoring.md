@@ -24,15 +24,15 @@ How Crag A scores, and what may feed it.
   2026-09-24.** `score = 100 × dryness × friction` (no exponent on either, #536), the drying clock on eight vertical
   walls, median taken. A location's score is always Crag A: its recorded aspect and angle are
   not inputs. **Wall A (`evaluateWallA`)** scores individual walls only, never a location:
-  `HourlyReadings.walls` (#445) carries it per lidar wall beside Crag A (below). Friction is condensation × heat × humidity × cold from air temperature, dew point,
-  `T_mass` and, for condensation only, each wall's sun (below) — no sun in Crag A's heat. **Wall A's heat and cold read air plus the direct sun on that
+  `HourlyReadings.walls` (#445) carries it per lidar wall beside Crag A (below). Friction is heat × humidity × cold from air temperature and dew point; condensation
+  is published, not scored (below) — no sun in Crag A's heat. **Wall A's heat and cold read air plus the direct sun on that
   wall** (`sunWarmingC`, owner 2026-10-30, from Winter Wall at Red Wing too hot on 10/4 and
   10/19 while Crag A read 100): the beam only, gated by the lidar skyline, zero on a
   tree-shaded wall, lagged like `T_surface`, null when the sun was not measured. A day's score is the worst hour of its best 3-hour run between 08:00 and
   18:00 local (`dayRepresentative`). **Today counts only hours not yet over**
   (`buildHourlyReadings`'s `now`); after 18:00 today has no score. The port has diverged
   from `.claude/docs/crag-a-reference/model.ts` on purpose since 2026-11-02 in four ways
-  (per-wall condensation, a drying floor, additive rain, no exponent on dryness; its README
+  (per-wall condensation, since 2026-11-27 unscored; a drying floor, additive rain, no exponent on dryness; its README
   records what moved) — a change that moves a
   result needs an argument. **Every constant is a judgement call**; nothing is validated
   against outcomes (#143).
@@ -79,7 +79,7 @@ How Crag A scores, and what may feed it.
   screen either** (owner, 2026-10-05): it graded an unvalidated estimate and read `Great` on
   wet rock. It stays in the score, its penalties reach the reader only through Score
   breakdown, and no surface prints a cause phrase outside it. `FrictionReading` still
-  travels on the response (trip records, the condensation qualifier);
+  travels on the response (trip records, the condensation qualifier, which never moves the score);
   and the app says it is an estimate **once** — on the Rock tab's Condensation card
   (`FRICTION_MECHANISM`, moved off the Overview 2026-10-29) and on How the score works,
   never under every gauge (owner, 2026-10-02). Factors live under `HourlyConditions.diagnostics`;
@@ -140,17 +140,20 @@ How Crag A scores, and what may feed it.
   the weather. It relaxes F17: fragile rock now dries at exactly elapsed time, and weather
   slows no rock's clock. Sandstone read Wet 17 three days after rain on 2026-10-31 while a
   friend stood at bone-dry rock. The walk's "soaked" first hour is worked off the same way.
-- **Condensation is read wall by wall and never takes more than half the score** (owner,
-  2026-11-02, `condensationA`): each wall's margin is `T_mass + gain − dew`, where `gain` is
+- **Condensation is not scored** (owner, 2026-11-27, superseding 2026-11-02's half-score
+  floor). It halved Sandstone on a dry 44 °F day after a cold week (2026-11-28); both field
+  checks that met it found climbable rock; `compare:condensation-margin` found it docking
+  2–8% of climbing hours, mostly wrongly, against measured surfaces under the dew point in
+  0–2% (none in summer). Sticky air is the humidity penalty's. **Bring it back only with a
+  measurement that it predicts wet rock.** What remains is published, wall by wall
+  (`condensationMarginA`): each wall's margin is `T_mass + gain − dew`, where `gain` is
   that wall's solar gain lagged like `T_surface` (`diagnostics.solar_gain_c`, #534). Never
   `T_surface − air`: the lagged surface trails the air, so that term chilled every warming
-  morning and warmed every evening. The
-  factor is the median wall's (Crag A's eight, Wall A's one), floored at
-  `CONDENSATION_FLOOR` (0.5, a guess). `T_mass` alone is a days-long air average; read as
-  the rock it zeroed 15 sunlit hours at Red Wing and Sandstone on 10/31–11/1, all checked
-  dry in the field. The margin takes the sun, so a missing shortwave withholds friction.
-  Crag A's and Wall A's `condensation_margin_c` and `friction.condensing` are that median
-  wall's margin, the one the score read, so the Rock tab and Score breakdown agree.
+  morning and warmed every evening. Crag A's and Wall A's
+  `condensation_margin_c` and `friction.condensing` are the median wall's (Crag A's eight,
+  Wall A's one), for the Rock tab's Condensation card and the qualifier, which say
+  "possible", never "likely". **The margin still gates the score**: no `T_mass` (too little
+  history) or no measured sun withholds the hour, as it did when condensation was a factor.
 - **Every factor ramp reaches its floor at its own band edge — no factor may step** (#148). A
   new factor or band gets a test that walks its input in tenths past both edges.
   `TEMP_BAND_C` no longer feeds any score; it only colours the client's temperature chart.

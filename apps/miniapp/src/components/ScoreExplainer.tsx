@@ -4,7 +4,6 @@ import {
   HELD_BACK_LABEL,
   SCORE_MODEL_FACTS,
   clock12,
-  cToFDelta,
   type RangeF,
   type RockType,
 } from '@weatherteam6/types'
@@ -44,7 +43,6 @@ export function ScoreExplainer({ rangeF }: { rangeF: RangeF }) {
  */
 export function ScoreExplainerParts({ rangeF, rockType = null }: { rangeF: RangeF; rockType?: RockType | null }) {
   const f = SCORE_MODEL_FACTS
-  const condensationF = Math.round(cToFDelta(f.condensationClearMarginC))
 
   return (
     <>
@@ -72,10 +70,8 @@ export function ScoreExplainerParts({ rangeF, rockType = null }: { rangeF: Range
       <Part title="Good grip">
         <P>
           Grip is an estimate. It’s full inside your temperature range and fades the further outside it the air
-          gets. Muggy air (a dew point over {f.dewStartF}°F) lowers it, and
-          so does rock within about {condensationF}°F of its dew point, where moisture settles on it. The rock’s
-          temperature there is modelled for each imagined wall, sun included, so it can take at most{' '}
-          {Math.round(f.condensationMaxCut * 100)}% off the score.
+          gets. Muggy air (a dew point over {f.dewStartF}°F) lowers it. Condensation doesn’t count: the Rock tab shows
+          when the rock may be near its dew point, but the forecast checks so far found it climbable through those hours.
         </P>
         {rangeF === null ? null : <GripBand rangeF={rangeF} />}
       </Part>
