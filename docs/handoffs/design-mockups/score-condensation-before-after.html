@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Score Before and After</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: one phone screen (the app's dark look) listing five example days, before vs after; notes column beside it on wide screens. */
+:root{
+  color-scheme:dark;
+  --bg:#06090b; --ground:#0a0d10; --txt1:#f4f7fa; --txt2:#d3e1e4; --muted:#bccad0;
+  --brandInk:#6fe3ec;
+  --good:#b8f542; --fair:#f6ad55; --poor:#fc8181; --none:#8a9aa2;
+  --surface:rgba(255,255,255,.05); --surface2:rgba(255,255,255,.09); --hair:rgba(255,255,255,.1);
+  --display:'Barlow Condensed','Arial Narrow',sans-serif; --body:'Barlow','Segoe UI',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--txt1);font-family:var(--body);padding-block:24px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1000px;margin:0 auto;display:flex;flex-wrap:wrap;gap:32px;justify-content:center;align-items:flex-start}
+.phone{width:390px;max-width:100%;border-radius:40px;overflow:hidden;box-shadow:0 0 0 8px #040506,0 30px 80px #000c;background:var(--bg);padding:22px 16px 28px;display:flex;flex-direction:column;gap:14px}
+.notes{flex:1 1 300px;min-width:0;max-width:440px;display:flex;flex-direction:column;gap:10px}
+.notes h1{margin:0;font-family:var(--display);font-weight:700;font-size:34px;line-height:1;text-wrap:balance}
+.notes p,.notes li{margin:0;color:var(--muted);line-height:1.55;font-size:15px}
+.notes ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.notes b{color:var(--txt1);font-weight:600}
+h2{margin:0;font-family:var(--display);font-weight:700;font-size:28px;line-height:1.05}
+
+/* The two formulas, one line each. */
+.formula{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;background:var(--surface);border-radius:16px;padding:10px 12px}
+.formula .lab{font-family:var(--display);font-weight:600;font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted)}
+.chain{display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-family:var(--display);font-weight:600;font-size:15px}
+.chain span{color:var(--txt2)}
+.chain i{font-style:normal;color:var(--muted);font-size:13px}
+.chain .gone{color:var(--poor);text-decoration:line-through;text-decoration-thickness:2px}
+
+/* One card per example day. */
+.ex{border-radius:20px;padding:12px;background:linear-gradient(180deg,var(--surface2),var(--surface));box-shadow:inset 0 0 0 1px rgba(255,255,255,.07);display:grid;grid-template-columns:1fr auto;gap:8px 12px;align-items:center}
+.ex .head{display:flex;flex-direction:column;gap:2px;min-width:0}
+.ex .name{font-family:var(--display);font-weight:700;font-size:19px;line-height:1.1}
+.ex .cond{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.pills{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px}
+.pill{font-family:var(--display);font-weight:600;font-size:12.5px;padding:3px 8px;border-radius:999px;background:var(--surface);color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pill.hit{color:var(--fair);background:rgba(246,173,85,.12)}
+.pill.cut{color:var(--poor);background:rgba(252,129,129,.12);text-decoration:line-through;text-decoration-thickness:1.5px}
+.score{display:flex;align-items:baseline;gap:6px;font-family:var(--display);font-variant-numeric:tabular-nums}
+.score .was{font-size:22px;font-weight:600;color:var(--none);text-decoration:line-through;text-decoration-thickness:2px}
+.score .arrow{font-size:16px;color:var(--muted)}
+.score .now{font-size:38px;font-weight:700;line-height:.9}
+.score .same{font-size:12px;color:var(--muted);font-family:var(--body);align-self:center}
+.good{color:var(--good)} .fair{color:var(--fair)} .poor{color:var(--poor)}
+.foot{font-size:12px;color:var(--muted);line-height:1.45;text-align:center}
+</style></head><body>
+<div class="wrap">
+  <div class="phone" aria-label="Five example days, score before and after">
+    <h2>What changed</h2>
+
+    <div class="formula">
+      <span class="lab">Before</span>
+      <div class="chain"><span>Dry</span><i>×</i><span>Heat</span><i>×</i><span>Damp</span><i>×</i><span>Cold</span><i>×</i><span class="gone">Condensation</span></div>
+      <span class="lab">After</span>
+      <div class="chain"><span>Dry</span><i>×</i><span>Heat</span><i>×</i><span>Damp</span><i>×</i><span>Cold</span></div>
+    </div>
+
+    <div class="ex">
+      <div class="head"><span class="name">Sandstone, Sat 11/28</span><span class="cond">44°F · dry rock · after a cold week</span></div>
+      <div class="score"><span class="was">50</span><span class="arrow">→</span><span class="now good">100</span></div>
+      <div class="pills"><span class="pill">Dry 1.0</span><span class="pill">Heat 1.0</span><span class="pill">Damp 1.0</span><span class="pill">Cold 1.0</span><span class="pill cut">Condensation 0.5</span></div>
+    </div>
+
+    <div class="ex">
+      <div class="head"><span class="name">Mild day after a cold snap</span><span class="cond">50°F · dew 45°F · rock still ~40°F</span></div>
+      <div class="score"><span class="was">50</span><span class="arrow">→</span><span class="now good">100</span></div>
+      <div class="pills"><span class="pill">Dry 1.0</span><span class="pill">Heat 1.0</span><span class="pill">Damp 1.0</span><span class="pill">Cold 1.0</span><span class="pill cut">Condensation 0.5</span></div>
+    </div>
+
+    <div class="ex">
+      <div class="head"><span class="name">Muggy summer afternoon</span><span class="cond">80°F · dew 65°F</span></div>
+      <div class="score"><span class="now poor">21</span><span class="same">same</span></div>
+      <div class="pills"><span class="pill">Dry 1.0</span><span class="pill hit">Heat 0.40</span><span class="pill hit">Damp 0.54</span><span class="pill">Cold 1.0</span></div>
+    </div>
+
+    <div class="ex">
+      <div class="head"><span class="name">Rock still wet</span><span class="cond">50°F · day after rain</span></div>
+      <div class="score"><span class="now poor">30</span><span class="same">same</span></div>
+      <div class="pills"><span class="pill hit">Dry 0.3</span><span class="pill">Heat 1.0</span><span class="pill">Damp 1.0</span><span class="pill">Cold 1.0</span></div>
+    </div>
+
+    <div class="ex">
+      <div class="head"><span class="name">Perfect fall day</span><span class="cond">55°F · dew 40°F</span></div>
+      <div class="score"><span class="now good">100</span><span class="same">same</span></div>
+      <div class="pills"><span class="pill">Dry 1.0</span><span class="pill">Heat 1.0</span><span class="pill">Damp 1.0</span><span class="pill">Cold 1.0</span></div>
+    </div>
+
+    <p class="foot">Scores only went up or stayed the same.<br>Condensation still shows on the Rock tab.</p>
+  </div>
+
+  <div class="notes">
+    <h1>Score before and after #687</h1>
+    <ul>
+      <li><b>Score</b> = 100 × every factor multiplied. 1.0 means no penalty.</li>
+      <li><b>Heat</b> starts above 60°F, <b>Damp</b> above a 54°F dew point, <b>Cold</b> below 30°F (your default range).</li>
+      <li><b>Condensation</b> used to cut up to half when the modelled rock sat near or below the dew point. Field checks and measured ground temperatures found that wrong most of the time.</li>
+      <li>Only Sandstone 11/28 is a real reading. The other four are worked examples from the formulas.</li>
+      <li>This page explains a change. It is not a screen to build.</li>
+    </ul>
+  </div>
+</div>
+</body></html>
