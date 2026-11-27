@@ -1,6 +1,6 @@
 import { renderInRouter } from '../test/renderInRouter.js'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { FRICTION_MECHANISM } from '@weatherteam6/types'
+import { FRICTION_MECHANISM, type ScoreLimit } from '@weatherteam6/types'
 import type {
   Conditions,
   ForecastSnapshot,
@@ -352,12 +352,13 @@ describe('DetailView — the Overview sections', () => {
 
 describe('DetailView — the Score breakdown', () => {
   const at = (h: number) => new Date(Date.parse(`${TODAY}T20:00:00.000Z`) + h * HOUR_MS).toISOString()
-  /** Humidity and condensation now; humidity stops being named at 3pm local, condensation never in the run. */
-  const held = (model: string | null = 'gfs_seamless'): Over => {
+  /** Humidity and cold now; humidity stops being named at 3pm local, cold never in the run. */
+  const held = (model: string | null = 'gfs_seamless', extra: readonly string[] = []): Over => {
+    const limits = (xs: string[]) => [...xs, ...extra] as ScoreLimit[]
     const readings = [
-      readingHour(58, { valid_at: at(0), held_back_by: ['humidity', 'condensation'] }),
-      readingHour(60, { valid_at: at(1), held_back_by: ['humidity', 'condensation'] }),
-      readingHour(66, { valid_at: at(2), held_back_by: ['condensation'] }),
+      readingHour(58, { valid_at: at(0), held_back_by: limits(['humidity', 'cold']) }),
+      readingHour(60, { valid_at: at(1), held_back_by: limits(['humidity', 'cold']) }),
+      readingHour(66, { valid_at: at(2), held_back_by: limits(['cold']) }),
     ]
     const conditions = redRockScore()
     return {
@@ -384,11 +385,17 @@ describe('DetailView — the Score breakdown', () => {
     expect(text).not.toMatch(/\d+ (pts|points)/)
   })
 
-  it('names condensation with no figure, says the rock temperature is modelled, and omits an eases the run does not reach', () => {
+  it('omits an eases the run does not reach', () => {
     const text = visible(hero(overview(held())))
-    expect(text).toContain('Condensation Points come off when the rock is within 3.6°F of its dew point, at most 50% of the score.')
-    expect(text).toContain('modelled, not measured')
+    expect(text).toContain('Cold')
     expect(text.match(/Eases/g)).toHaveLength(1)
+  })
+
+  it('skips condensation from an API older than 2026-11-27 rather than printing undefined', () => {
+    const text = visible(hero(overview(held('gfs_seamless', ['condensation']))))
+    expect(text).toContain('Score breakdown 2 things cost points')
+    expect(text).not.toContain('undefined')
+    expect(text).not.toContain('Condensation')
   })
 
   it('prints no dew point beside the rule when the weather columns are another model’s', () => {

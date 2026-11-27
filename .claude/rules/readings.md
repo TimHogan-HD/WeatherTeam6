@@ -46,7 +46,8 @@ What a reading may say, where it comes from, and what the client may assume of t
   `SCORE_MODEL_FACTS` or the reader's range, and `Eases ≈`; a gap in the readings, or their
   end, omits the line; the disclosure is absent with the score and when `held_back_by` is
   empty. A dew point or air figure prints only when `HourlySeries.model` is the readings'
-  model. Condensation names no figure and says the rock temperature is modelled (#436).
+  model. Condensation is no cause (2026-11-27, `scoring.md`); a `condensation` an older API
+  still sends is dropped by `knownScoreLimits`, never printed.
 - **The reader orders a tab's cards, on this device** (owner, 2026-11-03; `CardStack.tsx`,
   `lib/cardOrder.ts`, `wt6.cardOrder`). Overview, Precip and Rock each keep one order
   for every crag. It is a mode with up and down arrows, never a drag on a card, because a drag

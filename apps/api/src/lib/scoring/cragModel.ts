@@ -19,9 +19,9 @@
  *   published beside one as `HourlyReadings.walls` (#445).
  *
  * Friction is the heat/humidity/cold rule (`frictionFactorA`), not v2's sweat
- * balance: it reads air temperature, dew point and each wall's margin over the
- * dew point (`condensationA`). That margin takes the wall's sun, so an hour
- * whose shortwave is missing has no friction and no score.
+ * balance: it reads air temperature and dew point. Each wall's margin over the
+ * dew point (`condensationMarginA`) is published beside it and not scored
+ * (owner, 2026-11-27).
  *
  * Built on top of `evaluateHourlyConditions`, which still supplies `T_mass`,
  * `T_surface` and the weather-sped drying rate. Its own score is discarded.
@@ -46,7 +46,6 @@ import {
 } from '@weatherteam6/types'
 import { MAX_HOURS, MIN_HOURS } from './dryingModel.js'
 import {
-  condensationFactor,
   dryingWindowHours,
   evaluateHourlyConditions,
   frictionLevel,
@@ -152,47 +151,25 @@ export function shelterScale(cliffAngleDeg: number): number {
   return past < 5 ? 1 : Math.max(0.1, 1 - past / 30)
 }
 
-/** Friction's four penalties, each 0-1. Their product is `frictionFactorA`. */
+/** Friction's three penalties, each 0-1. Their product is `frictionFactorA`. */
 export type FrictionPenalties = Record<Exclude<ScoreLimit, 'wet_rock'>, number>
 
 /**
- * **Condensation never takes more than half the score** (owner, 2026-11-02).
- * The floor is a guess, not a measurement: the rock temperature behind the
- * penalty is modelled (#436), and field checks at Red Wing and Sandstone on
- * 10/31–11/1 found dry rock through every hour it zeroed.
- */
-export const CONDENSATION_FLOOR = 0.5
-
-/**
- * **Water on the rock, 0-1, read wall by wall** (owner, 2026-11-02). Each
- * wall's margin is `T_mass` plus that wall's lagged solar gain
- * (`diagnostics.solar_gain_c`) less the dew point; the hour's factor is the
- * median wall's, floored at `CONDENSATION_FLOOR`. `T_mass` alone is a
- * days-long air average, and read as the rock it zeroed 15 sunlit hours that
- * weekend.
+ * The median wall's margin over the dew point, °C: `T_mass` plus each wall's
+ * lagged solar gain (`diagnostics.solar_gain_c`, #534) less the dew point.
+ * **Published for the Rock tab's Condensation card and never scored** (owner,
+ * 2026-11-27). Null when any input is missing.
  *
- * The gain, not `T_surface − air` (#534): the lagged `T_surface` trails the
- * air, so that difference put a warming morning's rock below both its mass and
- * the air (Sandstone 42 where the sun alone gives 84, 2026-11-09 11 am) and
- * added warmth in the evening.
- *
- * `solarGainC` is one entry per wall. Null when any input is missing.
- */
-export function condensationA(
-  massTempC: number,
-  dewPointC: number,
-  solarGainC: readonly (number | null)[],
-): number | null {
-  const margin = condensationMarginA(massTempC, dewPointC, solarGainC)
-  const f = condensationFactor(margin)
-  return f === null ? null : Math.max(CONDENSATION_FLOOR, f)
-}
-
-/**
- * The median wall's margin over the dew point, °C — the one `condensationA`
- * scores and the response publishes. Median of margins, then the factor, so
- * the published figure is exactly what the score read even with an even wall
- * count. Null when any input is missing.
+ * Condensation took up to half the score from 2026-11-02 to 2026-11-27 and
+ * came out of it on the evidence, not on taste: the two forecast checks that
+ * mention it (10/31, 11/1) both found climbable rock through hours it docked,
+ * and `compare:condensation-margin` found measured ground surfaces below the
+ * dew point in 0–2% of climbing hours (none at all in June–August, at 13 USCRN
+ * stations including Sandstone) while this margin docked 2–8% of them, wrong
+ * on 48–86% of those and catching at most 15% of the real ones. Reading the
+ * lagged surface instead of the mass did no better. Sticky summer air is the
+ * humidity penalty's, which reads the dew point alone. Bring condensation back
+ * only with a measurement that it predicts wet rock.
  */
 export function condensationMarginA(
   massTempC: number,
@@ -211,33 +188,17 @@ export function condensationMarginA(
  * wall. Crag A passes 0: it does not know which way any wall faces. Wall A
  * passes its own (`sunWarmingC`), and a null one withholds, because sun nobody
  * measured could be the heat that decides the hour.
- *
- * Condensation reads `solarGainC`, one wall's lagged solar gain each
- * (`condensationA`): Crag A's eight, Wall A's one. The default is a single
- * wall the sun does not warm.
  */
 export function frictionPenaltiesA(
-  massTempC: number | null,
   airTempC: number | null,
   dewPointC: number | null,
   range: TempRangeC = DEFAULT_RANGE,
   sunWarmingC: number | null = 0,
-  solarGainC: readonly (number | null)[] = [0],
 ): FrictionPenalties | null {
-  if (massTempC === null || airTempC === null || dewPointC === null || sunWarmingC === null) return null
-  if (
-    !Number.isFinite(massTempC) ||
-    !Number.isFinite(airTempC) ||
-    !Number.isFinite(dewPointC) ||
-    !Number.isFinite(sunWarmingC)
-  ) {
-    return null
-  }
-  const condensation = condensationA(massTempC, dewPointC, solarGainC)
-  if (condensation === null) return null
+  if (airTempC === null || dewPointC === null || sunWarmingC === null) return null
+  if (!Number.isFinite(airTempC) || !Number.isFinite(dewPointC) || !Number.isFinite(sunWarmingC)) return null
   const feltC = airTempC + sunWarmingC
   return {
-    condensation,
     heat: Math.exp(-Math.max(0, feltC - range.highC) / HEAT_SCALE_C),
     humidity: Math.exp(-Math.max(0, dewPointC - DEW_START_C) / DEW_SCALE_C),
     cold: Math.exp(-Math.max(0, range.lowC - feltC) / HEAT_SCALE_C),
@@ -245,21 +206,20 @@ export function frictionPenaltiesA(
 }
 
 /**
- * **Crag A's grip, 0-1**: condensation × heat × humidity × cold. Null when any
- * input is missing — never a default.
+ * **Crag A's grip, 0-1**: heat × humidity × cold. Null when any input is
+ * missing — never a default.
  */
 export function frictionFactorA(
-  massTempC: number | null,
   airTempC: number | null,
   dewPointC: number | null,
   range: TempRangeC = DEFAULT_RANGE,
 ): number | null {
-  const p = frictionPenaltiesA(massTempC, airTempC, dewPointC, range)
-  return p === null ? null : p.condensation * p.heat * p.humidity * p.cold
+  const p = frictionPenaltiesA(airTempC, dewPointC, range)
+  return p === null ? null : p.heat * p.humidity * p.cold
 }
 
 /** The order ties are broken in: the rock first, as the readings are. */
-const LIMIT_ORDER: readonly ScoreLimit[] = ['wet_rock', 'condensation', 'heat', 'humidity', 'cold']
+const LIMIT_ORDER: readonly ScoreLimit[] = ['wet_rock', 'heat', 'humidity', 'cold']
 
 /**
  * **What is holding the score down, most limiting first** (issue #218).
@@ -624,26 +584,31 @@ function finish(
   rockType: RockType,
   effectiveDryHours: number | null,
   rainingOnFragile: boolean,
-  /** Each wall's lagged solar gain, for condensation: Crag A's eight, Wall A's one. */
+  /** Each wall's lagged solar gain, for the published condensation margin: Crag A's eight, Wall A's one. */
   wallSolarGainC: readonly (number | null)[],
   range?: TempRangeC,
   sunWarming: number | null = 0,
 ): HourlyConditions {
   const massTempC = base.diagnostics.t_mass_c
   const air = weather.air_temp_c
-  const fp = frictionPenaltiesA(massTempC, air, weather.dewpoint_c, range, sunWarming, wallSolarGainC)
-  const friction = fp === null ? null : fp.condensation * fp.heat * fp.humidity * fp.cold
+  const dew = weather.dewpoint_c
+  // The median wall's margin, sun included, for the Rock tab's Condensation
+  // card. Not scored (2026-11-27, `condensationMarginA`).
+  const margin = massTempC === null || dew === null ? null : condensationMarginA(massTempC, dew, wallSolarGainC)
+  // **Still a gate, though no longer a factor.** A null margin means the series
+  // had too little trailing history for `T_mass` (which is also history the
+  // drying clock never saw rain in) or a wall's sun was not measured. Both
+  // withheld the score while condensation was scored, and they still do:
+  // removing a factor must not start scoring hours nobody could read (#34).
+  const fp = margin === null ? null : frictionPenaltiesA(air, dew, range, sunWarming)
+  const friction = fp === null ? null : fp.heat * fp.humidity * fp.cold
   const score = scoreA(dryness, friction)
   const penalties: ScorePenalties | null =
     fp === null || dryness === null || score === null
       ? null
       : { wet_rock: Math.min(1, Math.max(0, dryness)), ...fp }
   const fLevel = frictionLevel(friction)
-  // The margin the score read: the median wall's, sun included (2026-11-02), so
-  // the Rock tab cannot say condensing while the score takes nothing off.
-  const dew = weather.dewpoint_c
-  const margin = fp === null || massTempC === null || dew === null ? null : condensationMarginA(massTempC, dew, wallSolarGainC)
-  const condensing = isCondensing(margin)
+  const condensing = fp === null ? null : isCondensing(margin)
   const level = rockLevelA(dryness, rockType)
   const rLevel = level !== null && rainingOnFragile ? 'wet' : level
   return {

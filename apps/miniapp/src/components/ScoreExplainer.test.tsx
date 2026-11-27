@@ -18,7 +18,8 @@ describe('ScoreExplainer', () => {
 
   it('states the model’s own rules, from the pinned facts', () => {
     const html = renderToStaticMarkup(<ScoreExplainer rangeF={null} />)
-    expect(html).toContain('within about 4°F of its dew point')
+    expect(html).toContain('Condensation doesn’t count')
+    expect(html).not.toMatch(/\d+% off the score/)
     expect(html).toContain('dew point over 54°F')
     expect(html).toContain('best 3 hours in a row inside your climbing hours, 8am to 6pm unless you change them on Profile')
     expect(html).toContain('scoring 60 or more')

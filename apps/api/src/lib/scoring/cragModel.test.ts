@@ -11,9 +11,8 @@ import {
   FULL_SOAK_IN,
   HEAT_SCALE_C,
   HEAT_START_C,
-  CONDENSATION_FLOOR,
   SNOW_DRYNESS_CAP,
-  condensationA,
+  condensationMarginA,
   dayRepresentative,
   evaluateCragA,
   evaluateWallA,
@@ -31,7 +30,6 @@ describe('SCORE_MODEL_FACTS', () => {
   it('states the rules the model actually runs on', () => {
     expect(fToC(SCORE_MODEL_FACTS.dewStartF)).toBeCloseTo(DEW_START_C, 9)
     expect(SCORE_MODEL_FACTS.condensationClearMarginC).toBe(CONDENSATION_CLEAR_MARGIN_C)
-    expect(SCORE_MODEL_FACTS.condensationMaxCut).toBe(1 - CONDENSATION_FLOOR)
     expect(SCORE_MODEL_FACTS.dayRunHours).toBe(DAY_RUN_HOURS)
     expect(SCORE_MODEL_FACTS.dayFirstHour).toBe(DAY_FIRST_HOUR)
     expect(SCORE_MODEL_FACTS.dayLastHour).toBe(DAY_LAST_HOUR)
@@ -69,96 +67,98 @@ const crag = (hours: WeatherHour[], rockType: RockType = 'granite') =>
   evaluateCragA(hours, { rockType, lat: LAT, lon: LON })
 
 describe('frictionFactorA', () => {
-  it('is 1 on a cool dry day with the rock well above its dew point', () => {
-    expect(frictionFactorA(12, 12, 0)).toBeCloseTo(1, 6)
+  it('is 1 on a cool dry day', () => {
+    expect(frictionFactorA(12, 0)).toBeCloseTo(1, 6)
   })
 
-  it('falls with heat, humidity and cold, and is halved, never zeroed, at the dew point', () => {
-    expect(frictionFactorA(30, 30, 0)!).toBeLessThan(0.31)
-    expect(frictionFactorA(25, 20, 20)!).toBeLessThan(0.6)
-    expect(frictionFactorA(-10, -10, -20)!).toBeLessThan(0.5)
-    expect(frictionFactorA(10, 12, 10)).toBe(CONDENSATION_FLOOR)
-    expect(frictionFactorA(5, 12, 10)).toBe(CONDENSATION_FLOOR)
+  it('falls with heat, humidity and cold', () => {
+    expect(frictionFactorA(30, 0)!).toBeLessThan(0.31)
+    expect(frictionFactorA(20, 20)!).toBeLessThan(0.6)
+    expect(frictionFactorA(-10, -20)!).toBeLessThan(0.5)
   })
 
   it('keeps its own 30–60 °F range when the reader has none', () => {
     // 60 °F is 15.56 °C: just under it is full grip, a degree over is not.
-    expect(frictionFactorA(20, 15.5, 0)).toBeCloseTo(1, 6)
-    expect(frictionFactorA(20, 16.6, 0)!).toBeLessThan(1)
+    expect(frictionFactorA(15.5, 0)).toBeCloseTo(1, 6)
+    expect(frictionFactorA(16.6, 0)!).toBeLessThan(1)
     // 30 °F is -1.11 °C.
-    expect(frictionFactorA(20, -1, -20)).toBeCloseTo(1, 6)
-    expect(frictionFactorA(20, -2.2, -20)!).toBeLessThan(1)
+    expect(frictionFactorA(-1, -20)).toBeCloseTo(1, 6)
+    expect(frictionFactorA(-2.2, -20)!).toBeLessThan(1)
   })
 
   it('moves the heat and cold edges to the reader’s range', () => {
     const warm = { lowC: -1.11, highC: 26.7 } // 30–80 °F
-    expect(frictionFactorA(30, 24, 0, warm)).toBeCloseTo(1, 6)
-    expect(frictionFactorA(30, 24, 0)!).toBeLessThan(0.6)
+    expect(frictionFactorA(24, 0, warm)).toBeCloseTo(1, 6)
+    expect(frictionFactorA(24, 0)!).toBeLessThan(0.6)
     const cold = { lowC: -17.8, highC: 10 } // 0–50 °F
-    expect(frictionFactorA(0, -10, -20, cold)).toBeCloseTo(1, 6)
-    expect(frictionFactorA(20, 15, 0, cold)!).toBeLessThan(1)
+    expect(frictionFactorA(-10, -20, cold)).toBeCloseTo(1, 6)
+    expect(frictionFactorA(15, 0, cold)!).toBeLessThan(1)
   })
 
   it('withholds rather than defaulting a missing input', () => {
-    expect(frictionFactorA(null, 12, 0)).toBeNull()
-    expect(frictionFactorA(12, null, 0)).toBeNull()
-    expect(frictionFactorA(12, 12, null)).toBeNull()
+    expect(frictionFactorA(null, 0)).toBeNull()
+    expect(frictionFactorA(12, null)).toBeNull()
   })
 })
 
-describe('condensationA', () => {
-  it('takes the median wall, and never less than CONDENSATION_FLOOR', () => {
-    // Mass 1.5 °C over the dew point on a wall at air temperature: three quarters of the clear margin.
-    expect(condensationA(11.5, 10, [0])).toBeCloseTo(0.75, 10)
-    // Five walls the sun lifts past the clear margin outvote three in shade, and not the other way round.
-    expect(condensationA(10, 10, [3, 3, 3, 3, 3, 0, 0, 0])).toBe(1)
-    expect(condensationA(10, 10, [3, 3, 3, 0, 0, 0, 0, 0])).toBe(CONDENSATION_FLOOR)
-    // Below the dew point on every wall: halved, never zeroed.
-    expect(condensationA(5, 10, [0, -1])).toBe(CONDENSATION_FLOOR)
-  })
-
-  it('does not step: walked in tenths past both edges', () => {
-    let prev = condensationA(10, 10, [-1])!
-    for (let k = -10; k <= 30; k++) {
-      const f = condensationA(10, 10, [k / 10])!
-      expect(f).toBeGreaterThanOrEqual(prev)
-      expect(f - prev).toBeLessThan(0.051)
-      prev = f
-    }
-    expect(prev).toBe(1)
-  })
-
-  it('scores the median wall’s margin, so the published margin is the one it read (#444 review)', () => {
-    // Middle walls at +1 and +3 °C: the median margin is 2 °C, clear — not the 0.75 a median of factors gives.
-    expect(condensationA(10, 10, [1, 1, 1, 1, 3, 3, 3, 3])).toBe(1)
-    // Middle walls at −0.5 and +1.5: margin +0.5, a quarter of the clear margin, floored.
-    expect(condensationA(10, 10, [-0.5, -0.5, -0.5, -0.5, 1.5, 1.5, 1.5, 1.5])).toBe(CONDENSATION_FLOOR)
+describe('condensationMarginA', () => {
+  it('is the median wall’s margin', () => {
+    expect(condensationMarginA(11.5, 10, [0])).toBeCloseTo(1.5, 10)
+    // Middle walls at +1 and +3 °C over the dew point: the median is 2.
+    expect(condensationMarginA(10, 10, [1, 1, 1, 1, 3, 3, 3, 3])).toBeCloseTo(2, 10)
+    expect(condensationMarginA(5, 10, [0, -1])).toBeCloseTo(-5.5, 10)
   })
 
   it('withholds when any wall is missing', () => {
-    expect(condensationA(10, 8, [0, null])).toBeNull()
-    expect(condensationA(10, 8, [0, NaN])).toBeNull()
-    expect(condensationA(10, 8, [])).toBeNull()
+    expect(condensationMarginA(10, 8, [0, null])).toBeNull()
+    expect(condensationMarginA(10, 8, [0, NaN])).toBeNull()
+    expect(condensationMarginA(10, 8, [])).toBeNull()
   })
+})
 
-  it('lets the sun on Crag A’s walls clear rock whose mass sits at the dew point', () => {
-    // Dew point held just over the rock mass (a constructed case: above the air at night),
-    // so the mass alone reads condensing all day.
-    const muggy = series(6 * 24, () => ({ dewpoint_c: 13 }))
+describe('condensation is published and never scored (owner, 2026-11-27)', () => {
+  // Dew point held over the rock mass all day (a constructed case: above the air at night),
+  // so every hour the old penalty would have halved now reads condensing.
+  const muggy = series(6 * 24, () => ({ dewpoint_c: 13 }))
+  const dry = series(6 * 24)
+  const night = 4 * 24 + 4
+  const afternoon = 4 * 24 + 14
+
+  it('flags the hours below the dew point', () => {
     const out = crag(muggy)
-    const cond = (i: number) => out[i]!.diagnostics.penalties!.condensation
-    const night = 4 * 24 + 4
-    const afternoon = 4 * 24 + 14
-    expect(out[afternoon]!.diagnostics.t_mass_c! - 13).toBeLessThan(0)
-    expect(cond(night)).toBe(CONDENSATION_FLOOR)
-    expect(cond(afternoon)).toBeGreaterThan(CONDENSATION_FLOOR)
-    // The published margin and flag are the ones the score read, not the mass's.
     expect(out[night]!.condensation_margin_c!).toBeLessThan(0)
     expect(out[night]!.friction?.condensing).toBe(true)
     expect(out[afternoon]!.condensation_margin_c!).toBeGreaterThan(0)
     expect(out[afternoon]!.friction?.condensing).toBe(false)
   })
 
+  it('scores a condensing hour exactly as its humidity, heat and cold alone say', () => {
+    const out = crag(muggy)
+    const h = out[night]!
+    expect(h.friction?.condensing).toBe(true)
+    const p = h.diagnostics.penalties!
+    expect(Object.keys(p).sort()).toEqual(['cold', 'heat', 'humidity', 'wet_rock'])
+    expect(Object.keys(p)).not.toContain('condensation')
+  })
+
+  it('moves no grip when only the margin moves', () => {
+    // A dew point that puts every hour under the rock and one that keeps every hour clear of it,
+    // at a dew point under the humidity penalty's edge both times: the scores must match.
+    const lowDew = DEW_START_C - 0.5
+    const grey = { air_temp_c: lowDew - 1, shortwave_wm2: 0, cloud_pct: 100 }
+    const cold = series(6 * 24, () => ({ ...grey, dewpoint_c: lowDew }))
+    const clear = series(6 * 24, () => ({ ...grey, dewpoint_c: -20 }))
+    const a = crag(cold)
+    const b = crag(clear)
+    expect(a[afternoon]!.friction?.condensing).toBe(true)
+    expect(b[afternoon]!.friction?.condensing).toBe(false)
+    expect(a.map((h) => h.diagnostics.friction_factor)).toEqual(b.map((h) => h.diagnostics.friction_factor))
+    expect(a[afternoon]!.diagnostics.friction_factor).not.toBeNull()
+    expect(crag(dry)[afternoon]!.score).not.toBeNull()
+  })
+})
+
+describe('the published condensation margin', () => {
   it('adds the sun and nothing else: a warming morning does not chill the rock below its mass (#534)', () => {
     // Overcast, no sun at all, air swinging 16 °C a day. The lagged surface trails the air
     // all morning, so `T_surface − air` would put the rock below its own mass.
@@ -535,7 +535,7 @@ describe('dayRepresentative', () => {
 })
 
 describe('heldBackBy', () => {
-  const clear = { wet_rock: 1, condensation: 1, heat: 1, humidity: 1, cold: 1 }
+  const clear = { wet_rock: 1, heat: 1, humidity: 1, cold: 1 }
 
   it('names the penalties most limiting first', () => {
     expect(heldBackBy({ ...clear, humidity: 0.8, heat: 0.6 })).toEqual(['heat', 'humidity'])
@@ -547,12 +547,12 @@ describe('heldBackBy', () => {
   })
 
   it('names the largest of several small penalties that together cost a point', () => {
-    const small = { wet_rock: 0.997, condensation: 0.996, heat: 0.998, humidity: 0.996, cold: 0.999 }
-    expect(heldBackBy(small)).toEqual(['condensation'])
+    const small = { wet_rock: 0.997, heat: 0.996, humidity: 0.998, cold: 0.999 }
+    expect(heldBackBy(small)).toEqual(['heat'])
   })
 
   it('names both of two penalties at zero, rock first', () => {
-    expect(heldBackBy({ ...clear, condensation: 0, wet_rock: 0 })).toEqual(['wet_rock', 'condensation'])
+    expect(heldBackBy({ ...clear, heat: 0, wet_rock: 0 })).toEqual(['wet_rock', 'heat'])
   })
 
   it('is null when the score was not computed', () => {
@@ -572,7 +572,7 @@ describe('heldBackBy', () => {
         continue
       }
       expect(p).not.toBeNull()
-      const product = p!.wet_rock * p!.condensation * p!.heat * p!.humidity * p!.cold
+      const product = p!.wet_rock * p!.heat * p!.humidity * p!.cold
       expect(Math.round(100 * product)).toBe(h.score)
       expect(heldBackBy(p)!.length > 0).toBe(h.score < 100)
       for (const l of heldBackBy(p) ?? []) named.add(l)

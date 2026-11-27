@@ -264,7 +264,7 @@ export function whenLabel(t: number, nowMs: number, utcOffsetSeconds: number): s
 
 /**
  * The condensation card's headline: when the rock is near its dew point, and
- * when dew is likely on it. Times, not a count of hours; "likely" because the
+ * when dew is possible on it. Times, not a count of hours; "possible" because the
  * rock temperature is modelled, and no figure for the rock's gap (#436).
  */
 export function condensationHeadline(series: readonly MarginHour[], nowMs: number, utcOffsetSeconds: number): string {
@@ -292,9 +292,9 @@ export function condensationHeadline(series: readonly MarginHour[], nowMs: numbe
   const again = spell.laterDewFromMs === null ? null : `from ${at(spell.laterDewFromMs)}`
   const dew =
     firstDew !== null && again !== null
-      ? ` Dew likely on the rock ${firstDew}, and again ${again}.`
+      ? ` Dew possible on the rock ${firstDew}, and again ${again}.`
       : firstDew !== null || again !== null
-        ? ` Dew likely on the rock ${firstDew ?? again}.`
+        ? ` Dew possible on the rock ${firstDew ?? again}.`
         : ''
   // Only a later brush with the edge that never reaches dew is "near it again".
   const later = spell.laterDewFromMs === null && spell.laterHours > 0 ? ' Near it again later.' : ''

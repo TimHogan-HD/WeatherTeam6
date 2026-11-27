@@ -18,7 +18,8 @@ there is no tester gate.
 
 Where the research lives: `.claude/docs/crag-a-reference/README.md` (why these two models, the
 seven errors corrected, what is still open) and `model.ts` beside it. The port has diverged
-from `model.ts` on purpose since 2026-11-02 (per-wall condensation floored at half, a
+from `model.ts` on purpose since 2026-11-02 (per-wall condensation floored at half, out of
+the score since 2026-11-27, a
 drying floor of one hour per dry hour, since 2026-11-09 new rain adding to the water
 left rather than to a storm total, and since 2026-11-10 no exponent on dryness); the README records what that moved. A change that
 moves a result needs an argument, not a commit message. `scoring-findings.md` §6d records the switch.
@@ -107,21 +108,25 @@ shelter was calibrated against. An overhang dries on the vertical factor, not fa
 ### Friction: grip, 0-1 (`frictionFactorA`)
 
 ```
-friction = condensation × heat × humidity × cold
+friction = heat × humidity × cold
 
-condensation = max(0.5, clamp(median over walls of (T_mass + gain_wall − Td) / 2 °C, 0, 1))
 heat         = exp(−max(0, Ta − 60 °F) / 12 °C)
 humidity     = exp(−max(0, Td − 54 °F) / 10 °C)
 cold         = exp(−max(0, 30 °F − Ta) / 12 °C)
 ```
 
-**Condensation** (`condensationA`, owner 2026-11-02) reads each wall's sun on top of
-`T_mass` — Crag A's eight walls, Wall A's one — and is floored at `CONDENSATION_FLOOR`
-(0.5, a guess). `gain_wall` is the wall's solar gain lagged like `T_surface`
-(`diagnostics.solar_gain_c`), never `T_surface − air`, which also carried the surface's lag
-behind the air and chilled every warming morning (#534). `T_mass` alone is a days-long air average; read as the rock, it zeroed every
-sunlit hour at Red Wing and Sandstone on 10/31–11/1 that friends checked dry. Because the
-margin takes the sun, a missing shortwave withholds friction. Heat, humidity and cold read
+**Condensation is not scored** (owner, 2026-11-27). From 2026-11-02 it was a fourth factor,
+`max(0.5, clamp(median over walls of (T_mass + gain_wall − Td) / 2 °C, 0, 1))`, and it came
+out on the evidence: it halved Sandstone on 2026-11-28, a dry 44 °F day after a cold week;
+both forecast checks that met it found climbable rock; and `compare:condensation-margin`
+found measured ground surfaces under the dew point in 0–2% of climbing hours (none in
+June–August at 13 USCRN stations) while the margin docked 2–8%, wrong on most and catching
+at most 15% of the real ones. Reading the lagged surface instead did no better. The median
+wall's margin (`condensationMarginA`: `T_mass + gain_wall − Td`, `gain_wall` the wall's
+solar gain lagged like `T_surface`, never `T_surface − air`, #534) is still published as
+`condensation_margin_c` for the Rock tab's Condensation card, and it still gates the score:
+no `T_mass` (too little history) or no measured sun withholds the hour, as it did when it
+was a factor. Heat, humidity and cold read
 air and dew point only (Wall A's heat and cold add the wall's direct sun), so they cannot see
 an overhang's shade on a warm humid afternoon (G10 / F13 in the reference README). Any input
 null → null, never a default.

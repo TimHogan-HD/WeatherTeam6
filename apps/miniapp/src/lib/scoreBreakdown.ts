@@ -1,7 +1,6 @@
 import {
   SCORE_LIMIT_LABELS,
   SCORE_MODEL_FACTS,
-  cToFDelta,
   formatLocalHour,
   formatTempF,
   heldBackReason,
@@ -61,8 +60,6 @@ export type BreakdownInput = {
 
 const MEANING: Record<ScoreLimit, string> = {
   wet_rock: 'Wet holds are slick, and some rock is weaker until it dries.',
-  condensation:
-    'Rock this close to its dew point can pick up a film of moisture you can’t see. The rock’s temperature is modelled, not measured, with the sun on each side of the crag.',
   heat: 'Warm air makes hands sweat, and grip goes with it.',
   humidity: 'Air this wet keeps hands sweaty and stops chalk drying them.',
   cold: 'Cold numbs fingers and stiffens shoe rubber.',
@@ -72,8 +69,6 @@ function rule(limit: ScoreLimit, range: RangeF): string {
   switch (limit) {
     case 'wet_rock':
       return 'Points come off until the rock reads Dry.'
-    case 'condensation':
-      return `Points come off when the rock is within ${cToFDelta(SCORE_MODEL_FACTS.condensationClearMarginC).toFixed(1)}°F of its dew point, at most ${Math.round(SCORE_MODEL_FACTS.condensationMaxCut * 100)}% of the score.`
     case 'heat':
       return range === null ? 'Points come off once the air is above your range.' : `Points come off once the air is above your ${range.high}°F high.`
     case 'humidity':
@@ -116,11 +111,9 @@ export function breakdownRows(input: BreakdownInput): BreakdownRow[] {
   return input.limits.map((limit) => {
     const label = SCORE_LIMIT_LABELS[limit]
     const figureNow =
-      limit === 'condensation'
-        ? null
-        : limit === 'wet_rock'
-          ? `rock ${heldBackReason(limit, input.now.rock, input.rangeF)}`
-          : (figureAt(limit, byInstant.get(input.now.valid_at), input.sameModel)?.now ?? null)
+      limit === 'wet_rock'
+        ? `rock ${heldBackReason(limit, input.now.rock, input.rangeF)}`
+        : (figureAt(limit, byInstant.get(input.now.valid_at), input.sameModel)?.now ?? null)
 
     let eases: string | null = null
     const at = Number.isFinite(nowMs) ? easesAt(limit, input.readings, nowMs) : null
