@@ -176,8 +176,8 @@ Rechecked against the code 2026-11-03.** Kept for the pattern at the end, which 
 | What | Then (2026-09-16) | Now |
 | --- | --- | --- |
 | **`ScoreInput.aspectDegrees`** | Passed in, **never read** | Gone with the five-component scorer. A location's aspect is not a Crag A input |
-| **Solar radiation** | Fetched, then **dropped** | `shortwave_wm2` is stored per hour and drives `T_surface`, the drying rate and per-wall condensation (`rockThermal.ts`) |
-| **`dewpoint_c`** | Stored, **never read** | Read by Crag A's humidity and condensation factors |
+| **Solar radiation** | Fetched, then **dropped** | `shortwave_wm2` is stored per hour and drives `T_surface`, the drying rate and the published per-wall condensation margin (`rockThermal.ts`) |
+| **`dewpoint_c`** | Stored, **never read** | Read by Crag A's humidity factor and the published condensation margin (not scored since 2026-11-27) |
 | **`ScoreInput.currentTempC`** | **Never read** | Gone with the five-component scorer |
 | **`cliff_angle`** | Default `45`, scored as if recorded | Crag A ignores it; Wall A geometry runs only on a recorded aspect and angle (`scoringLocationFor`), never the default |
 

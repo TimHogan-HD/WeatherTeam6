@@ -103,11 +103,11 @@ Think of dryness as two timers: one for water on the surface, and one for water 
 
 #### 2. Estimate grip
 
-“Grip” estimates how temperature and moisture may affect how well the rock can be held. The model checks condensation, heat, damp air, and cold. Each check can lower the estimate:
+“Grip” estimates how temperature and moisture may affect how well the rock can be held. The model checks heat, damp air, and cold. Each check can lower the estimate:
 
-![Grip: condensation 1.0, heat 0.48, dampness 1.0 and cold 1.0 multiply to about 0.48](docs/images/crag-a-2-grip.png)
+![Grip: heat 0.48, dampness 1.0 and cold 1.0 multiply to about 0.48](docs/images/crag-a-2-grip.png)
 
-Grip asks four simple questions: could water condense on the rock, is it too hot, is the air damp, or is it too cold? A value of 1.0 means that check does not reduce the estimate. The condensation check estimates each wall's temperature, including the sun on it, takes the median wall, and never cuts the score by more than half. The heat formula uses a gradual penalty: `exp` means the factor falls smoothly as air temperature rises above 60°F, rather than dropping suddenly. The damp-air penalty starts above a 54°F dew point; the cold penalty starts below 30°F. Grip is an estimate, not a direct measurement.
+Grip asks three simple questions: is it too hot, is the air damp, or is it too cold? A value of 1.0 means that check does not reduce the estimate. Condensation is not one of them: the app estimates whether the rock is near its dew point and shows it on the Rock tab, but since 2026-11-27 it no longer lowers the score, because the evidence so far found it wrong far more often than right. The heat formula uses a gradual penalty: `exp` means the factor falls smoothly as air temperature rises above 60°F, rather than dropping suddenly. The damp-air penalty starts above a 54°F dew point; the cold penalty starts below 30°F. Grip is an estimate, not a direct measurement.
 
 #### 3. Turn hourly estimates into a daily score
 

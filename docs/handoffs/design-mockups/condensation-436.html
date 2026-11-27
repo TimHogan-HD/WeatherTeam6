@@ -80,7 +80,7 @@ document.getElementById('today').innerHTML =
   `<div class="chip"><b>8 AM</b> clear of dew <b>7°F above</b></div>` +
   frame(-5, 25, (y) => `<rect x="${LEFT}" y="${y(0)}" width="${W - LEFT - 6}" height="${y(-5) - y(0)}" fill="var(--poorInk)" opacity=".14"/><rect x="${LEFT}" y="${y(3.6)}" width="${W - LEFT - 6}" height="${y(0) - y(3.6)}" fill="var(--fairInk)" opacity=".14"/><line x1="${LEFT}" x2="${W - 6}" y1="${y(0)}" y2="${y(0)}" stroke="var(--poorInk)"/><line x1="${LEFT}" x2="${W - 6}" y1="${y(3.6)}" y2="${y(3.6)}" stroke="var(--fairInk)" stroke-dasharray="4 4"/>`, 'marginF') +
   `<div class="key"><span><i style="background:var(--dew)"></i>rock above or below dew point</span></div>` +
-  `<p class="note">Under 3.6°F the score counts condensation against grip. The rock temperature is modelled, so the zones are likely, not certain.</p>` + friction
+  `<p class="note">Under 3.6°F the rock may be near dew; the score doesn’t count it (since 2026-11-27). The rock temperature is modelled, so the zones are likely, not certain.</p>` + friction
 
 // Option 1: shaded hours are the model's rock zone, the line is air − dew point.
 const bands = (y) => hours.filter((h) => h.marginF !== null && zone(h.marginF) !== 'clear').map((h) => {
@@ -92,7 +92,7 @@ document.getElementById('opt1').innerHTML =
   `<div class="chip"><b>8 AM</b> air above dew <b>14°F</b> rock (estimate) <b>clear</b></div>` +
   frame(0, 25, bands, 'spreadF') +
   `<div class="key"><span><i style="background:var(--dew)"></i>air above dew point</span><span><i style="background:var(--fairInk);opacity:.35"></i>rock near dew (estimate)</span><span><i style="background:var(--poorInk);opacity:.35"></i>dew likely (estimate)</span></div>` +
-  `<p class="note">Air temperature minus dew point, from the HRRR, then GFS forecast. Rock colder than the dew point gets wet with no rain, and rock lags the air, so after a cold night it can be wet while the air reads a few degrees clear. Shaded hours are where the score counts condensation against grip: an estimate, because the rock’s temperature is modelled, not measured.</p>` + friction
+  `<p class="note">Air temperature minus dew point, from the HRRR, then GFS forecast. Rock colder than the dew point gets wet with no rain, and rock lags the air, so after a cold night it can be wet while the air reads a few degrees clear. Shaded hours are where the rock may be near dew, which the score doesn’t count (since 2026-11-27): an estimate, because the rock’s temperature is modelled, not measured.</p>` + friction
 
 // Option 2: a word per hour, no figure anywhere for the rock.
 document.getElementById('opt2').innerHTML =
@@ -101,6 +101,6 @@ document.getElementById('opt2').innerHTML =
   `<div class="strip">${hours.map((h) => `<span class="${h.marginF === null ? 'gap' : zone(h.marginF)}"></span>`).join('')}</div>` +
   `<div class="axis">${ticksX.map((h) => `<span>${lab(h.lh)}</span>`).join('')}</div>` +
   `<div class="key"><span><i style="background:var(--well);outline:1px solid var(--line)"></i>clear</span><span><i style="background:rgba(248,189,114,.45)"></i>near dew</span><span><i style="background:rgba(255,139,145,.55)"></i>dew likely</span><span><i style="outline:1px dashed var(--line)"></i>not read</span></div>` +
-  `<p class="note">The model’s estimate of the rock against its dew point. Rock colder than the dew point gets wet with no rain. The rock’s temperature is modelled, not measured, so the words are likely, not certain. Near dew and under it, the score counts condensation against grip.</p>` + friction
+  `<p class="note">The model’s estimate of the rock against its dew point. Rock colder than the dew point gets wet with no rain. The rock’s temperature is modelled, not measured, so the words are likely, not certain. The score doesn’t count condensation (since 2026-11-27).</p>` + friction
 </script>
 </div></body></html>
