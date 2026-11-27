@@ -8,7 +8,7 @@
  * average (`MASS_TAU_HOURS`) plus the wall's lagged sun. `MASS_TAU_HOURS`
  * itself records the tension this tests: conduction puts the outer few
  * centimetres of rock on a time constant of hours, the climbers' rule
- * (`scoring-findings.md` §3.1) on days. On 2026-11-28 at Sandstone the
+ * (`scoring-findings.md` §3.1) on days. In the forecast for 2026-11-28 at Sandstone the
  * mass margin read −1.4 °C at 11 am while the modelled surface sat 6 °C over
  * the dew point, and the score halved.
  *

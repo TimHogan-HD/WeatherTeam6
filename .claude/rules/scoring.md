@@ -50,8 +50,9 @@ How Crag A scores, and what may feed it.
 - **A reader's temperature range moves Crag A's friction edges, and nothing else** (scoring
   Phase 5, owner decision 2026-10-01). `user_preferences.temp_low_c`/`temp_high_c`, null for
   the default; `TEMP_RANGE_DEFAULT_F` (`packages/types`) is the one spelling of 30–60 °F and
-  `COLD_START_C`/`HEAT_START_C` derive from it. `/hourly` and `/conditions` read it per
-  request through `tempRangeFor` into `ScoringLocation.range`, so **readings are per reader,
+  `COLD_START_C`/`HEAT_START_C` derive from it. `/hourly`, `/conditions` and `/list` read it
+  per request, and the trip recorder per crag owner, through `readerScoringFor`
+  (`lib/preferences/preferences.ts`) into `ScoringLocation.range`, so **readings are per reader,
   not per crag** — two partners can see two scores for one crag. A failed read is a
   500, never the default. Limits and the 10 °F minimum gap are `TEMP_RANGE_LIMITS_F`. The
   Phase 0 columns on that table (`ideal_temp_*`, `drying_caution`, `include_sun`,
@@ -141,7 +142,8 @@ How Crag A scores, and what may feed it.
   slows no rock's clock. Sandstone read Wet 17 three days after rain on 2026-10-31 while a
   friend stood at bone-dry rock. The walk's "soaked" first hour is worked off the same way.
 - **Condensation is not scored** (owner, 2026-11-27, superseding 2026-11-02's half-score
-  floor). It halved Sandstone on a dry 44 °F day after a cold week (2026-11-28); both field
+  floor). It halved Sandstone's forecast for a dry 44 °F day after a cold week (Saturday
+  2026-11-28, read on 2026-11-27); both field
   checks that met it found climbable rock; `compare:condensation-margin` found it docking
   2–8% of climbing hours, mostly wrongly, against measured surfaces under the dew point in
   0–2% (none in summer). Sticky air is the humidity penalty's. **Bring it back only with a

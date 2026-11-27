@@ -912,13 +912,15 @@ porosity-and-friction argument arriving by a different route.
 
 **Three caveats, and the second is large enough that "closed" overstates it.**
 
-- It is **one paper's secondhand report** of Amca et al. The primary was not opened.
-- **The tested range is narrow, warm and dry.** Clarke et al. held conditions near-constant on
-  purpose: *"measurements of temperature varied from 23.5 °C to 27 °C and room humidity varied
-  from 34.2% to 47.4%"*. No result over 3.5 °C and 13 points of RH can speak to a 0 °C morning
-  or a 90% one — **which is the entire range climbers argue about**. "No significant effect"
-  here means "not detectable across a span nobody cares about".
-- One participant.
+- It is **one paper's secondhand report** of Amca et al. The primary was not opened, so
+  **Amca's tested temperature and humidity ranges and sample size are unknown here**.
+- **Clarke et al.'s own measurements cover a narrow, warm, dry range.** The figures below are
+  Clarke's lab, not Amca's (corrected 2026-11-27; this caveat previously read as if they were
+  Amca's): Clarke held conditions near-constant on purpose, *"measurements of temperature
+  varied from 23.5 °C to 27 °C and room humidity varied from 34.2% to 47.4%"*, with one
+  participant. No result over 3.5 °C and 13 points of RH can speak to a 0 °C morning or a 90%
+  one — **which is the entire range climbers argue about**. Whether Amca's span was any wider
+  is not known until the primary is read.
 
 **So the honest resolution is not "humidity wins" or "temperature wins" — it is that the
 finger-rock contact may not be where the effect lives.** Every direct measurement of the
@@ -1082,7 +1084,10 @@ needed for any of them. Every quote below is read at first hand.
 > — [Climbing, *How Much Chalk Is Optimal and What's The Perfect Temp For Rock
 > Shoes?*](https://www.climbing.com/skills/science-friction-the-truth-behind-perfect-climbing-conditions/) **[C]**
 
-**§9's 32–41 °F / 0–5 °C figure is confirmed exactly as written**, and its argument that
+**§9's 32–41 °F / 0–5 °C figure is confirmed as a quote, not as a fact** (2026-11-27): the
+magazine names no source for it, and #690's research found a 68–77 °F rubber optimum also
+attributed to Climbing, likewise unsourced. Treat the number as one magazine claim among
+conflicting ones. Its argument that
 `TEMP_BAND_C`'s floor is inverted stands on a source again. The marker stays **[C]** — this
 is a magazine explaining a mechanism, not a measurement — but it is a first-hand **[C]**, not
 a missing one.

@@ -11,7 +11,7 @@ import type { WeatherHour } from './hourlyConditions.js'
 
 const HOUR_MS = 3_600_000
 
-// Local hours 00-23 (UTC-5).
+// UTC hours 00-23 (METAR stamps); local is UTC-5, so the afternoon peak sits at 21-22.
 const AIR_F = [55.6, 51.6, 49.3, 46.2, 46, 46, 55.2, 49, 48, 46.4, 42.3, 40.6, 40.5, 40, 45.3, 50.5, 54.7, 57.6, 60, 62.6, 64, 66.2, 66.6, 63.7]
 const DEW_F = [43.5, 43.7, 43, 42.6, 42.8, 44.2, 37.2, 37.4, 38, 38, 37.4, 37, 38, 37.2, 41.5, 43.5, 43.3, 42.8, 43, 42.6, 44, 44.2, 44.2, 43.7]
 const WIND_KT = [0, 0, 3, 0, 3, 3, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 3, 4, 6, 7, 7, 7, 5, 3]

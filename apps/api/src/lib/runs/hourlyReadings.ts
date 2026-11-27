@@ -82,9 +82,10 @@ export const THERMAL_MODEL = 'gfs_seamless'
  * **A placeholder for a user preference, and labelled as one.** Layer 5 of the
  * handoff moves "the minimum readings that define a window" into
  * `user_preferences`, which is Phase 5. Until then every location uses the same
- * number and it is a judgement call: 60 is the bottom of `SCORE_BANDS.mostlyDry`,
- * so the window means "hours this model would call mostly dry or better" rather
- * than a threshold invented for the purpose.
+ * number and it is a judgement call: 60 is the bottom of `SCORE_BANDS.mostlyDry`
+ * rather than a threshold invented for the purpose. Despite the band's name, the
+ * score is dryness × grip, so an hour can miss 60 on dry rock when heat or damp
+ * air cuts grip (a dry 75 °F hour at a 58 °F dew point scores 40).
  */
 export const DEFAULT_WINDOW_MIN_SCORE = 60
 
