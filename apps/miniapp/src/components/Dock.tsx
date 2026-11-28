@@ -28,16 +28,16 @@ export function Dock<T extends string>({ tabs }: { tabs: DockTabs<T> }) {
   const rowRef = useRef<HTMLDivElement>(null)
   const rect = useSelectedRect(rowRef, '[aria-selected="true"]', tabs.active)
   return (
+    // Nothing on this strip may make it a backdrop root (a view-transition-name,
+    // an opacity or filter, an animation holding one): the pane inside would
+    // then blur nothing, and the page behind the tabs reads sharp (#694).
     <div
-      className="wt6-dock-rise"
       style={{
         position: 'fixed',
         left: `${spacing.listGap}px`,
         right: `${spacing.listGap}px`,
         bottom: `calc(${glass.dockLift}px + env(safe-area-inset-bottom, 0px))`,
         zIndex: 10,
-        // Captured on its own in a page transition, so it rises in place while the screens move.
-        viewTransitionName: 'wt6-dock',
         display: 'flex',
         justifyContent: 'center',
         // The strip either side of the dock is not part of it: taps there reach the page.
@@ -48,8 +48,11 @@ export function Dock<T extends string>({ tabs }: { tabs: DockTabs<T> }) {
         ref={rowRef}
         role="tablist"
         aria-label="Location detail"
+        className="wt6-dock-rise"
         style={{
           ...glassDock,
+          // Captured on its own in a page transition, so it rises in place while the screens move.
+          viewTransitionName: 'wt6-dock',
           position: 'relative',
           display: 'flex',
           padding: `${spacing.tight}px`,

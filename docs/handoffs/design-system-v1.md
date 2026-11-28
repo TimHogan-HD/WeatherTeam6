@@ -146,3 +146,9 @@ only tool. What still holds:
   differently.
 - **Every figure uses tabular digits** (`globals.css`), so a figure that updates does not
   shift what sits beside it.
+- **Nothing above a glass pane may be a backdrop root** (#694). In Chromium an ancestor
+  with a `view-transition-name`, an opacity below 1, a filter, a mask, a clip-path, a
+  `will-change` of one of those, or an animation still holding opacity confines the pane's
+  blur to that ancestor, so the page behind reads sharp through the fill. Put such
+  properties on the pane itself (the dock carries its own `view-transition-name` and rise),
+  and fill entrance animations `backwards`, never `both` or `forwards`.
