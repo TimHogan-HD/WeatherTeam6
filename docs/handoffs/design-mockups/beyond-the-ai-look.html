@@ -1,0 +1,396 @@
+<title>Beyond the AI Look</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: five plates, each one phone screen (390 px, the app's dark look) beside its notes. One page toggle swaps today's colours for the proposed roles in every phone. */
+:root{
+  color-scheme:dark;
+  --page:#0b0d0f; --bg:#121416; --card:#1d2022; --line:#26292c;
+  --txt1:#f4f7fa; --txt2:#d3dde1; --muted:#bccad0; --faint:#7d8a90;
+  /* Today's colours (colorsV2): lime score, cyan brand, many data hues. */
+  --good:#c8f76a; --goodLo:#b8f542; --fair:#f8bd72; --poor:#ff8b91;
+  --action:#1DC5D2; --actionInk:#6fe3ec; --onAction:#032026;
+  --rain:#a5b4fc; --rainLo:#7fd1f0; --temp:#7fd1c4; --spread:rgba(127,209,196,.22);
+  --glow:0 0 14px rgba(200,247,106,.55);
+  --display:'Barlow Condensed','Arial Narrow',sans-serif; --body:'Barlow','Segoe UI',system-ui,sans-serif;
+}
+/* Proposed roles: six colours, each with one job. Score hues from the rock, not from finance; action is ink; rain is one blue; temperature is ink. */
+:root[data-pal="roles"]{
+  --good:#a9d68a; --goodLo:#8fbf73; --fair:#e3b35f; --poor:#ec8a7c;
+  --action:#f4f7fa; --actionInk:#f4f7fa; --onAction:#121416;
+  --rain:#9db7f5; --rainLo:#9db7f5; --temp:#d3dde1; --spread:rgba(211,221,225,.16);
+  --glow:none;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--txt1);font-family:var(--body);font-variant-numeric:tabular-nums;padding-block:24px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--txt1);outline-offset:2px}
+.intro{max-width:1000px;margin:0 auto 28px;display:flex;flex-direction:column;gap:12px}
+.intro h1{margin:0;font-family:var(--display);font-weight:700;font-size:40px;line-height:1;text-wrap:balance}
+.intro p{margin:0;max-width:68ch;color:var(--muted);line-height:1.55;font-size:15px}
+.intro b,.notes b{color:var(--txt1);font-weight:600}
+.toggle{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.toggle span{font-size:14px;color:var(--muted);margin-right:4px}
+.toggle button{min-height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--card);font-family:var(--display);font-weight:600;font-size:16px;color:var(--txt2)}
+.toggle button[aria-pressed="true"]{border-color:var(--txt1);color:var(--txt1)}
+.plate{max-width:1000px;margin:0 auto 56px;display:flex;flex-wrap:wrap;gap:32px;justify-content:center;align-items:flex-start}
+.phone{width:390px;max-width:100%;border-radius:40px;overflow:hidden;box-shadow:0 0 0 8px #040506,0 30px 80px #000c;background:var(--bg);padding:18px 18px 26px;display:flex;flex-direction:column;gap:16px}
+.notes{flex:1 1 300px;min-width:0;max-width:460px;display:flex;flex-direction:column;gap:10px}
+.notes .no{font-family:var(--display);font-weight:600;font-size:15px;color:var(--faint)}
+.notes h2{margin:0;font-family:var(--display);font-weight:700;font-size:30px;line-height:1.05;text-wrap:balance}
+.notes h3{margin:6px 0 0;font-family:var(--display);font-weight:600;font-size:19px}
+.notes p,.notes li{margin:0;color:var(--muted);line-height:1.55;font-size:15px}
+.notes ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.notes a{color:var(--txt2)}
+.conf{font-size:12px;font-weight:600;letter-spacing:.4px;padding:1px 7px;border-radius:999px;border:1px solid var(--line);color:var(--txt2);white-space:nowrap}
+.build{border-left:2px solid var(--line);padding-left:12px}
+/* Phone furniture */
+.ptop{display:flex;justify-content:space-between;align-items:center;min-height:40px}
+.crag{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.05}
+.sub{font-size:13px;color:var(--muted)}
+.card{background:var(--card);border-radius:20px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.card h4{margin:0;font-family:var(--display);font-weight:600;font-size:19px;line-height:1.1}
+.lab{font-size:13px;color:var(--muted)}
+.kv{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:15px}
+.kv span{color:var(--muted)}
+svg{display:block;max-width:100%;overflow:visible}
+svg text{font-family:var(--body);font-size:11px;fill:var(--muted)}
+.chip{display:inline-flex;align-items:baseline;gap:6px;font-size:14px;color:var(--txt2)}
+.chip b{font-family:var(--display);font-weight:700;font-size:20px;color:var(--txt1)}
+/* Plate 1 hero */
+.heroLine{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.heroLine .score{font-family:var(--display);font-weight:700;font-size:44px;line-height:1;color:var(--good)}
+.heroLine .read{font-size:15px;color:var(--txt2);text-align:right;line-height:1.35}
+.scrubHint{font-size:12px;color:var(--faint)}
+/* Plate 2 week strip */
+.week{display:flex;flex-direction:column}
+.wrow{display:grid;grid-template-columns:3.2em 1fr 2.4em;gap:10px;align-items:center;padding:7px 4px;border:0;background:none;text-align:left;border-radius:12px;min-height:44px}
+.wrow[aria-pressed="true"]{background:#ffffff0d}
+.wrow .d{font-weight:600;font-size:15px}
+.wrow .w{font-family:var(--display);font-weight:700;font-size:20px;text-align:right}
+.wrow .w.m{color:var(--muted);font-weight:600}
+.dayDetail{font-size:14px;color:var(--txt2);line-height:1.45;min-height:3em}
+/* Plate 4 checks */
+.check{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line);font-size:15px}
+.check:first-of-type{border-top:0}
+.check .dt{font-weight:600}
+.check .said{color:var(--muted);font-size:13px}
+.check .you{font-family:var(--display);font-weight:600;font-size:17px}
+.tag{display:inline-block;width:10px;height:10px;border-radius:3px}
+/* Plate 5 */
+.btn{min-height:46px;border-radius:14px;border:0;background:var(--action);color:var(--onAction);font-family:var(--display);font-weight:700;font-size:18px}
+.ring{display:flex;align-items:center;gap:14px}
+.ringBadge{width:64px;height:64px;border-radius:50%;border:3px solid var(--good);display:grid;place-items:center;font-family:var(--display);font-weight:700;font-size:20px;color:var(--good);box-shadow:var(--glow)}
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px}
+.sw{border-radius:10px;padding:6px;font-size:11px;line-height:1.25;color:#0b0d0f;min-height:46px;display:flex;align-items:flex-end}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.compare>div{display:flex;flex-direction:column;gap:6px}
+.segm{display:flex;gap:3px}
+.segm i{flex:1;height:8px;border-radius:2px;background:var(--line)}
+.segm i.on{background:var(--good)}
+.fill{height:30px;border-radius:8px;background:var(--line);position:relative;overflow:hidden}
+.fill i{position:absolute;inset:0 auto 0 0;background:var(--good);opacity:.9}
+.fill span{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-family:var(--display);font-weight:700;font-size:16px;color:#121416}
+@media (prefers-reduced-motion:no-preference){.ringBadge,.btn,.wrow{transition:background-color .15s,box-shadow .2s,color .15s}}
+.foot{max-width:1000px;margin:0 auto;display:flex;flex-direction:column;gap:8px}
+.foot h2{margin:0;font-family:var(--display);font-weight:700;font-size:28px}
+.foot p,.foot li{margin:0;color:var(--muted);font-size:14px;line-height:1.55}
+.foot ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.foot a{color:var(--txt2)}
+</style>
+
+<header class="intro">
+  <h1>Beyond the AI look: big features, not spacing</h1>
+  <p>Research for #644 and #648, 2026-11-28. The glass is gone and the eyebrows are fixed, but the screens still match the most common generated face: <b>a giant lime number on near-black beside a grid of stat tiles</b>. Construct's catalogue names that face "dark fintech"; Impeccable and the avoid-ai-design catalogue flag lime on black, cyan on dark, coloured glow and the hero-metric layout. Five plates below. Each is a proposal to put to you, not a decision. Sample data is a plausible Red Wing day, not a real forecast.</p>
+  <div class="toggle" role="group" aria-label="Colours in every phone">
+    <span>Colours in every phone:</span>
+    <button id="pal-today" aria-pressed="true" data-pal="today">Today's</button>
+    <button id="pal-roles" aria-pressed="false" data-pal="roles">Proposed roles (plate 5)</button>
+  </div>
+</header>
+
+<!-- ───────────── Plate 1 ───────────── -->
+<section class="plate" aria-labelledby="p1">
+  <div class="phone">
+    <div class="ptop"><div><div class="crag">Red Wing</div><div class="sub">Sat 28 Nov</div></div></div>
+    <div class="card">
+      <div class="heroLine">
+        <div><div class="lab" id="heroLab">Score at 1 PM</div><div class="score" id="heroScore">100</div></div>
+        <div class="read" id="heroRead">Dryness: Dry<br>Air 48°</div>
+      </div>
+      <svg id="band" viewBox="0 0 354 58" width="354" height="58" role="img" aria-label="Today's score by hour, 7 AM to 8 PM"></svg>
+      <div class="kv"><span>Good hours</span><b id="goodHrs">10 AM – 6 PM</b></div>
+    </div>
+    <div class="card">
+      <h4>Air</h4>
+      <svg id="temp" viewBox="0 0 354 120" width="354" height="120" role="img" aria-label="Air temperature, median with the 10th to 90th percentile spread"></svg>
+      <h4>Rain</h4>
+      <svg id="rain" viewBox="0 0 354 70" width="354" height="70" role="img" aria-label="Share of forecasts with rain, by hour"></svg>
+      <div class="scrubHint">Drag across any chart. One cursor moves on all three, and the hero follows it.</div>
+    </div>
+  </div>
+  <div class="notes">
+    <div class="no">Plate 1</div>
+    <h2 id="p1">The day's shape is the hero, and the number sits on it</h2>
+    <p><b>Today:</b> a 92 px lime "100" beside a 2×2 grid of stat tiles. This is Construct's dark-fintech face almost exactly, and L11 in avoid-ai-design ("big number as hero, fine only when the number is the product").</p>
+    <p><b>Proposal:</b> the hero is the day's score as a band of hours, with night shaded and the now marker on it. The number shrinks to a label and value and sits on the band at its hour. Tide Guide (ADA 2026) and Surfline both lead with the data's own shape; Surfline's rating is a coloured bar per hour.</p>
+    <h3>Why the number moves onto the band <span class="conf">High</span></h3>
+    <p>Kay et al. (CHI 2016, n=541 bus riders): "a too-prominent display of the point estimate causes users to ignore the probabilistic one", and the estimate and its spread "should coincide spatially". The Air chart does the same: the median line is drawn inside its p10–p90 spread, not beside it.</p>
+    <h3>Linked cursor <span class="conf">High</span></h3>
+    <p>Apple's chart guidance (WWDC22 110340/110342, WWDC23 10037): selection draws a rule and an annotation, the touch target is the full plot height, and related charts move together. Today only the Today chart scrubs; Hourly and Day charts have no shared cursor.</p>
+    <div class="build"><p><b>Buildable now.</b> Hourly scores, <code>temp_c_p10/p90</code> and <code>members_wet</code> are already in <code>GET /hourly</code>. Rules kept: the hero still prints <code>Score at &lt;hour&gt;</code>, one score; no day score in the hero; the chart's figure is the series it draws.</p></div>
+  </div>
+</section>
+
+<!-- ───────────── Plate 2 ───────────── -->
+<section class="plate" aria-labelledby="p2">
+  <div class="phone">
+    <div class="ptop"><div><div class="crag">Next days</div><div class="sub">Each row is 7 AM – 8 PM. Tap a day.</div></div></div>
+    <div class="card">
+      <div class="week" id="week" role="group" aria-label="Seven days"></div>
+      <div class="dayDetail" id="dayDetail" aria-live="polite"></div>
+    </div>
+  </div>
+  <div class="notes">
+    <div class="no">Plate 2</div>
+    <h2 id="p2">A week of hours instead of a wall of 100s</h2>
+    <p><b>Today:</b> Next days, Daily and Trips print rows of identical lime 100s. A day's score is its worst hour, so a good week saturates at the ceiling and every day looks the same. The number carries no difference the climber can act on.</p>
+    <p><b>Proposal:</b> each day is a strip of its hours coloured by score, on one shared time axis, so a short window and an all-day window look different at a glance. The worst-hour score stays at the right, smaller. Days where models disagree about the rock carry the split on the strip itself (hatched), not as dots beside it.</p>
+    <h3>Why <span class="conf">Medium</span></h3>
+    <ul>
+      <li>Surfline's forecast is a coloured timeline per day with night shaded; the rating is a band, not a figure.</li>
+      <li>beta.rocks dropped its friction score for flags (rain, wet rock, dew, wind) after users found the number "useless"; the strip keeps the score but makes its shape visible.</li>
+      <li>Apple: tapping a summary row highlights the matching marks. Tapping a day here lights its strip and opens one line of its readings.</li>
+    </ul>
+    <div class="build"><p><b>Buildable now</b> for hours inside the 7-day window. <b>Needs your call:</b> the hatched split moves <code>rain_split</code> from dots to the strip; readings.md says Daily shows no dots (2026-11-24) and Next days' dots appear only through <code>rainSplitShown</code>. This changes where, not when.</p></div>
+  </div>
+</section>
+
+<!-- ───────────── Plate 3 ───────────── -->
+<section class="plate" aria-labelledby="p3">
+  <div class="phone">
+    <div class="ptop"><div><div class="crag">Air, next 2 days</div><div class="sub">Three ways to draw the same forecast</div></div></div>
+    <div class="card"><h4>A · Spread band (data exists)</h4><svg id="u1" viewBox="0 0 354 96" width="354" height="96" role="img" aria-label="Median with 10th to 90th percentile band"></svg></div>
+    <div class="card"><h4>B · Alternate runs (needs API)</h4><svg id="u2" viewBox="0 0 354 96" width="354" height="96" role="img" aria-label="Median with faint lines for individual forecast runs"></svg></div>
+    <div class="card"><h4>C · Quantile dots for one hour</h4><svg id="u3" viewBox="0 0 354 86" width="354" height="86" role="img" aria-label="Twenty dots, each a forecast of 2 PM Sunday air temperature"></svg><div class="lab">Sun 2 PM: each dot is 1 in 20 forecasts.</div></div>
+  </div>
+  <div class="notes">
+    <div class="no">Plate 3</div>
+    <h2 id="p3">Show the forecast as it is: several futures</h2>
+    <p><b>Today:</b> the charts draw one line, and uncertainty appears only as text fragments ("forecasts differ") or the rain-split dots.</p>
+    <p><b>Proposal:</b> draw the spread on the chart. Acme Weather, from the Dark Sky team (Feb 2026), puts light grey alternate predictions behind the forecast line on the same graph: "Our forecasts embrace uncertainty, instead of pretending it doesn't exist."</p>
+    <h3>Which form <span class="conf">High</span></h3>
+    <ul>
+      <li>Fernandes et al. (CHI 2018, n=408): quantile dotplots of 20–50 outcomes reached 97% of optimal decisions; text descriptions of uncertainty were inconsistent.</li>
+      <li>Kay 2016: dotplots read with about 1.15× lower variance than density plots.</li>
+      <li>A spread band is the cheapest honest form; C is for a tapped hour, not a whole chart.</li>
+    </ul>
+    <div class="build"><p><b>A: buildable now</b> from p10/p90. <b>B: needs API work</b>, the response carries percentiles, not member series. <b>C:</b> buildable as quantiles from p10/p50/p90 only by interpolation, which would invent a shape; honest dots need the member values. No score has a spread: a per-member score is new scoring work and a decision for you.</p></div>
+  </div>
+</section>
+
+<!-- ───────────── Plate 4 ───────────── -->
+<section class="plate" aria-labelledby="p4">
+  <div class="phone">
+    <div class="ptop"><div><div class="crag">Red Wing</div><div class="sub">Your checks here</div></div></div>
+    <div class="card">
+      <h4>Days like Saturday</h4>
+      <div class="lab">Past checks where the forecast looked like this one: dry 4 days, air 45–52°, light wind.</div>
+      <div id="checks"></div>
+    </div>
+    <div class="card">
+      <h4>How the score has done here</h4>
+      <svg id="calib" viewBox="0 0 354 70" width="354" height="70" role="img" aria-label="Your reports grouped by the score that was forecast"></svg>
+      <div class="lab">11 checks. Too few to say the score is right; enough to see where it was wrong.</div>
+    </div>
+  </div>
+  <div class="notes">
+    <div class="no">Plate 4</div>
+    <h2 id="p4">Evidence from your own days</h2>
+    <p><b>Today:</b> the Report button collects forecast checks, and whole-app.html v6 already sketched "Your checks here". Nothing on a crag screen uses them.</p>
+    <p><b>Proposal:</b> on a crag, show the past checks whose forecast resembled today's, with what you found. Surfline's "Forecast matches" marks future windows like your logged sessions, and "Cam matches" shows past days with similar conditions. Flighty states causes in plain words. Both turn a number into something you have seen.</p>
+    <h3>Why <span class="conf">Medium</span></h3>
+    <p>This is the one feature an AI-generated weather app cannot fake: it needs your history. It also answers CLAUDE.md's open problem, that Crag A is not validated against outcomes, in a place you will look.</p>
+    <div class="build"><p><b>Needs a product decision and API work.</b> Matching needs a similarity rule over stored readings (<code>yesterday_hours</code> keeps one day only). The second card must never read as validation; with 11 checks it says so.</p></div>
+  </div>
+</section>
+
+<!-- ───────────── Plate 5 ───────────── -->
+<section class="plate" aria-labelledby="p5">
+  <div class="phone">
+    <div class="ptop"><div><div class="crag">Rock</div><div class="sub">Same card, each colour toggle</div></div></div>
+    <div class="card">
+      <div class="ring"><div class="ringBadge">40h</div><div><div class="lab">Since real rain</div><div class="chip"><b>40 h</b> of 48 to dry</div></div></div>
+      <div class="compare">
+        <div><div class="lab">Segment meter (today)</div><div class="segm"><i class="on"></i><i class="on"></i><i></i></div></div>
+        <div><div class="lab">Filled shape</div><div class="fill"><i style="width:83%"></i><span>40 of 48 h</span></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h4>Grades</h4>
+      <svg id="grades" viewBox="0 0 354 78" width="354" height="78" role="img" aria-label="Routes by grade"></svg>
+      <div class="lab">Grades in one ink. Score colours mean the score only.</div>
+    </div>
+    <button class="btn" type="button">Report conditions</button>
+  </div>
+  <div class="notes">
+    <div class="no">Plate 5</div>
+    <h2 id="p5">Colour as roles, not a bag of swatches</h2>
+    <p>Use the toggle at the top. <b>Today:</b> lime score on near-black (SD2, the finance category colour), a cyan brand (SD8, Impeccable's "bright cyan on dark"), a glowing ring (C5), and about 20 data hues. <code>#7fd1c4</code> means wind, dew margin and cool temperature at once (C8). Grade bars reuse the score lime for 5.11.</p>
+    <p><b>Proposal:</b> six roles. Score keeps its three-step ladder in hues from the rock (lichen, ochre, iron) rather than acid lime. Action is ink, as v6 already proposed. Rain is one blue with steps in lightness. Temperature and wind are ink. No glow. Progress is a filled shape, not a three-segment meter.</p>
+    <p><b>Today, 14 of the ~20 hues:</b></p><div class="swatches" aria-label="Today's data hues">
+      <div class="sw" style="background:#c8f76a">score</div><div class="sw" style="background:#1DC5D2">brand</div><div class="sw" style="background:#6fe3ec">brand ink</div><div class="sw" style="background:#bcc7fd">rain</div><div class="sw" style="background:#a5b4fc">rain mark</div><div class="sw" style="background:#dfe4ff">rain line</div><div class="sw" style="background:#7fd1f0">rain amt</div><div class="sw" style="background:#c3a6ff">agree</div><div class="sw" style="background:#7fd1c4">wind = dew = cool</div><div class="sw" style="background:#ee9fe0">humidity</div><div class="sw" style="background:#f3e08a">sun</div><div class="sw" style="background:#d9b98a">soil</div><div class="sw" style="background:#9ec5ff">river</div><div class="sw" style="background:#b794f4">mix</div>
+    </div>
+    <p><b>Proposed, six roles:</b></p><div class="swatches" aria-label="Proposed roles">
+      <div class="sw" style="background:#a9d68a">good</div><div class="sw" style="background:#e3b35f">fair</div><div class="sw" style="background:#ec8a7c">poor</div><div class="sw" style="background:#9db7f5">water</div><div class="sw" style="background:#f4f7fa">ink · action</div><div class="sw" style="background:#f3e08a">sun</div>
+    </div>
+    <h3>Sources <span class="conf">High on the tells, Low on these exact hues</span></h3>
+    <p>Construct's colour guide: "refuse the category colour in writing", one accent with one role, "never a glow", "progress as a filled shape". Impeccable: build roles, not swatches; colour is never the only code. The hues are a first pass from the subject (sandstone, lichen, iron staining) and need your eye on a phone in daylight; each clears 6.6:1 on the card (WCAG contrast, computed).</p>
+  </div>
+</section>
+
+<footer class="foot">
+  <h2>What this touches</h2>
+  <ul>
+    <li><b>Owner rules kept:</b> one score per hero, named <code>Score at &lt;hour&gt;</code>; words from <code>summarizeReadings</code>, never from the number; a span's score is its worst hour; gaps print as gaps.</li>
+    <li><b>Needs your call:</b> plate 2 moves the rain split onto the strip; plate 4 is a new feature; plate 5 replaces the score hues you adopted in variant C (2026-11-23).</li>
+    <li><b>Not proposed:</b> word ratings like "Prime" drawn from the score. readings.md forbids words from the number, and Surfline's words are its forecasters', not a lookup.</li>
+    <li><b>Interaction notes:</b> haptics on iOS work only through the hidden switch-input trick (iOS 17.4+); one library says iOS 26.5 closed it, unverified, so treat it as an extra. NN/g: bottom sheets must dismiss with Back.</li>
+  </ul>
+  <p>Sources: Kay et al., CHI 2016; Fernandes et al., CHI 2018; Apple WWDC22 110340 and 110342, WWDC23 10037; Construct design guides; Impeccable; avoid-ai-design catalogue; app studies of Acme Weather, Surfline, beta.rocks, CodClimb, ClimbShade, Weathergraph, Mercury, Hello Weather, Tide Guide and Flighty from their store screenshots and sites.</p>
+</footer>
+
+<script>
+(function(){
+const NS='http://www.w3.org/2000/svg';
+const H=[7,8,9,10,11,12,13,14,15,16,17,18,19,20];
+const SCORE=[40,48,62,78,90,100,100,100,96,88,74,60,52,45];
+const T50=[31,33,37,41,45,48,50,51,50,47,43,39,36,34];
+const T10=T50.map((t,i)=>t-3-Math.round(i/5));
+const T90=T50.map((t,i)=>t+3+Math.round(i/4));
+const WET=[0,0,0,0,0,0,0,0,0,0,.03,.06,.1,.13];
+const SUNSET=16.6, W=354;
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const el=(t,a,p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e};
+const hl=h=>(h%12||12)+(h<12?' AM':' PM');
+function scoreCol(s){return s>=64?(s>=90?'var(--good)':'var(--goodLo)'):s>=40?'var(--fair)':'var(--poor)'}
+const xOf=(i,n,w)=>(i+.5)*w/n;
+
+/* Plate 1: band, temp, rain with one shared cursor */
+const band=document.getElementById('band'),temp=document.getElementById('temp'),rain=document.getElementById('rain');
+const cw=W/H.length;
+H.forEach((h,i)=>{
+  el('rect',{x:i*cw+1,y:6,width:cw-2,height:26,rx:4,fill:scoreCol(SCORE[i]),opacity:h>SUNSET?.45:1},band);
+  if(i%3===0)el('text',{x:i*cw+cw/2,y:50,'text-anchor':'middle'},band).textContent=hl(h).replace(' ','');
+});
+el('rect',{x:(SUNSET-7)*cw,y:2,width:W-(SUNSET-7)*cw,height:34,fill:'#000',opacity:.25},band);
+const yT=t=>8+(56-t)*90/30;
+let d10='',d90='';T90.forEach((t,i)=>{d90+=(i?'L':'M')+xOf(i,H.length,W)+' '+yT(t)});
+for(let i=T10.length-1;i>=0;i--)d10+='L'+xOf(i,H.length,W)+' '+yT(T10[i]);
+el('path',{d:d90+d10+'Z',fill:'var(--spread)'},temp);
+[30,40,50].forEach(t=>{el('line',{x1:0,x2:W,y1:yT(t),y2:yT(t),stroke:'var(--line)'},temp);el('text',{x:W,y:yT(t)-3,'text-anchor':'end'},temp).textContent=t+'°'});
+el('polyline',{points:T50.map((t,i)=>xOf(i,H.length,W)+','+yT(t)).join(' '),fill:'none',stroke:'var(--temp)','stroke-width':2.5,'stroke-linejoin':'round'},temp);
+el('line',{x1:0,x2:W,y1:60,y2:60,stroke:'var(--line)'},rain);
+WET.forEach((w,i)=>{const h=w*50/.2;el('rect',{x:i*cw+3,y:60-h,width:cw-6,height:h,fill:'var(--rain)'},rain)});
+el('text',{x:W,y:10,'text-anchor':'end'},rain).textContent='20% of forecasts wet';
+el('line',{x1:0,x2:W,y1:10,y2:10,stroke:'var(--line)','stroke-dasharray':'2 4'},rain);
+const cursors=[band,temp,rain].map(s=>el('line',{x1:0,x2:0,y1:0,y2:s===band?36:s===temp?110:60,stroke:'var(--txt1)','stroke-width':1.5},s));
+const tDot=el('circle',{r:4.5,fill:'var(--txt1)'},temp);
+const tLab=el('text',{y:12,'text-anchor':'middle',style:'fill:var(--txt1);font-weight:600'},temp);
+const heroLab=document.getElementById('heroLab'),heroScore=document.getElementById('heroScore'),heroRead=document.getElementById('heroRead');
+function setHour(i){
+  const x=xOf(i,H.length,W);
+  cursors.forEach(c=>{c.setAttribute('x1',x);c.setAttribute('x2',x)});
+  tDot.setAttribute('cx',x);tDot.setAttribute('cy',yT(T50[i]));
+  tLab.setAttribute('x',Math.min(Math.max(x,40),W-40));tLab.textContent=T50[i]+'° ('+T10[i]+'–'+T90[i]+')';
+  heroLab.textContent='Score at '+hl(H[i]);heroScore.textContent=SCORE[i];heroScore.style.color=scoreCol(SCORE[i]);
+  heroRead.innerHTML='Dryness: Dry<br>Air '+T50[i]+'°';
+}
+[band,temp,rain].forEach(s=>{
+  s.style.touchAction='none';
+  const go=e=>{const r=s.getBoundingClientRect();const i=Math.max(0,Math.min(H.length-1,Math.floor((e.clientX-r.left)/r.width*H.length)));setHour(i);
+    if(e.type==='pointerdown'&&navigator.vibrate)try{navigator.vibrate(5)}catch(_){}}
+  s.addEventListener('pointerdown',e=>{s.setPointerCapture(e.pointerId);go(e)});
+  s.addEventListener('pointermove',e=>{if(e.buttons||e.pointerType==='mouse')go(e)});
+});
+setHour(6);
+
+/* Plate 2: week strip */
+const DAYS=[
+ {d:'Sat',s:[40,48,62,78,90,100,100,100,96,88,74,60,52,45],note:'Dryness: Dry · Air 31–51° · Wind light'},
+ {d:'Sun',s:[52,64,80,95,100,100,100,100,100,100,92,80,70,62],note:'Dryness: Dry · Air 38–58° · Wind light'},
+ {d:'Mon',s:[64,72,88,100,100,100,100,100,100,96,90,82,76,70],note:'Dryness: Dry · Air 44–62° · Wind light'},
+ {d:'Tue',s:[70,74,80,82,78,74,74,76,80,82,78,74,72,70],split:[6,7,8,9,10],note:'Dryness: Dry · 2 of 4 models wet after showers Mon night'},
+ {d:'Wed',s:[20,18,18,22,30,34,36,38,36,30,26,22,20,18],note:'Dryness: Wet · Rain 0.4–0.9 in'},
+ {d:'Thu',s:[30,34,40,48,56,64,70,72,70,64,56,48,40,36],note:'Dryness: Drying · Air 35–47°'},
+ {d:'Fri',s:[50,58,66,74,82,90,96,100,96,88,78,66,58,52],note:'Dryness: Dry · Air 36–50°'}
+];
+const week=document.getElementById('week'),detail=document.getElementById('dayDetail');
+const sw=250,sc=sw/14;
+DAYS.forEach((day,k)=>{
+  const b=document.createElement('button');b.className='wrow';b.type='button';b.id='day-'+k;b.setAttribute('aria-pressed','false');
+  const worst=Math.min(...day.s);
+  b.innerHTML='<span class="d">'+day.d+'</span>';
+  const svg=el('svg',{viewBox:'0 0 '+sw+' 22',width:'100%',height:22,'aria-hidden':'true'});
+  day.s.forEach((s,i)=>{el('rect',{x:i*sc+.5,y:2,width:sc-1,height:18,rx:2,fill:scoreCol(s),opacity:H[i]>SUNSET?.45:1},svg)});
+  if(day.split){const p=el('pattern',{id:'hat'+k,width:5,height:5,patternUnits:'userSpaceOnUse',patternTransform:'rotate(45)'},el('defs',{},svg));
+    el('rect',{width:2.2,height:5,fill:'#121416',opacity:.75},p);
+    day.split.forEach(i=>el('rect',{x:i*sc+.5,y:2,width:sc-1,height:18,rx:2,fill:'url(#hat'+k+')'},svg));}
+  b.appendChild(svg);
+  const w=document.createElement('span');w.className='w';w.textContent=worst;w.style.color=scoreCol(worst);b.appendChild(w);
+  b.setAttribute('aria-label',day.d+', worst hour '+worst);
+  b.addEventListener('click',()=>pick(k));
+  week.appendChild(b);
+});
+function pick(k){[...week.children].forEach((c,j)=>{c.setAttribute('aria-pressed',j===k?'true':'false');c.style.opacity=j===k?1:.45});
+  const day=DAYS[k],good=day.s.map((s,i)=>s>=64?H[i]:null).filter(x=>x!==null);
+  detail.textContent=day.d+': '+(good.length?'Good hours '+hl(good[0])+' – '+hl(good[good.length-1]+1):'Good hours none')+' · '+day.note;}
+pick(0);
+
+/* Plate 3: uncertainty forms */
+const N=24,base=[...Array(N)].map((_,i)=>42+10*Math.sin((i-7)/24*2*Math.PI)+i*.15);
+const sp=i=>2+i*.18;
+const yU=t=>10+(64-t)*76/36;
+function axes(s){[35,45,55].forEach(t=>{el('line',{x1:0,x2:W,y1:yU(t),y2:yU(t),stroke:'var(--line)'},s);el('text',{x:W,y:yU(t)-3,'text-anchor':'end'},s).textContent=t+'°'})}
+const u1=document.getElementById('u1');axes(u1);
+let up='',dn='';base.forEach((t,i)=>{up+=(i?'L':'M')+xOf(i,N,W)+' '+yU(t+sp(i))});for(let i=N-1;i>=0;i--)dn+='L'+xOf(i,N,W)+' '+yU(base[i]-sp(i));
+el('path',{d:up+dn+'Z',fill:'var(--spread)'},u1);
+el('polyline',{points:base.map((t,i)=>xOf(i,N,W)+','+yU(t)).join(' '),fill:'none',stroke:'var(--temp)','stroke-width':2.5},u1);
+const u2=document.getElementById('u2');axes(u2);
+let seed=7;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647-.5};
+for(let m=0;m<12;m++){let drift=0;el('polyline',{points:base.map((t,i)=>{drift+=rnd()*.9;return xOf(i,N,W)+','+yU(t+drift*sp(i)/3+rnd()*1.2)}).join(' '),fill:'none',stroke:'var(--muted)','stroke-width':1,opacity:.35},u2)}
+el('polyline',{points:base.map((t,i)=>xOf(i,N,W)+','+yU(t)).join(' '),fill:'none',stroke:'var(--temp)','stroke-width':2.5},u2);
+const u3=document.getElementById('u3');
+const q=[44,46,47,48,48,49,49,50,50,50,51,51,51,52,52,53,53,54,55,57];
+const xq=t=>20+(t-42)*(W-40)/17;const stack={};
+q.forEach(t=>{stack[t]=(stack[t]||0)+1;el('circle',{cx:xq(t),cy:62-(stack[t]-1)*13,r:5.6,fill:'var(--temp)'},u3)});
+[44,48,52,56].forEach(t=>{el('text',{x:xq(t),y:84,'text-anchor':'middle'},u3).textContent=t+'°'});
+el('line',{x1:0,x2:W,y1:70,y2:70,stroke:'var(--line)'},u3);
+
+/* Plate 4: checks */
+const CH=[['Nov 22','Score 100 · dry 5 days','Dry','good'],['Nov 8','Score 92 · dry 4 days','Dry','good'],['Oct 30','Score 100 · dry 3 days','Damp low','fair'],['Oct 18','Score 85 · dry 4 days','Dry','good']];
+const ch=document.getElementById('checks');
+CH.forEach(c=>{const d=document.createElement('div');d.className='check';
+  d.innerHTML='<span class="dt">'+c[0]+'</span><span><span class="said">Forecast said</span><br>'+c[1]+'</span><span class="you"><span class="tag" style="background:var(--'+c[3]+')"></span> '+c[2]+'</span>';ch.appendChild(d)});
+const cal=document.getElementById('calib');
+const G=[['Under 40',[0,0,2]],['40–63',[0,1,1]],['64–89',[2,1,0]],['90+',[3,1,0]]];
+/* One stacked column per forecast-score group, one block per check, coloured by what was found. */
+G.forEach((g,k)=>{const x=k*88+30;let y=44;['good','fair','poor'].forEach((c,j)=>{for(let n=0;n<g[1][j];n++){el('rect',{x:x,y:y,width:14,height:9,rx:2,fill:'var(--'+c+')'},cal);y-=11}});
+  el('text',{x:x+7,y:66,'text-anchor':'middle'},cal).textContent=g[0];});
+el('text',{x:W,y:10,'text-anchor':'end'},cal).textContent='what you found, by forecast score';
+
+/* Plate 5: grades */
+const gr=document.getElementById('grades');const GR=[['5.6',4],['5.7',9],['5.8',14],['5.9',18],['5.10',22],['5.11',11],['5.12',5]];
+GR.forEach((g,i)=>{const x=i*50+8,h=g[1]*2.2;el('rect',{x:x,y:56-h,width:34,height:h,rx:3,fill:'var(--temp)'},gr);
+  el('text',{x:x+17,y:72,'text-anchor':'middle'},gr).textContent=g[0];el('text',{x:x+17,y:52-h,'text-anchor':'middle'},gr).textContent=g[1]});
+
+/* Colour toggle */
+const root=document.documentElement;
+function setPal(p){if(p==='roles')root.setAttribute('data-pal','roles');else root.removeAttribute('data-pal');
+  document.querySelectorAll('.toggle button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.pal===p?'true':'false'));
+  try{localStorage.setItem('wt6.mock.pal',p)}catch(_){}}
+document.querySelectorAll('.toggle button').forEach(b=>b.addEventListener('click',()=>setPal(b.dataset.pal)));
+try{const s=localStorage.getItem('wt6.mock.pal');if(s)setPal(s)}catch(_){}
+})();
+</script>
