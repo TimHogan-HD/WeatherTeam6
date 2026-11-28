@@ -5,6 +5,7 @@ import {
   fetchEnsembleRun,
   fetchRecentHourlyPrecip,
   fetchWithRetry,
+  UpstreamStatusError,
   FETCH_BUDGET_MS,
   FETCH_TIMEOUT_MS,
   MIN_ATTEMPT_MS,
@@ -468,6 +469,66 @@ describe('fetchEnsembleRun — one model at a time when the four-model request f
     expect((result as Error).message).toContain('429')
     // fetchWithRetry's own four attempts at the four-model request, and nothing after.
     expect(fetchMock).toHaveBeenCalledTimes(4)
+  })
+
+  it('names which limit a 429 hit, from the body Open-Meteo sends (#600)', async () => {
+    const body = JSON.stringify({ error: true, reason: 'Minutely API request limit exceeded. Please try again in one minute.' })
+    fetchMock.mockImplementation(async () => ({ ok: false, status: 429, text: async () => body }) as Response)
+
+    const result = await run()
+    expect((result as Error).message).toBe(
+      'Open-Meteo ensemble returned 429: Minutely API request limit exceeded. Please try again in one minute.',
+    )
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+  })
+
+  it('names the cause of a network failure, not only "fetch failed" (#629)', async () => {
+    fetchMock.mockRejectedValue(new TypeError('fetch failed', { cause: { code: 'ECONNRESET' } }))
+
+    const result = await run()
+    expect((result as Error).message).toContain('fetch failed')
+    expect((result as Error).message).toContain('ECONNRESET')
+  })
+})
+
+describe('fetchWithRetry — the reason an upstream gives', () => {
+  let fetchMock: ReturnType<typeof vi.fn<typeof fetch>>
+  beforeEach(() => {
+    fetchMock = vi.fn<typeof fetch>()
+    vi.stubGlobal('fetch', fetchMock)
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+  const failWith = (status: number, text: string) =>
+    fetchMock.mockImplementation(async () => ({ ok: false, status, text: async () => text }) as Response)
+  const thrown = (p: Promise<unknown>) => p.then(() => null, (e: unknown) => e)
+
+  it('keeps a JSON body’s reason, flattened and cut to length', async () => {
+    failWith(429, JSON.stringify({ error: true, reason: `Hourly API request\nlimit ${'x'.repeat(400)}` }))
+    const err = await thrown(fetchWithRetry('https://example.test', 1))
+    expect(err).toBeInstanceOf(UpstreamStatusError)
+    const { status, reason, message } = err as UpstreamStatusError
+    expect(status).toBe(429)
+    expect(reason).not.toContain('\n')
+    expect(reason?.startsWith('Hourly API request limit x')).toBe(true)
+    expect(reason).toHaveLength(160)
+    expect(message).toBe(`HTTP 429: ${reason}`)
+  })
+
+  it('says only the status for a body with no reason: an error page never reaches a log', async () => {
+    for (const body of ['<html>502 Bad Gateway</html>', '{"error":true}', '{"reason":42}', '{"reason":"  "}', 'null', '']) {
+      failWith(502, body)
+      const err = await thrown(fetchWithRetry('https://example.test', 1))
+      expect((err as Error).message).toBe('HTTP 502')
+      expect((err as UpstreamStatusError).reason).toBeNull()
+    }
+  })
+
+  it('says only the status when the body cannot be read', async () => {
+    fetchMock.mockImplementation(async () => ({ ok: false, status: 503, text: async () => { throw new Error('aborted') } }) as unknown as Response)
+    const err = await thrown(fetchWithRetry('https://example.test', 1))
+    expect((err as Error).message).toBe('HTTP 503')
   })
 })
 

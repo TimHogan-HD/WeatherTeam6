@@ -1,4 +1,5 @@
 import { MEASURABLE_PRECIP_MM, REWETTING_PRECIP_MM, type RecentPrecipHour } from '@weatherteam6/types'
+import { describeError } from '../http.js'
 import { logger } from '../logger.js'
 import { DAY_LAST_HOUR } from '../scoring/cragModel.js'
 
@@ -120,6 +121,44 @@ export const FETCH_BUDGET_MS = 45_000
 /** An attempt with less time than this left is not started: it could only time out. */
 export const MIN_ATTEMPT_MS = 2_000
 
+/** Longest `reason` an error message carries: enough for Open-Meteo's sentences, short of a page. */
+const REASON_MAX_CHARS = 160
+
+/**
+ * A 429 or 5xx that was still failing when `fetchWithRetry` ran out of attempts.
+ * The message is `HTTP <status>`, then the body's own `reason` when it names one:
+ * Open-Meteo's 429 says which limit was hit ("Minutely API request limit
+ * exceeded"), which a bare status cannot, and that decides between our own volume
+ * and an allowance shared with everyone on the same outgoing address (#600).
+ */
+export class UpstreamStatusError extends Error {
+  constructor(
+    readonly status: number,
+    readonly reason: string | null,
+  ) {
+    super(reason === null ? `HTTP ${status}` : `HTTP ${status}: ${reason}`)
+    this.name = 'UpstreamStatusError'
+  }
+}
+
+/**
+ * The `reason` of an Open-Meteo-style JSON error body (`{"error":true,"reason":"..."}`),
+ * or null for any other body. Only that one field is kept, flattened and cut short,
+ * so an error page or a whole response never reaches a log.
+ */
+async function errorReason(res: Response): Promise<string | null> {
+  try {
+    const parsed: unknown = JSON.parse(await res.text())
+    if (typeof parsed !== 'object' || parsed === null) return null
+    const reason = (parsed as { reason?: unknown }).reason
+    if (typeof reason !== 'string') return null
+    const flat = reason.replace(/\s+/g, ' ').trim()
+    return flat === '' ? null : flat.slice(0, REASON_MAX_CHARS)
+  } catch {
+    return null
+  }
+}
+
 /**
  * @param deadline epoch ms after which no attempt starts and none runs on. Defaults
  * to `FETCH_BUDGET_MS` from now; pass one shared deadline when a fallback request
@@ -148,7 +187,7 @@ export async function fetchWithRetry(
       const res = await fetch(url, body === undefined ? init : { ...init, method: 'POST', body })
       if (res.ok) return res
       if (res.status !== 429 && res.status < 500) return res
-      lastErr = new Error(`HTTP ${res.status}`)
+      lastErr = new UpstreamStatusError(res.status, await errorReason(res))
     } catch (err) {
       lastErr = err instanceof Error ? err : new Error(String(err))
     }
@@ -595,10 +634,14 @@ export async function fetchEnsembleBlock<T extends EnsembleBlockResponse>(
   try {
     res = await fetchWithRetry(buildUrl(ENSEMBLE_MODELS).toString(), undefined, undefined, deadline)
   } catch (err) {
-    firstError = err instanceof Error ? err.message : String(err)
-    // `fetchWithRetry` throws `HTTP 429` once its attempts are spent. A rate limit is not a
+    // `describeError`, not `.message`: a network failure's message is only "fetch failed",
+    // and its cause (ECONNRESET, a refused connection) is what tells one outage from another.
+    firstError = describeError(err)
+    // `fetchWithRetry` throws a 429 once its attempts are spent. A rate limit is not a
     // broken model, and eight more requests to the same upstream could only deepen it.
-    if (firstError === 'HTTP 429') throw new Error('Open-Meteo ensemble returned 429', { cause: err })
+    if (err instanceof UpstreamStatusError && err.status === 429) {
+      throw new Error(`Open-Meteo ensemble returned 429${err.reason === null ? '' : `: ${err.reason}`}`, { cause: err })
+    }
   }
   if (res !== null) {
     if (res.ok) return (await res.json()) as T
