@@ -250,6 +250,7 @@ describe('stops', () => {
     expect(draftLine(stop('09:00', '', { areaPick: 'a1', rock: 'wet', sun: 'mostly_shade', facing: 'SE' }))).toMatch(
       /^\d{1,2}:00.* · Wet · Mostly shade · Faces SE$/,
     )
+    expect(draftLine(stop('09:00', '', { rock: 'dry', grip: 'sticky' }))).toMatch(/^\d{1,2}:00.* · Dry · Sticky grip$/)
     expect(draftLine({ ...emptyStop('') })).toBe('Nothing said yet')
     expect(draftLine(stop('', '', { areaPick: OTHER_AREA, areaText: ' Winter Wall ', rock: null }))).toBe('Nothing said yet')
   })
@@ -295,6 +296,13 @@ describe('stops', () => {
       AREAS,
     )
     expect(payload?.map((s) => [s.rock, s.facing, s.angle])).toEqual([['wet', 'SE', 'overhang'], ['dry', 'N', null]])
+  })
+
+  it('sends a wall’s grip when said, and leaves the key out when not', () => {
+    const payload = stopsPayload(DAY, [stop('09:00', '', { grip: 'greasy' }), stop('11:00', '')], AREAS)
+    expect(payload?.[0]?.grip).toBe('greasy')
+    // Left out, not null: an API older than the field refuses an unknown key.
+    expect(payload?.[1]).not.toHaveProperty('grip')
   })
 
   it('sends a picked wall and picked routes by id with their names', () => {
@@ -410,6 +418,11 @@ describe('HistoryItem', () => {
       /· Rock: Damp · Mostly shade · Shaded by: Trees, Faces away from sun · Faces SW · Roof$/,
     )
     expect(feedbackLines({ ...check, stops: [STOP] }).stops[0]).toMatch(/· \d{1,2}:\d{2}[^·]* · Mostly shade$/)
+  })
+
+  it('prints the wall’s grip after its rock, and nothing when not said', () => {
+    expect(feedbackLines({ ...check, stops: [{ ...STOP, rock: 'dry', grip: 'greasy' }] }).stops[0]).toMatch(/· Rock: Dry · Grip: Greasy · Mostly shade$/)
+    expect(feedbackLines({ ...check, stops: [{ ...STOP, grip: null }] }).stops[0]).not.toMatch(/Grip/)
   })
 
   it('prints no stop lines when none were named, or for a row from an older API', () => {

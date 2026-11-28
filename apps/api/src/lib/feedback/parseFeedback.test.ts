@@ -146,7 +146,17 @@ describe('parseFeedbackInput — forecast checks', () => {
       ).toMatchObject({ stops: [{ rock: 'damp', shade_causes: ['trees', 'facing'], facing: 'SE', angle: 'overhang' }] })
       // Any of the 16 points, the spelling a location's aspect uses, though the form offers 8.
       expect(withStops([{ ...STOP, facing: 'NNW' }])).toMatchObject({ stops: [{ facing: 'NNW' }] })
-      expect(withStops([STOP])).toMatchObject({ stops: [{ rock: null, shade_causes: [], facing: null, angle: null }] })
+      expect(withStops([STOP])).toMatchObject({ stops: [{ rock: null, grip: null, shade_causes: [], facing: null, angle: null }] })
+    })
+
+    it('keeps each wall’s grip, and reads it absent or null as not said', () => {
+      const second = { ...STOP, started_at: '2026-09-29T15:45:00.000Z', ended_at: null }
+      expect(withStops([{ ...STOP, grip: 'greasy' }, { ...second, grip: 'sticky' }])).toMatchObject({
+        stops: [{ grip: 'greasy' }, { grip: 'sticky' }],
+      })
+      expect(withStops([{ ...STOP, grip: null }])).toMatchObject({ stops: [{ grip: null }] })
+      expect(stopError({ grip: 'slick' })).toMatch(/^stops\[0\]\.grip must be one of 'sticky', 'fine', 'greasy', or null/)
+      expect(stopError({ grip: 1 })).toMatch(/^stops\[0\]\.grip/)
     })
 
     it('refuses a rock, cause, direction or angle it does not know', () => {
@@ -400,7 +410,7 @@ describe('toFeedback', () => {
       verdict: 'missed',
       app_readings: SNAPSHOT,
       // Stored before walls and routes could be picked: none were.
-      stops: [{ ...STORED_STOP, wall_id: null, route_picks: [], rock: null, shade_causes: [], facing: null, angle: null }],
+      stops: [{ ...STORED_STOP, wall_id: null, route_picks: [], rock: null, grip: null, shade_causes: [], facing: null, angle: null }],
       created_at: '2026-09-29T18:00:00.000Z',
     })
   })
@@ -422,7 +432,7 @@ describe('toFeedback', () => {
     const old = { ...row, observed_at: new Date('2025-01-01T10:00:00.000Z') }
     const stop = { ...STORED_STOP, started_at: '2025-01-01T10:00:00.000Z', ended_at: '2025-01-01T12:00:00.000Z' }
     expect(toFeedback({ ...old, stops: [stop] }).stops).toEqual([
-      { ...stop, wall_id: null, route_picks: [], rock: null, shade_causes: [], facing: null, angle: null },
+      { ...stop, wall_id: null, route_picks: [], rock: null, grip: null, shade_causes: [], facing: null, angle: null },
     ])
   })
 

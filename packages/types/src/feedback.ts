@@ -66,6 +66,17 @@ export const WALL_ANGLES = ['slab', 'vertical', 'overhang', 'roof'] as const;
 export type WallAngle = (typeof WALL_ANGLES)[number];
 
 /**
+ * How the grip felt on a wall, in climbers' words (owner, 2026-11-28, #690).
+ * Three rungs because the question the score needs answered is three-way: a
+ * 100 means prime (#690 kept the 60 °F heat and 54 °F dew edges), so a check
+ * has to tell "sticky" from "fine" as well as "fine" from "greasy". Rock that
+ * is wet is the rock answer's to say; this is friction on rock that could be
+ * climbed. Optional: a wall someone did not touch has no grip to report.
+ */
+export const GRIPS = ['sticky', 'fine', 'greasy'] as const;
+export type Grip = (typeof GRIPS)[number];
+
+/**
  * The directions the form offers for which way a wall faces: eight, because
  * a climber standing at the base can tell NE from E but not ENE from E. The
  * server accepts any of the 16 `COMPASS_POINTS`, the same spelling
@@ -162,6 +173,8 @@ export type ForecastStop = {
    * stored before the field reads as null.
    */
   rock?: ObservedConditions | null;
+  /** How the grip felt on this wall. Absent (a row or client older than the field) reads as null. */
+  grip?: Grip | null;
   sun_exposure: SunExposure | null;
   /**
    * What kept the sun off, any that apply. Empty when not said, and always
@@ -250,6 +263,16 @@ export const SHADE_CAUSE_LABEL: Record<ShadeCause, string> = {
   overhang: 'Cave or roof',
   facing: 'Faces away from sun',
   terrain: 'Hill or rock nearby',
+};
+
+export function isGrip(v: unknown): v is Grip {
+  return typeof v === 'string' && (GRIPS as readonly string[]).includes(v);
+}
+
+export const GRIP_LABEL: Record<Grip, string> = {
+  sticky: 'Sticky',
+  fine: 'Fine',
+  greasy: 'Greasy',
 };
 
 export function isWallAngle(v: unknown): v is WallAngle {

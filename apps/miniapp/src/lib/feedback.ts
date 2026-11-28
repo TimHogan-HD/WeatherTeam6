@@ -4,6 +4,7 @@ import {
   FEEDBACK_KIND_LABEL,
   FEEDBACK_SPAN_MAX_HOURS,
   FORECAST_VERDICT_LABEL,
+  GRIP_LABEL,
   OBSERVED_CONDITIONS_LABEL,
   SHADE_CAUSE_LABEL,
   SUN_EXPOSURE_LABEL,
@@ -16,6 +17,7 @@ import {
   type HourlySeries,
   type ForecastStop,
   type ForecastVerdict,
+  type Grip,
   type GuidebookRoute,
   type GuidebookSubWall,
   type GuidebookWall,
@@ -181,6 +183,7 @@ export type StopDraft = {
   from: string
   to: string
   rock: ObservedConditions | null
+  grip: Grip | null
   sun: SunExposure | null
   shadeCauses: ShadeCause[]
   facing: CompassPoint | null
@@ -202,6 +205,7 @@ export function emptyStop(from: string): StopDraft {
     from,
     to: '',
     rock: null,
+    grip: null,
     sun: null,
     shadeCauses: [],
     facing: null,
@@ -345,6 +349,8 @@ export function stopsPayload(
       started_at: new Date(start).toISOString(),
       ended_at: end === null ? null : new Date(end).toISOString(),
       rock: s.rock,
+      // Left out when not said, so a check without it still saves to an API older than the field.
+      ...(s.grip === null ? {} : { grip: s.grip }),
       sun_exposure: s.sun,
       shade_causes: sunWasBlocked(s.sun) ? s.shadeCauses : [],
       facing: s.facing,
@@ -361,7 +367,7 @@ const timeOf = (iso: string): string | null => {
 
 /**
  * `Cyclops Area · Left side · Routes: Pine Tree · 10:00 AM – 1:00 PM · Rock: Damp ·
- * Mostly shade · Shaded by: Trees, Clouds · Faces SE · Overhang`
+ * Grip: Greasy · Mostly shade · Shaded by: Trees, Clouds · Faces SE · Overhang`
  */
 export function stopLine(stop: ForecastStop): string {
   const start = timeOf(stop.started_at)
@@ -376,6 +382,7 @@ export function stopLine(stop: ForecastStop): string {
     routes.length === 0 ? null : `Routes: ${routes.join(', ')}`,
     start === null ? null : end === null ? start : `${start} – ${end}`,
     stop.rock === undefined || stop.rock === null ? null : `Rock: ${OBSERVED_CONDITIONS_LABEL[stop.rock]}`,
+    stop.grip === undefined || stop.grip === null ? null : `Grip: ${GRIP_LABEL[stop.grip]}`,
     stop.sun_exposure === null ? null : SUN_EXPOSURE_LABEL[stop.sun_exposure],
     causes.length === 0 ? null : `Shaded by: ${causes.map((c) => SHADE_CAUSE_LABEL[c]).join(', ')}`,
     stop.facing === undefined || stop.facing === null ? null : `Faces ${stop.facing}`,
@@ -395,6 +402,7 @@ export function draftLine(stop: StopDraft): string {
   const parts = [
     start === null ? null : timeOf(new Date(start).toISOString()),
     stop.rock === null ? null : OBSERVED_CONDITIONS_LABEL[stop.rock],
+    stop.grip === null ? null : `${GRIP_LABEL[stop.grip]} grip`,
     stop.sun === null ? null : SUN_EXPOSURE_LABEL[stop.sun],
     stop.facing === null ? null : `Faces ${stop.facing}`,
   ].filter((p): p is string => p !== null)

@@ -12,6 +12,8 @@ import {
   FEEDBACK_STOPS_MAX,
   FORECAST_VERDICT_LABEL,
   FORECAST_VERDICTS,
+  GRIP_LABEL,
+  GRIPS,
   OBSERVED_CONDITIONS,
   OBSERVED_CONDITIONS_LABEL,
   SHADE_CAUSE_CHOICES,
@@ -430,6 +432,18 @@ function StopCard({
               ))}
             </div>
           </Question>
+
+          {/* Friction on rock that could be climbed (#690): what tells "prime" from "fine". */}
+          <Field label="The grip was">
+            <div role="group" aria-label={`Grip at wall ${n}`} style={gridOf(3)}>
+              {GRIPS.map((g) => (
+                // A second tap clears it: a wall nobody touched has no grip to report.
+                <Choice key={g} fill active={stop.grip === g} onClick={() => onChange({ grip: stop.grip === g ? null : g })}>
+                  {GRIP_LABEL[g]}
+                </Choice>
+              ))}
+            </div>
+          </Field>
 
           <Field label="Sun on the rock">
             {/* Three over two, in order: five in one row cut "Sun and shade" short at phone width. */}
