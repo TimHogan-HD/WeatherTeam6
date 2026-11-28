@@ -10,6 +10,7 @@ import {
   FEEDBACK_SPAN_MAX_HOURS,
   FEEDBACK_STOPS_MAX,
   COMPASS_POINTS,
+  GRIPS,
   OBSERVED_CONDITIONS,
   SHADE_CAUSES,
   SUN_EXPOSURES,
@@ -18,6 +19,7 @@ import {
   isCompassPoint,
   isFeedbackKind,
   isForecastVerdict,
+  isGrip,
   isObservedConditions,
   isShadeCause,
   isSunExposure,
@@ -75,6 +77,7 @@ const STOP_FIELDS = [
   'started_at',
   'ended_at',
   'rock',
+  'grip',
   'sun_exposure',
   'shade_causes',
   'facing',
@@ -226,6 +229,11 @@ export function parseStops(v: unknown, observedAtMs: number, latestMs: number): 
     if (rock !== null && !isObservedConditions(rock)) {
       return { error: `${at}.rock must be one of ${OBSERVED_CONDITIONS.map((x) => `'${x}'`).join(', ')}, or null` }
     }
+    // Absent on a row stored before the field, and from a client older than it: not said.
+    const grip = r['grip'] ?? null
+    if (grip !== null && !isGrip(grip)) {
+      return { error: `${at}.grip must be one of ${GRIPS.map((x) => `'${x}'`).join(', ')}, or null` }
+    }
     const sun = r['sun_exposure'] ?? null
     if (sun !== null && !isSunExposure(sun)) {
       return { error: `${at}.sun_exposure must be one of ${SUN_EXPOSURES.map((x) => `'${x}'`).join(', ')}` }
@@ -256,6 +264,7 @@ export function parseStops(v: unknown, observedAtMs: number, latestMs: number): 
       started_at: new Date(startMs).toISOString(),
       ended_at: endMs === null ? null : new Date(endMs).toISOString(),
       rock,
+      grip,
       sun_exposure: sun,
       shade_causes: causes,
       facing,

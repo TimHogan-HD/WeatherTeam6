@@ -52,7 +52,9 @@ sensor_readings           -- the owner's Govee thermometer, one row per online r
   overhanging. The API speaks `wall_angle_deg = -cliff_angle` (`wallAngle.ts`).
 - **`walls.angle_deg` is degrees from vertical**, and `aspect_deg` is the facing direction, 0-359.
 - **`feedback.stops` is `ForecastStop[]`, the climber's word on each wall climbed**: area, wall,
-  routes, hours, rock, sun, facing, angle and why it was shaded. It is the start of a per-wall
+  routes, hours, rock, grip (sticky / fine / greasy, optional; #690's evidence on the friction
+  edges), sun, facing, angle and why it was shaded. Grip lives in the jsonb, so it needed no
+  migration; a row older than it reads `grip: null`. It is the start of a per-wall
   record (#293, #398), read by nothing yet. `parseStops` validates it on write and on read, and
   `stopsGuidebookProblem` checks area, wall and route ids against the guidebook (no FK).
 - **`feedback` is detached from a deleted location, and acted-on rows are resolved, not

@@ -197,6 +197,7 @@ async function run(): Promise<void> {
         ended_at: hoursAgo(1.5),
         // Both stops say Dry, so every check below that reuses them agrees with its own 'dry'.
         rock: 'dry',
+        grip: 'greasy',
         sun_exposure: 'mostly_shade',
         shade_causes: ['trees', 'facing'],
         facing: 'SE',
@@ -212,6 +213,7 @@ async function run(): Promise<void> {
         started_at: hoursAgo(1),
         ended_at: null,
         rock: 'dry',
+        grip: null,
         sun_exposure: 'full_sun',
         shade_causes: [],
         facing: null,
