@@ -79,7 +79,9 @@ body {
 }
 
 .wt6-dock-rise {
-  animation: wt6-dock-rise var(--wt6-motion-dock-rise-ms) var(--wt6-motion-spring) var(--wt6-motion-dock-rise-delay-ms) both;
+  /* Backwards fill only: a fill held after landing keeps an opacity in effect,
+     and Chromium then blurs nothing behind the pane (#694). */
+  animation: wt6-dock-rise var(--wt6-motion-dock-rise-ms) var(--wt6-motion-spring) var(--wt6-motion-dock-rise-delay-ms) backwards;
 }
 
 /* The slim header's line and figure arriving when the tab under it changes. */
