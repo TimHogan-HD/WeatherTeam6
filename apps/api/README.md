@@ -67,6 +67,12 @@ it is how env vars get set, because the Vercel MCP's `projectEnvVars` 403s.
 their rows. `collect-sensors` (the owner's thermometer, every 30 minutes) needs `GOVEE_API_KEY`
 on this project and answers 503 without it.
 
+**`prune-runs` runs hourly (at :45), not daily.** cron-job.org gives up on a call after 30 s.
+Once a day, a prune deleted a whole day of runs in one call: 7.6 s on 2026-11-27, then over 30 s
+on 2026-11-28, and cron-job.org reported a timeout. Run hourly, each call deletes about an hour
+of runs. A call that overruns does no harm: each batch commits on its own, and the next call
+finishes the rest.
+
 **Function CPU is the limit this project hits first.** On 2026-11-14 the Hobby team was paused
 after using its 4 h a month of Fluid Active CPU, about 8 min a day, all of it this function; the
 logs then showed `check-alerts` every 15 minutes and `collect-runs` hourly storing ~45 runs a
