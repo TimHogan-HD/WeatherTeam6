@@ -225,7 +225,11 @@ async function run(): Promise<void> {
     try {
       res = await tapedFetch(input, init)
     } catch (err) {
-      trouble(err instanceof Error && err.name === 'TimeoutError' ? 'timed out' : 'failed to answer')
+      // A rejected fetch's message is only "fetch failed"; its cause's code (ECONNRESET,
+      // UND_ERR_SOCKET, an abort) says whose failure it was, and the summary dropped it (#629).
+      const cause = err instanceof Error ? (err.cause as { code?: unknown } | undefined) : undefined
+      const code = typeof cause?.code === 'string' ? cause.code : err instanceof Error ? err.name : 'unknown'
+      trouble(err instanceof Error && err.name === 'TimeoutError' ? 'timed out' : `failed to answer (${code})`)
       throw err
     }
     if (res.status >= 500) trouble(`answered ${res.status}`)
@@ -2107,6 +2111,10 @@ async function run(): Promise<void> {
       rescore = false
       await tp.goto(`${WEB}/location/${locationId}`)
       await tp.getByRole('tab', { name: 'Hourly' }).click()
+      // Hourly opens as rows (#676), and this context's storage is fresh, so it is
+      // in List mode: the wait below then stalled every night from 2026-11-25 (#629).
+      // Chart mode, because the scrub below needs a chart under the finger.
+      await tp.getByRole('group', { name: 'Show as' }).getByRole('button', { name: 'Chart' }).click({ timeout: 60_000 })
       await tp.getByRole('img', { name: /^Wind by hour/ }).first().waitFor({ timeout: 60_000 })
       const hourlyPull = await dragPanel({ x: 240, y: 400 }, { x: 240, y: 700 })
       check(
