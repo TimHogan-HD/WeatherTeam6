@@ -85,7 +85,7 @@ How Crag A scores, and what may feed it.
   screen either** (owner, 2026-10-05): it graded an unvalidated estimate and read `Great` on
   wet rock. It stays in the score, its penalties reach the reader only through Score
   breakdown, and no surface prints a cause phrase outside it. `FrictionReading` still
-  travels on the response (trip records, the condensation qualifier, which never moves the score);
+  travels on the response (trip records; `condensing` is published but no surface says it);
   and the app says it is an estimate **once** — on the Rock tab's Condensation card
   (`FRICTION_MECHANISM`, moved off the Overview 2026-10-29) and on How the score works,
   never under every gauge (owner, 2026-10-02). Factors live under `HourlyConditions.diagnostics`;
@@ -158,8 +158,8 @@ How Crag A scores, and what may feed it.
   `T_surface − air`: the lagged surface trails the air, so that term chilled every warming
   morning and warmed every evening. Crag A's and Wall A's
   `condensation_margin_c` and `friction.condensing` are the median wall's (Crag A's eight,
-  Wall A's one), for the Rock tab's Condensation card and the qualifier, which say
-  "possible", never "likely". **The margin still gates the score**: no `T_mass` (too little
+  Wall A's one). Since 2026-11-28 no surface draws or says them (`readings.md`): the API
+  still publishes them for the comparison harnesses. **The margin still gates the score**: no `T_mass` (too little
   history) or no measured sun withholds the hour, as it did when condensation was a factor.
 - **Every factor ramp reaches its floor at its own band edge — no factor may step** (#148). A
   new factor or band gets a test that walks its input in tenths past both edges.

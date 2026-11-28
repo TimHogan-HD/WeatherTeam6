@@ -130,7 +130,7 @@ June–August at 13 USCRN stations) while the margin docked 2–8%, wrong on mos
 at most 15% of the real ones. Reading the lagged surface instead did no better. The median
 wall's margin (`condensationMarginA`: `T_mass + gain_wall − Td`, `gain_wall` the wall's
 solar gain lagged like `T_surface`, never `T_surface − air`, #534) is still published as
-`condensation_margin_c` for the Rock tab's Condensation card, and it still gates the score:
+`condensation_margin_c` (no surface draws it since 2026-11-28), and it still gates the score:
 no `T_mass` (too little history) or no measured sun withholds the hour, as it did when it
 was a factor. Heat, humidity and cold read
 air and dew point only (Wall A's heat and cold add the wall's direct sun), so they cannot see

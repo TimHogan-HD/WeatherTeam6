@@ -38,7 +38,8 @@ A3), fresh wall 8/10 (G5, G10). No test day has rain after a partial dry-out, so
 neither argue for nor against it; the argument is the step.
 
 **Fifth divergence, 2026-11-27: condensation is not scored** (owner). The per-wall margin above
-is still computed and published (Rock tab, the `condensing` qualifier) and still gates the hour
+is still computed and published (`condensation_margin_c`, `friction.condensing`), though no
+screen shows it since 2026-11-28, and still gates the hour
 (no `T_mass` or no measured sun withholds), but friction is heat × humidity × cold.
 `compare:condensation-margin` (USCRN measured surfaces, April to November 2026) found the
 margin docking 2–8% of climbing hours, wrong on 48–86% of them, against measured surfaces

@@ -69,10 +69,12 @@ What a reading may say, where it comes from, and what the client may assume of t
   from the breakdown's `How the score works ›`. Every number it quotes comes from
   `SCORE_MODEL_FACTS`, pinned to the model by `cragModel.test.ts`. A temperature interval
   goes through `cToFDelta`, never `formatTempF`.
-- **The Condensation card** (`RockReadings.tsx`, `lib/rockReadings.ts`): its headline's
-  "until" names an hour read clear, never an unread or missing one, which ends the spell as
-  a gap. A margin under 0 prints as `below`, here and in the Rock tab's slim header, never
-  as a negative "above".
+- **The Condensation card draws the air, never the modelled rock** (owner, 2026-11-28:
+  "do what's best"; `RockReadings.tsx`, `lib/rockReadings.ts`): air minus dew point over
+  the next 42 hours, which is two forecast values. No headline, no shaded "near dew" or "dew
+  likely" hours, no rock word in the read chip, and no "Condensation possible" caveat on the
+  Overview or a trip day. The modelled margin called dew far more often than the rock was
+  wet (`scoring.md` § Condensation is not scored); bring it back only with that measurement.
 - **The Rock tab carries the friction note** (owner, 2026-10-29): `FRICTION_MECHANISM`,
   once, on the Condensation card (`RockReadings.tsx`) when any hour has a friction reading.
   **No modelled rock temperature prints** (owner, 2026-10-19), so `ROCK_TEMPERATURE_MECHANISM`

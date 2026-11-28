@@ -213,7 +213,8 @@ average from 7 stored past days, plus each wall's sun, is compared against dew p
 it did not hold. `compare:condensation-margin` found measured ground surfaces below the dew
 point in 0–2% of climbing hours (none in June–August at 13 USCRN stations, Sandstone among
 them) while the margin docked 2–8%, wrong on most; both field checks that met it found
-climbable rock. The margin stays on the Rock tab's Condensation card. The paragraph below is
+climbable rock. Since 2026-11-28 no screen shows it: the Rock tab's Condensation card draws
+only the air above its dew point (`readings.md`). The paragraph below is
 the original proposal.
 
 **What it would change:** a trailing temperature average as a rock-temperature proxy, compared

@@ -287,7 +287,7 @@ function Hero({ props, now }: { props: OverviewTabProps; now: Now | null }) {
       note: now.summary.window === null || todayWindow === null ? null : `${todayWindow.hours} ${todayWindow.hours === 1 ? 'hour' : 'hours'}`,
     },
   ]
-  const caveats = [rainDue, now.summary.qualifier, ...now.summary.notes].filter((s): s is string => s !== null)
+  const caveats = [rainDue, ...now.summary.notes].filter((s): s is string => s !== null)
   // Sun and shade walls (#445): only a crag with `sun_confirmed` carries any; absent is an older API.
   const walls = hourly.data?.readings?.walls ?? []
 
