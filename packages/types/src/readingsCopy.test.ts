@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  CONDENSING_NOTE,
   CURRENT_HOUR_TOLERANCE_MS,
   UNRECORDED_ASPECT_NOTE,
   fieldLine,
@@ -68,7 +67,6 @@ const printed = (s: ReturnType<typeof summarizeReadings>): string =>
     s.scoreField === null ? null : fieldLine(s.scoreField),
     ...(s.heldBack ?? []).map(fieldLine),
     s.window === null ? null : fieldLine(s.window),
-    s.qualifier,
     ...s.notes,
     s.unavailableLine,
   ]
@@ -208,13 +206,12 @@ describe('summarizeReadings', () => {
     const s = summary({ reading: reading({ score: 92 }) });
     expect(s.score).toBe(92);
     expect(s.scoreField).toEqual({ label: 'Score', value: '92' });
-    expect(s.qualifier).toBeNull();
   });
 
-  it('names condensation when nothing outranks it', () => {
-    expect(summary({ reading: reading({ friction: friction({ condensing: true }) }) }).qualifier).toBe(
-      CONDENSING_NOTE,
-    );
+  // Owner, 2026-11-28: the modelled rock's dew margin is no longer said anywhere.
+  it('says nothing about condensation, even when the model reads the rock condensing', () => {
+    const s = summary({ reading: reading({ friction: friction({ condensing: true }) }) });
+    expect(printed(s)).not.toMatch(/condens|dew/i);
   });
 
   it('leaves the estimate caveat to the measurements panel, not the gauges', () => {

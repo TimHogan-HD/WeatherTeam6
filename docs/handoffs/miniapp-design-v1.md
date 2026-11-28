@@ -272,8 +272,9 @@ the rain gauges; the next 48 hours; each day's wettest hour.
     2026-11-12).
 
 **Rock** (`RockTab.tsx`; crags only): the crag's live readings — the drying clock and the
-Condensation card (`RockReadings.tsx`: air minus dew point as the figure, the model's
-rock as words and shaded hours only, #436, mockup `design-mockups/condensation-436.html`) — then *Sun on the wall* where confirmed
+Condensation card (`RockReadings.tsx`: air minus dew point only, #436; the model's rock
+words and shaded hours in mockup `design-mockups/condensation-436.html` were removed
+2026-11-28) — then *Sun on the wall* where confirmed
 (`SunOnWallCard.tsx`), then a field guide to the **rock type, not this crag**, which its
 last line says (`rockGuide` in `packages/types`), and the crag's facts. The drying gauge is a band of `MAX_HOURS`, held to it by `dryingModel.test.ts`;
 `unknown` has no guide. **No modelled rock temperature prints** (`readings.md`). Care advice

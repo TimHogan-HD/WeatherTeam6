@@ -60,26 +60,15 @@ describe('CondensationCard — the friction note (moved from the Overview, owner
   })
 })
 
-describe('CondensationCard — air minus dew point, the rock in words only (#436)', () => {
-  it('reads the air’s spread for the hour, and the rock as a word, never as a °F figure', () => {
-    // Rock margin 4 °C is 7°F and must not print; 1 °C (near the edge) shades the hour and names it.
+describe('CondensationCard — air minus dew point, never the modelled rock (#436; 2026-11-28)', () => {
+  it('reads the air’s spread for the hour, and says nothing about the rock, even at or under its dew point', () => {
+    // Rock margins under the dew point (−1 °C) and near it (1 °C): the old card shaded and named these hours.
     const html = renderInRouter(
-      <CondensationCard readings={readings(null, [1, 1, 4, 4, 4, 4])} hours={HOURS} model="gfs_seamless" hrrrThrough={null} utcOffsetSeconds={0} />,
+      <CondensationCard readings={readings(null, [-1, 1, 1, 4, 4, 4])} hours={HOURS} model="gfs_seamless" hrrrThrough={null} utcOffsetSeconds={0} />,
     )
     expect(html).toContain('air above dew')
     expect(html).toContain('9°F')
-    expect(html).toContain('near dew')
-    expect(html).not.toContain('7°F')
-    expect(html).not.toContain('rock vs dew')
-    expect(html).toContain('data-damp="near"')
-  })
-
-  it('reads the rock as a dash, never “clear”, at an hour the readings left unread', () => {
-    const html = renderInRouter(
-      <CondensationCard readings={readings(null, [null, 4, 4, 4, 4, 4])} hours={HOURS} model="gfs_seamless" hrrrThrough={null} utcOffsetSeconds={0} />,
-    )
-    expect(html).toContain('—')
-    expect(html).not.toContain('>clear<')
+    expect(html).not.toMatch(/near dew|dew likely|dew possible|rock \(estimate\)|Rock near/i)
     expect(html).not.toContain('data-damp')
   })
 
@@ -99,9 +88,8 @@ describe('CondensationCard — air minus dew point, the rock in words only (#436
     ).toBe('')
   })
 
-  it('still draws the air with no readings at all, and says the rock was not read', () => {
+  it('still draws the air with no readings at all', () => {
     const html = renderInRouter(<CondensationCard readings={undefined} hours={HOURS} model={null} hrrrThrough={null} utcOffsetSeconds={0} />)
-    expect(html).toContain('No rock readings for the hours ahead.')
     expect(html).toContain('9°F')
   })
 })
@@ -121,7 +109,8 @@ describe('condensationNote', () => {
     expect(card(null, null)).toContain('from the forecast')
   })
 
-  it('says the shaded hours are an estimate on a modelled rock temperature', () => {
-    expect(condensationNote(null)).toContain('modelled, not measured')
+  it('says why the rock is not estimated, and no longer mentions shaded hours', () => {
+    expect(condensationNote(null)).toContain('doesn’t guess the rock’s own temperature')
+    expect(condensationNote(null)).not.toMatch(/shaded/i)
   })
 })

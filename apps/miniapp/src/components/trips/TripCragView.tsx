@@ -246,7 +246,6 @@ function DayDetail({ tile, locationId }: { tile: TripDayTile; locationId: string
       {summary === null || summary.readings.length === 0 ? null : (
         <span style={typeV2.lineLabel}>{summary.readings.map((f) => `${f.label}: ${f.value}`).join(' · ')}</span>
       )}
-      {summary?.qualifier == null ? null : <p style={typeV2.note}>{summary.qualifier}</p>}
       {tile.kind === 'unscored' && tile.scoredFrom !== null ? (
         <p style={typeV2.note}>Scores start {dateLabel(tile.scoredFrom)}.</p>
       ) : null}

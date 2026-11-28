@@ -99,7 +99,6 @@ function printableStrings(summary: ReadingsSummary): string[] {
   return [
     ...fields.filter((f): f is ReadingField => f !== null).flatMap((f) => [f.label, f.value]),
     ...summary.notes,
-    ...(summary.qualifier === null ? [] : [summary.qualifier]),
     ...(summary.unavailableLine === null ? [] : [summary.unavailableLine]),
   ]
 }
@@ -344,7 +343,6 @@ async function run(): Promise<void> {
   for (const f of summary.readings) console.log(`  | ${f.label}: ${f.value}`)
   if (summary.scoreField !== null) console.log(`  | ${summary.scoreField.label}: ${summary.scoreField.value}`)
   if (summary.window !== null) console.log(`  | ${summary.window.label}: ${summary.window.value}`)
-  if (summary.qualifier !== null) console.log(`  | (${summary.qualifier})`)
   for (const n of summary.notes) console.log(`  | (${n})`)
   console.log('')
 

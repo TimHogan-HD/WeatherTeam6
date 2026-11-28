@@ -362,20 +362,6 @@ export function readingsUnavailableLine(reason: ReadingsUnavailableReason): stri
  */
 export const UNRECORDED_ASPECT_NOTE = 'Wall direction not set, so sunny hours may read warm';
 
-/**
- * The qualifier for a wall sitting below its dew point.
- *
- * It is the one mechanism in the friction reading that is uncontested physics,
- * and it is worth naming because it is the case a climber can act on — the wall
- * is wet with condensation, not with rain, and it will clear when the air does.
- *
- * **"Possible", not "likely"** (2026-11-27): the wall's temperature is
- * modelled (#436), and the forecast checks and `compare:condensation-margin`
- * found it condensing far less often than this margin says. The same word the
- * Condensation card's headline uses. It never changes the score.
- */
-export const CONDENSING_NOTE = 'Condensation possible on the rock';
-
 export type ReadingsSummaryInput = {
   /** The hour being summarised — normally the hour covering now. */
   reading: HourlyReading | null;
@@ -421,8 +407,6 @@ export type ReadingsSummary = {
   heldBack: ReadingField[] | null;
   /** `Good hours` and its span. `null` when there are no readings at all. */
   window: ReadingField | null;
-  /** The condensation qualifier, or `null`. */
-  qualifier: string | null;
   /**
    * The caveats this surface must print, in order — fragments, meant to be
    * joined and set small. The friction estimate note is said once, on the
@@ -466,7 +450,6 @@ export function summarizeReadings(input: ReadingsSummaryInput): ReadingsSummary 
       score: null,
       heldBack: null,
       window: null,
-      qualifier: null,
       notes: [],
       unavailableLine: readingsUnavailableLine(unavailableReason),
     };
@@ -475,7 +458,6 @@ export function summarizeReadings(input: ReadingsSummaryInput): ReadingsSummary 
   const rock = reading?.rock ?? null;
   const friction = reading?.friction ?? null;
 
-  const qualifier = friction?.condensing === true ? CONDENSING_NOTE : null;
   const score = reading?.score ?? null;
 
   const notes: string[] = [];
@@ -499,7 +481,6 @@ export function summarizeReadings(input: ReadingsSummaryInput): ReadingsSummary 
         ? null
         : heldBackFields(reading.held_back_by, rock, input.rangeF ?? null),
     window: { label: WINDOW_LABEL, value: windowValue(window, utcOffsetSeconds) },
-    qualifier,
     notes,
     unavailableLine: null,
   };
@@ -576,7 +557,7 @@ export const DEW_POINT_MARGIN_LABEL = 'Rock vs dew point';
  * skin wettedness is standard physics with published values, and the step from
  * there to grip is a judgement no study supports.
  */
-export const FRICTION_MECHANISM = 'Friction is an estimate based on air temperature, dew point and rock temperature.';
+export const FRICTION_MECHANISM = 'Friction is an estimate based on air temperature and dew point.';
 
 /**
  * The mechanism behind `UNRECORDED_ASPECT_NOTE`.
@@ -652,8 +633,7 @@ export function modelSourceLabel(model: string | null): string | null {
  *
  * A margin that rounds to zero reads `at the dew point` rather than `0°F below`,
  * which looks like a rendering fault. Within half a degree of the line, which
- * way it falls is below the resolution of a modelled figure — and the gauge
- * above already carries `CONDENSING_NOTE` when the model says it is condensing.
+ * way it falls is below the resolution of a modelled figure.
  */
 export function dewPointMarginValue(marginC: number | null): string | null {
   if (marginC === null) return null;
