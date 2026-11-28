@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from 'express'
 import { and, eq } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { locations } from '../db/schema.js'
-import { isUuid, sendServerError } from '../lib/http.js'
+import { isUuid, sendServerError, routeParam } from '../lib/http.js'
 import { areaExists, guidebookFor } from '../lib/guidebook/guidebook.js'
 import { parsePositionInput } from '../lib/logbook/parseLogbook.js'
 import { positionsFor, recordPosition } from '../lib/logbook/logbook.js'
@@ -24,7 +24,7 @@ export const guidebookRouter = Router()
  * often a 502 to sit behind a screen (`api-sources.md`).
  */
 guidebookRouter.get('/guidebook/:locationId', async (req: Request, res: Response) => {
-  const locationId = req.params['locationId']
+  const locationId = routeParam(req, 'locationId')
   if (!locationId || !isUuid(locationId)) {
     const response: ApiResponse<null> = { data: null, error: 'Location not found', status: 404 }
     res.status(404).json(response)
@@ -66,7 +66,7 @@ guidebookRouter.get('/guidebook/:locationId', async (req: Request, res: Response
  * describes a boulder, not anyone's saved copy of the crag.
  */
 guidebookRouter.put('/guidebook/areas/:areaId/position', async (req: Request, res: Response) => {
-  const areaId = req.params['areaId']
+  const areaId = routeParam(req, 'areaId')
   if (!areaId || !areaExists(areaId)) {
     const response: ApiResponse<null> = { data: null, error: 'Area not found', status: 404 }
     res.status(404).json(response)

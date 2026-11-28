@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from 'express'
 import { and, eq } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { locations } from '../db/schema.js'
-import { isUuid, sendServerError } from '../lib/http.js'
+import { isUuid, sendServerError, routeParam } from '../lib/http.js'
 import { windowedForecastFor } from '../lib/scoring/windowedForecast.js'
 import type { ApiResponse, ForecastSnapshot } from '@weatherteam6/types'
 
@@ -13,7 +13,7 @@ export const forecastRouter = Router()
  * is Crag A's and rides on `/hourly`'s readings (scoring Phase 5b).
  */
 forecastRouter.get('/forecast/:locationId', async (req: Request, res: Response) => {
-  const locationId = req.params['locationId']
+  const locationId = routeParam(req, 'locationId')
   if (!locationId) {
     res.status(400).json({ data: null, error: 'Missing locationId', status: 400 })
     return

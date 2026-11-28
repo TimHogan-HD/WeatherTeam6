@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import type { Account, ApiResponse, InviteCreated, InviteSummary } from '@weatherteam6/types'
 import { db } from '../db/index.js'
 import { users } from '../db/schema.js'
-import { isUuid, sendServerError } from '../lib/http.js'
+import { isUuid, sendServerError, routeParam } from '../lib/http.js'
 import { cancelInvite, isOwner, listInvites, mintInvite } from '../lib/auth/invites.js'
 
 /** Mounted inside `/api/v1`, so `req.userId` is set by `requireApiAuth`. */
@@ -44,7 +44,7 @@ accountRouter.get('/invites', async (req: Request, res: Response) => {
 /** Cancels an unused link. 404 for an unknown id, a used link, or another account's. */
 accountRouter.delete('/invites/:id', async (req: Request, res: Response) => {
   if (refuseNonOwner(req, res)) return
-  const id = req.params['id'] ?? ''
+  const id = routeParam(req, 'id') ?? ''
   if (!isUuid(id)) {
     const response: ApiResponse<null> = { data: null, error: 'No open invite with that id', status: 404 }
     res.status(404).json(response)

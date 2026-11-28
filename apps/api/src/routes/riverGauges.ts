@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from 'express'
 import { and, eq } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { locations } from '../db/schema.js'
-import { isUuid, sendServerError } from '../lib/http.js'
+import { isUuid, sendServerError, routeParam } from '../lib/http.js'
 import { fetchRiverPoints } from '../lib/weather/usgsRiver.js'
 import { riverGaugesFor, type ApiResponse, type RiverGaugeReading } from '@weatherteam6/types'
 
@@ -14,7 +14,7 @@ export const riverGaugesRouter = Router()
  * answer for comes back with no points, so the card can show the gap.
  */
 riverGaugesRouter.get('/river-gauges/:locationId', async (req: Request, res: Response) => {
-  const locationId = req.params['locationId']
+  const locationId = routeParam(req, 'locationId')
   if (locationId === undefined || !isUuid(locationId)) {
     res.status(404).json({ data: null, error: 'Location not found', status: 404 })
     return

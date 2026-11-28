@@ -39,7 +39,7 @@ async function start(): Promise<{ base: string; samples: CpuSample[] }> {
     res.json({ ok: true })
   })
   await new Promise<void>((resolve) => {
-    server = app.listen(0, resolve)
+    server = app.listen(0, () => resolve())
   })
   const { port } = server!.address() as AddressInfo
   return { base: `http://127.0.0.1:${port}`, samples }

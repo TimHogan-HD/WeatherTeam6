@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from 'express'
 import { and, eq } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { locations } from '../db/schema.js'
-import { isUuid, sendServerError } from '../lib/http.js'
+import { isUuid, sendServerError, routeParam } from '../lib/http.js'
 import { conditionsFor } from '../lib/runs/conditionsFor.js'
 import { readerScoringFor } from '../lib/preferences/preferences.js'
 import type { ApiResponse, Conditions } from '@weatherteam6/types'
@@ -17,7 +17,7 @@ export const conditionsRouter = Router()
  * a good reading.
  */
 conditionsRouter.get('/conditions/:locationId', async (req: Request, res: Response) => {
-  const locationId = req.params['locationId']
+  const locationId = routeParam(req, 'locationId')
   if (!locationId) {
     res.status(400).json({ data: null, error: 'Missing locationId', status: 400 })
     return

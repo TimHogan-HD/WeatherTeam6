@@ -3,7 +3,7 @@ import { and, desc, eq, isNull, sql } from 'drizzle-orm'
 import type { ApiResponse, Feedback, FeedbackFromAnyone } from '@weatherteam6/types'
 import { db } from '../db/index.js'
 import { feedback, locations, users } from '../db/schema.js'
-import { isUuid, sendServerError } from '../lib/http.js'
+import { isUuid, sendServerError, routeParam } from '../lib/http.js'
 import { parseFeedbackInput, stopsGuidebookProblem } from '../lib/feedback/parseFeedback.js'
 import { toFeedback } from '../lib/feedback/feedbackRow.js'
 import { isOwner } from '../lib/auth/invites.js'
@@ -133,7 +133,7 @@ feedbackRouter.post('/feedback', async (req: Request, res: Response) => {
  * feedback, as `npm run feedback -- resolve` always could.
  */
 feedbackRouter.post('/feedback/:feedbackId/resolve', async (req: Request, res: Response) => {
-  const id = req.params['feedbackId']
+  const id = routeParam(req, 'feedbackId')
   if (!id || !isUuid(id)) {
     refuse(res, 404, 'Feedback not found')
     return
@@ -156,7 +156,7 @@ feedbackRouter.post('/feedback/:feedbackId/resolve', async (req: Request, res: R
 })
 
 feedbackRouter.delete('/feedback/:feedbackId', async (req: Request, res: Response) => {
-  const id = req.params['feedbackId']
+  const id = routeParam(req, 'feedbackId')
   if (!id || !isUuid(id)) {
     refuse(res, 404, 'Feedback not found')
     return

@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from 'express'
 import { and, eq } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { locations } from '../db/schema.js'
-import { isUuid, sendServerError } from '../lib/http.js'
+import { isUuid, sendServerError, routeParam } from '../lib/http.js'
 import { fetchRecentHourlyPrecip } from '../lib/weather/openMeteo.js'
 import { RAIN_MODELS, radarCheckedRecent, recentPrecipMedian } from '../lib/weather/rainMedian.js'
 import { loadRadarRain } from '../lib/runs/radarRain.js'
@@ -47,7 +47,7 @@ const PAST_DAYS = 6
  * sections already follow.
  */
 recentPrecipRouter.get('/recent-precip/:locationId', async (req: Request, res: Response) => {
-  const locationId = req.params['locationId']
+  const locationId = routeParam(req, 'locationId')
   if (!locationId) {
     res.status(400).json({ data: null, error: 'Missing locationId', status: 400 })
     return

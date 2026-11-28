@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from 'express'
 import { and, desc, eq, gte } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { feedback, locations } from '../db/schema.js'
-import { isUuid, sendServerError } from '../lib/http.js'
+import { isUuid, sendServerError, routeParam } from '../lib/http.js'
 import { isObservedConditions, VISIT_WINDOW_DAYS, type ApiResponse, type Visit } from '@weatherteam6/types'
 
 export const visitsRouter = Router()
@@ -17,7 +17,7 @@ const VISIT_LIMIT = 50
  * the caller's is a 404, never someone else's checks.
  */
 visitsRouter.get('/visits/:locationId', async (req: Request, res: Response) => {
-  const locationId = req.params['locationId']
+  const locationId = routeParam(req, 'locationId')
   if (locationId === undefined || !isUuid(locationId)) {
     res.status(404).json({ data: null, error: 'Location not found', status: 404 })
     return

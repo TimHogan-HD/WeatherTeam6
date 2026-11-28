@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from 'express'
-import { MAX_QUERY_LENGTH, isUuid, sendServerError } from '../lib/http.js'
+import { MAX_QUERY_LENGTH, isUuid, sendServerError, routeParam } from '../lib/http.js'
 import { climbingAreaLevel, climbingStates } from '../lib/weather/climbingAreas.js'
 import { MIN_QUERY_LENGTH, searchPlaces } from '../lib/weather/geocode.js'
 import { reverseGeocode } from '../lib/weather/reverseGeocode.js'
@@ -51,8 +51,8 @@ geocodeRouter.get('/climbing-areas', (_req: Request, res: Response) => {
 
 /** One level of a state's tree: the state's top level, or one area and what is directly inside it. */
 geocodeRouter.get(['/climbing-areas/:state', '/climbing-areas/:state/:areaId'], (req: Request, res: Response) => {
-  const state = req.params['state'] ?? ''
-  const areaId = req.params['areaId'] ?? null
+  const state = routeParam(req, 'state') ?? ''
+  const areaId = routeParam(req, 'areaId') ?? null
   const level = areaId !== null && !isUuid(areaId) ? null : climbingAreaLevel(state, areaId)
   if (level === null) {
     const response: ApiResponse<null> = { data: null, error: 'Climbing area not found', status: 404 }
