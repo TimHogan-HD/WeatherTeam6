@@ -70,8 +70,8 @@ export function ScoreExplainerParts({ rangeF, rockType = null }: { rangeF: Range
       <Part title="Good grip">
         <P>
           Grip is an estimate. It’s full inside your temperature range and fades the further outside it the air
-          gets. Muggy air (a dew point over {f.dewStartF}°F) lowers it. Condensation doesn’t count: the Rock tab shows
-          when the rock may be near its dew point, but the forecast checks so far found it climbable through those hours.
+          gets. Muggy air (a dew point over {f.dewStartF}°F) lowers it. Condensation doesn’t count, and the app doesn’t
+          estimate it: its guess at the rock’s own dew point called dew far more often than the rock was wet.
         </P>
         {rangeF === null ? null : <GripBand rangeF={rangeF} />}
       </Part>
