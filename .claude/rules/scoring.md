@@ -36,6 +36,11 @@ How Crag A scores, and what may feed it.
   records what moved) — a change that moves a
   result needs an argument. **Every constant is a judgement call**; nothing is validated
   against outcomes (#143).
+- **A 100 means prime, not just good to go** (owner, 2026-11-28, #690). The friction edges
+  stay at the default range's 60 °F heat and a 54 °F dew point, so a dry 70 °F day scores
+  about 63. Nothing measured puts a knee at either edge; a reader who wants "good to go"
+  raises their range top in Profile. The evidence that would move them is a forecast check's
+  per-wall grip (`ForecastStop.grip`: sticky / fine / greasy) on warm or humid days.
 - **Sun and shade walls** (#445, owner 2026-11-02; `lib/runs/wallReadings.ts`,
   `packages/types/src/wallSunShade.ts`). For a crag with `sun_confirmed`, `/hourly` scores
   each `SUN_WALLS` face with Wall A (vertical, its lidar skyline, `KnownCrag.tree_shaded`,
