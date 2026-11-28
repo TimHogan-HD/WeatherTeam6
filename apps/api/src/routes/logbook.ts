@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from 'express'
 import type { ApiResponse, Logbook, RouteTick } from '@weatherteam6/types'
-import { isUuid, sendServerError } from '../lib/http.js'
+import { isUuid, sendServerError, routeParam } from '../lib/http.js'
 import { routeExists } from '../lib/guidebook/guidebook.js'
 import { parseTickInput } from '../lib/logbook/parseLogbook.js'
 import { addTodo, createTick, deleteTick, logbookFor, removeTodo } from '../lib/logbook/logbook.js'
@@ -45,7 +45,7 @@ logbookRouter.post('/logbook/ticks', async (req: Request, res: Response) => {
 })
 
 logbookRouter.delete('/logbook/ticks/:tickId', async (req: Request, res: Response) => {
-  const id = req.params['tickId']
+  const id = routeParam(req, 'tickId')
   if (!id || !isUuid(id)) {
     refuse(res, 404, 'Tick not found')
     return
@@ -63,7 +63,7 @@ logbookRouter.delete('/logbook/ticks/:tickId', async (req: Request, res: Respons
 })
 
 logbookRouter.put('/logbook/todos/:routeId', async (req: Request, res: Response) => {
-  const routeId = req.params['routeId']
+  const routeId = routeParam(req, 'routeId')
   if (!routeId || !routeExists(routeId)) {
     refuse(res, 404, 'Route not found')
     return
@@ -77,7 +77,7 @@ logbookRouter.put('/logbook/todos/:routeId', async (req: Request, res: Response)
 })
 
 logbookRouter.delete('/logbook/todos/:routeId', async (req: Request, res: Response) => {
-  const routeId = req.params['routeId']
+  const routeId = routeParam(req, 'routeId')
   if (!routeId) {
     refuse(res, 404, 'Route not found')
     return

@@ -93,6 +93,14 @@ export function createApp(): Express {
   })
 
   app.use(express.json({ limit: JSON_BODY_LIMIT }));
+  // Express 5 leaves `req.body` undefined when no JSON body was sent; Express 4
+  // left `{}`, and every body parser here was written against that. Without this,
+  // a body-less POST /locations, /trips or /walls threw reading a field of
+  // undefined and answered 500 instead of the parser's 400 (#624).
+  app.use((req: Request, _res: Response, next: NextFunction) => {
+    req.body ??= {}
+    next()
+  });
 
   app.use(healthRouter);
 

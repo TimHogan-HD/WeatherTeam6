@@ -1,7 +1,18 @@
-import type { Response } from 'express'
+import type { Request, Response } from 'express'
 import { logger } from './logger.js'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * A named route parameter, or undefined. Express 5 types every param as
+ * `string | string[]` because a `*splat` matches as an array; no route here
+ * has one, so an array can only be a route changed under this reader, and it
+ * reads as absent (a 404 through `isUuid`), never as a joined string.
+ */
+export function routeParam(req: Request, name: string): string | undefined {
+  const value: unknown = req.params[name]
+  return typeof value === 'string' ? value : undefined
+}
 
 // Route params feed uuid columns; an unvalidated value makes Postgres throw
 // (22P02), turning a bad id into a 500 instead of a 404.

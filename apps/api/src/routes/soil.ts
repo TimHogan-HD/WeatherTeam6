@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from 'express'
 import { and, eq } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { locations } from '../db/schema.js'
-import { isUuid, sendServerError } from '../lib/http.js'
+import { isUuid, sendServerError, routeParam } from '../lib/http.js'
 import { servedSoilStation, soilReading } from '../lib/weather/soilReading.js'
 import { soilStationFor, type ApiResponse, type SoilReading } from '@weatherteam6/types'
 
@@ -14,7 +14,7 @@ export const soilRouter = Router()
  * upstream call; a Wisconet station needs `?basis=recent` (`servedSoilStation`). A failed read is a 200 with `answered: false`, never dry ground.
  */
 soilRouter.get('/soil/:locationId', async (req: Request, res: Response) => {
-  const locationId = req.params['locationId']
+  const locationId = routeParam(req, 'locationId')
   if (locationId === undefined || !isUuid(locationId)) {
     res.status(404).json({ data: null, error: 'Location not found', status: 404 })
     return

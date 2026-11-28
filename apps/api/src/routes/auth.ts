@@ -76,7 +76,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
     return
   }
 
-  // `express.json()` leaves req.body as {} for a non-JSON request, so both
+  // `createApp` sets req.body to {} for a non-JSON request, so both
   // fields simply read as absent. A missing body is a 400, not a 500.
   const body = req.body as { username?: unknown; passphrase?: unknown } | undefined
   const username = readCredential(body?.username)

@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from 'express'
 import { and, eq } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { locations, walls } from '../db/schema.js'
-import { MAX_NAME_LENGTH, isUuid, sendServerError } from '../lib/http.js'
+import { MAX_NAME_LENGTH, isUuid, sendServerError, routeParam } from '../lib/http.js'
 import type { ApiResponse, Wall, CreateWallInput } from '@weatherteam6/types'
 
 export const wallsRouter = Router()
@@ -24,7 +24,7 @@ function mapWall(row: WallRow): Wall {
 }
 
 wallsRouter.get('/walls/:locationId', async (req: Request, res: Response) => {
-  const locationId = req.params['locationId']
+  const locationId = routeParam(req, 'locationId')
   if (!locationId || !isUuid(locationId)) {
     const response: ApiResponse<null> = { data: null, error: 'Location not found', status: 404 }
     res.status(404).json(response)
@@ -99,7 +99,7 @@ wallsRouter.post('/walls', async (req: Request, res: Response) => {
 })
 
 wallsRouter.delete('/walls/:wallId', async (req: Request, res: Response) => {
-  const wallId = req.params['wallId']
+  const wallId = routeParam(req, 'wallId')
   if (!wallId || !isUuid(wallId)) {
     const response: ApiResponse<null> = { data: null, error: 'Wall not found', status: 404 }
     res.status(404).json(response)

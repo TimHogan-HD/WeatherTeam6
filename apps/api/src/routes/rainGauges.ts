@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from 'express'
 import { and, eq } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { locations } from '../db/schema.js'
-import { isUuid, sendServerError } from '../lib/http.js'
+import { isUuid, sendServerError, routeParam } from '../lib/http.js'
 import { rainGaugeReadings } from '../lib/weather/rainGauges.js'
 import { parseNumericRequired, type ApiResponse, type RainGaugeReadings } from '@weatherteam6/types'
 
@@ -16,7 +16,7 @@ export const rainGaugesRouter = Router()
  * says which gauge did not answer, never a dry week.
  */
 rainGaugesRouter.get('/rain-gauges/:locationId', async (req: Request, res: Response) => {
-  const locationId = req.params['locationId']
+  const locationId = routeParam(req, 'locationId')
   if (locationId === undefined || !isUuid(locationId)) {
     res.status(404).json({ data: null, error: 'Location not found', status: 404 })
     return

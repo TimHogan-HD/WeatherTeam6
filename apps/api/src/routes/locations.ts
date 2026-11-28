@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from 'express'
 import { and, eq } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { locations } from '../db/schema.js'
-import { MAX_NAME_LENGTH, isUuid, sendServerError } from '../lib/http.js'
+import { MAX_NAME_LENGTH, isUuid, sendServerError, routeParam } from '../lib/http.js'
 import { insertGeneralLocation } from '../lib/locations/createLocation.js'
 import { deleteLocationCascade } from '../lib/locations/deleteLocation.js'
 import { parseLocationUpdate, planLocationUpdate } from '../lib/locations/updateLocation.js'
@@ -203,7 +203,7 @@ locationsRouter.post('/locations', async (req: Request, res: Response) => {
  * trip memberships) in one transaction — see deleteLocationCascade.
  */
 locationsRouter.delete('/locations/:id', async (req: Request, res: Response) => {
-  const id = req.params['id']
+  const id = routeParam(req, 'id')
   if (!id || !isUuid(id)) {
     const response: ApiResponse<null> = { data: null, error: 'Location not found', status: 404 }
     res.status(404).json(response)
@@ -241,7 +241,7 @@ locationsRouter.delete('/locations/:id', async (req: Request, res: Response) => 
  * a write racing it reaches the same lock rather than undoing it.
  */
 locationsRouter.patch('/locations/:id', async (req: Request, res: Response) => {
-  const id = req.params['id']
+  const id = routeParam(req, 'id')
   if (!id || !isUuid(id)) {
     const response: ApiResponse<null> = { data: null, error: 'Location not found', status: 404 }
     res.status(404).json(response)
@@ -305,7 +305,7 @@ locationsRouter.patch('/locations/:id', async (req: Request, res: Response) => {
 })
 
 locationsRouter.get('/locations/:id', async (req: Request, res: Response) => {
-  const id = req.params['id']
+  const id = routeParam(req, 'id')
   if (!id || !isUuid(id)) {
     const response: ApiResponse<null> = { data: null, error: 'Location not found', status: 404 }
     res.status(404).json(response)

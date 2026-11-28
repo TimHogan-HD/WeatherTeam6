@@ -3,13 +3,13 @@ import { and, eq } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { locations } from '../db/schema.js'
 import { activeAlertsFor } from '../lib/alerts/activeAlerts.js'
-import { isUuid, sendServerError } from '../lib/http.js'
+import { isUuid, sendServerError, routeParam } from '../lib/http.js'
 import type { ApiResponse, WeatherAlert } from '@weatherteam6/types'
 
 export const alertsRouter = Router()
 
 alertsRouter.get('/alerts/:locationId', async (req: Request, res: Response) => {
-  const locationId = req.params['locationId']
+  const locationId = routeParam(req, 'locationId')
   if (!locationId) {
     res.status(400).json({ data: null, error: 'Missing locationId', status: 400 })
     return

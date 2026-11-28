@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from 'express'
 import { and, eq } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { locations } from '../db/schema.js'
-import { isUuid, sendServerError } from '../lib/http.js'
+import { isUuid, sendServerError, routeParam } from '../lib/http.js'
 import { getHourlySeries } from '../lib/runs/fetchHourlySeries.js'
 import { scoringLocationFor, type ScoringLocation } from '../lib/runs/scoringLocation.js'
 import { readerScoringFor } from '../lib/preferences/preferences.js'
@@ -26,7 +26,7 @@ export const hourlyRouter = Router()
  * the same distance, so a client showing them must show where each one stops.
  */
 hourlyRouter.get('/hourly/:locationId', async (req: Request, res: Response) => {
-  const locationId = req.params['locationId']
+  const locationId = routeParam(req, 'locationId')
   if (!locationId) {
     res.status(400).json({ data: null, error: 'Missing locationId', status: 400 })
     return

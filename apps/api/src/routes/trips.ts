@@ -12,7 +12,7 @@ import {
   tripDayVolunteerGauges,
   locations,
 } from '../db/schema.js'
-import { MAX_NAME_LENGTH, describeError, isIsoDate, isUuid, sendServerError } from '../lib/http.js'
+import { MAX_NAME_LENGTH, describeError, isIsoDate, isUuid, sendServerError, routeParam } from '../lib/http.js'
 import { logger } from '../lib/logger.js'
 import { fetchOutlook, type Outlook } from '../lib/weather/ensembleOutlook.js'
 import { summarizeTripOutlook } from '../lib/trips/tripOutlook.js'
@@ -173,7 +173,7 @@ tripsRouter.post('/trips', async (req: Request, res: Response) => {
 })
 
 tripsRouter.get('/trips/:tripId', async (req: Request, res: Response) => {
-  const tripId = req.params['tripId']
+  const tripId = routeParam(req, 'tripId')
   if (!tripId || !isUuid(tripId)) {
     const response: ApiResponse<null> = { data: null, error: 'Trip not found', status: 404 }
     res.status(404).json(response)
@@ -207,7 +207,7 @@ tripsRouter.get('/trips/:tripId', async (req: Request, res: Response) => {
 })
 
 tripsRouter.patch('/trips/:tripId', async (req: Request, res: Response) => {
-  const tripId = req.params['tripId']
+  const tripId = routeParam(req, 'tripId')
   if (!tripId || !isUuid(tripId)) {
     const response: ApiResponse<null> = { data: null, error: 'Trip not found', status: 404 }
     res.status(404).json(response)
@@ -246,7 +246,7 @@ tripsRouter.patch('/trips/:tripId', async (req: Request, res: Response) => {
 })
 
 tripsRouter.delete('/trips/:tripId', async (req: Request, res: Response) => {
-  const tripId = req.params['tripId']
+  const tripId = routeParam(req, 'tripId')
   if (!tripId || !isUuid(tripId)) {
     const response: ApiResponse<null> = { data: null, error: 'Trip not found', status: 404 }
     res.status(404).json(response)
@@ -294,7 +294,7 @@ tripsRouter.delete('/trips/:tripId', async (req: Request, res: Response) => {
 })
 
 tripsRouter.get('/trips/:tripId/forecast', async (req: Request, res: Response) => {
-  const tripId = req.params['tripId']
+  const tripId = routeParam(req, 'tripId')
   if (!tripId || !isUuid(tripId)) {
     const response: ApiResponse<null> = { data: null, error: 'Trip not found', status: 404 }
     res.status(404).json(response)
@@ -384,7 +384,7 @@ tripsRouter.get('/trips/:tripId/forecast', async (req: Request, res: Response) =
 })
 
 tripsRouter.get('/trips/:tripId/trend', async (req: Request, res: Response) => {
-  const tripId = req.params['tripId']
+  const tripId = routeParam(req, 'tripId')
   if (!tripId || !isUuid(tripId)) {
     const response: ApiResponse<null> = { data: null, error: 'Trip not found', status: 404 }
     res.status(404).json(response)
@@ -464,7 +464,7 @@ tripsRouter.get('/trips/:tripId/trend', async (req: Request, res: Response) => {
 })
 
 tripsRouter.get('/trips/:tripId/summary', async (req: Request, res: Response) => {
-  const tripId = req.params['tripId']
+  const tripId = routeParam(req, 'tripId')
   if (!tripId || !isUuid(tripId)) {
     const response: ApiResponse<null> = { data: null, error: 'Trip not found', status: 404 }
     res.status(404).json(response)

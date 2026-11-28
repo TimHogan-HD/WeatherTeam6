@@ -249,3 +249,47 @@ describe('response hardening', () => {
     expect(res.status).toBe(400)
   })
 })
+
+describe('a POST with no JSON body (Express 5, #624)', () => {
+  const original = {
+    secret: process.env['API_SHARED_SECRET'],
+    tokenSecret: process.env['AUTH_TOKEN_SECRET'],
+    userId: process.env['DEFAULT_USER_ID'],
+  }
+
+  beforeAll(() => {
+    process.env['API_SHARED_SECRET'] = 'test-secret'
+    process.env['AUTH_TOKEN_SECRET'] = 'test-token-secret'
+    process.env['DEFAULT_USER_ID'] = '00000000-0000-0000-0000-000000000001'
+  })
+
+  afterAll(() => {
+    for (const [key, value] of [
+      ['API_SHARED_SECRET', original.secret],
+      ['AUTH_TOKEN_SECRET', original.tokenSecret],
+      ['DEFAULT_USER_ID', original.userId],
+    ] as const) {
+      if (value === undefined) delete process.env[key]
+      else process.env[key] = value
+    }
+  })
+
+  // Express 5 leaves req.body undefined without a JSON body; these routes read a
+  // field of it before validating, and threw into the 500 handler. Both validate
+  // before any query, so a 400 here is the parser's answer, not a database's.
+  for (const path of ['/api/v1/trips', '/api/v1/walls']) {
+    for (const [label, init] of [
+      ['no body at all', {}],
+      ['a body that is not JSON', { headers: { 'Content-Type': 'text/plain' }, body: 'hello' }],
+    ] as const) {
+      it(`answers ${path} with 400, not 500, for ${label}`, async () => {
+        const res = await fetch(`${base}${path}`, {
+          method: 'POST',
+          ...init,
+          headers: { Authorization: 'Bearer test-secret', ...('headers' in init ? init.headers : {}) },
+        })
+        expect(res.status).toBe(400)
+      })
+    }
+  }
+})
