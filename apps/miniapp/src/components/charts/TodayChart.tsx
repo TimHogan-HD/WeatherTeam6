@@ -34,7 +34,7 @@ import { StreamIn } from './StreamIn.js'
  * clock (`chartWindow`) — drawn as the hybrid mockup's `todayChart` (owner,
  * 2026-10-19): the air temperature as a glowing line coloured by each hour's
  * score, the dew point dashed on the same °F scale (where the two meet, the
- * rock condenses), gridlines for that scale labelled at the right end, the
+ * air is saturated; the rock's own temperature is not drawn), gridlines for that scale labelled at the right end, the
  * chance of rain as filled capsules underneath, the sky every three hours along the top, and the hour's score under its label. Tap
  * or drag to read an hour; a chip above the plot, Hourly's a size up, follows it.
  *
